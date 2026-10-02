@@ -190,6 +190,15 @@
                                 WhatsApp
                             </a>
                             {% endif %}
+
+                            <!-- Botão Excluir Empresa -->
+                            <form method="POST" action="{{ url_for('admin_excluir_empresa', empresa_id=emp.id) }}" class="inline"
+                                onsubmit="return confirm('ATENÇÃO: Deseja realmente excluir a empresa \'{{ emp.nome_empresa }}\'? Todos os dados (clientes, OS e movimentações financeiras) desta empresa serão excluídos permanentemente!');">
+                                <button type="submit" title="Excluir empresa permanentemente"
+                                    class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 text-xs font-bold px-2 py-1.5 rounded-lg transition shadow-xs">
+                                    Excluir
+                                </button>
+                            </form>
                             {% else %}
                             <span class="text-xs text-slate-400 italic">Conta Principal</span>
                             {% endif %}

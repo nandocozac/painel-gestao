@@ -429,6 +429,44 @@ def admin_bloquear_empresa(empresa_id):
     return redirect(url_for('admin_empresas'))
 
 
+@app.route('/admin/empresa/<int:empresa_id>/excluir', methods=['POST'])
+@login_required
+@admin_required
+def admin_excluir_empresa(empresa_id):
+    emp = db.session.get(Empresa, empresa_id)
+    if not emp:
+        flash("Empresa não encontrada.", "error")
+        return redirect(url_for('admin_empresas'))
+
+    if emp.is_admin or emp.id == g.empresa.id:
+        flash("Não é permitido excluir a conta Master Admin principal!", "error")
+        return redirect(url_for('admin_empresas'))
+
+    nome = emp.nome_empresa
+
+    # 1. Excluir transações financeiras da empresa
+    Transacao.query.filter_by(empresa_id=emp.id).delete()
+
+    # 2. Excluir ordens de serviço (e seus itens de OS associados)
+    ordens = OrdemServico.query.filter_by(empresa_id=emp.id).all()
+    for os_item in ordens:
+        ItemOS.query.filter_by(os_id=os_item.id).delete()
+        db.session.delete(os_item)
+
+    # 3. Excluir veículos e clientes da empresa
+    clientes = Cliente.query.filter_by(empresa_id=emp.id).all()
+    for c in clientes:
+        Veiculo.query.filter_by(cliente_id=c.id).delete()
+        db.session.delete(c)
+
+    # 4. Excluir a própria empresa
+    db.session.delete(emp)
+    db.session.commit()
+
+    flash(f"A empresa '{nome}' e todos os seus registros foram excluídos com sucesso.", "success")
+    return redirect(url_for('admin_empresas'))
+
+
 # --- DASHBOARD ISOLADO POR EMPRESA ---
 
 @app.route('/')
