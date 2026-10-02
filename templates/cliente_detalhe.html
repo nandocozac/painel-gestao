@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Cliente: {{ cliente.nome }} | Painel de Gestão{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- BARRA SUPERIOR DO CLIENTE -->
+    <div
+        class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <a href="{{ url_for('lista_clientes') }}"
+                    class="text-xs text-slate-400 hover:text-slate-600 font-semibold">&larr; Clientes</a>
+                <span class="text-slate-300">/</span>
+                <span class="text-xs text-slate-500 font-semibold">Ficha Cadastral</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 mt-1">{{ cliente.nome }}</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Telefone: <strong class="text-slate-700">{{ cliente.telefone
+                    }}</strong></p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            {% set num_limpo = cliente.telefone|replace('(', '')|replace(')', '')|replace('-', '')|replace(' ', '') %}
+            <a href="https://wa.me/55{{ num_limpo }}" target="_blank"
+                class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition shadow-sm">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path
+                        d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z" />
+                </svg>
+                Conversar no WhatsApp
+            </a>
+        </div>
+    </div>
+
+    <!-- CARDS DE RESUMO -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">Histórico Financeiro</span>
+            <div class="text-2xl font-bold mt-2 text-emerald-600 font-mono">R$ {{ total_gasto|moeda }}</div>
+            <p class="text-[11px] text-slate-500 mt-1">Total investido em serviços concluídos</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">Total de Ordens</span>
+            <div class="text-2xl font-bold mt-2 text-slate-900 font-mono">{{ historico_os|length }}</div>
+            <p class="text-[11px] text-slate-500 mt-1">Atendimentos abertos e fechados</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">Veículos Cadastrados</span>
+            <div class="text-2xl font-bold mt-2 text-slate-900 font-mono">{{ cliente.veiculos|length }}</div>
+            <p class="text-[11px] text-slate-500 mt-1">Ativos associados a este cliente</p>
+        </div>
+    </div>
+
+    <!-- TABELA DE ATENDIMENTOS DO CLIENTE -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-4 border-b border-slate-200 bg-slate-50/50">
+            <h2 class="text-sm font-bold text-slate-800">Histórico de Atendimentos</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead
+                    class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3 px-4"># OS</th>
+                        <th class="py-3 px-4">Abertura</th>
+                        <th class="py-3 px-4">Veículo</th>
+                        <th class="py-3 px-4">Problema / Serviço</th>
+                        <th class="py-3 px-4">Status</th>
+                        <th class="py-3 px-4 text-right">Valor Total</th>
+                        <th class="py-3 px-4 text-right">Ação</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for os in historico_os %}
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-3.5 px-4 font-mono font-bold text-slate-900">#{{ "%04d"|format(os.id) }}</td>
+                        <td class="py-3.5 px-4 text-xs text-slate-600">{{ os.data_abertura|data_br }}</td>
+                        <td class="py-3.5 px-4">
+                            {% if os.veiculo %}
+                            <span class="text-slate-800 font-medium block">{{ os.veiculo.modelo }}</span>
+                            <span class="text-xs font-mono font-semibold text-slate-500 uppercase">{{ os.veiculo.placa
+                                }}</span>
+                            {% else %}
+                            <span class="text-xs text-slate-400 italic">Sem ativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-4 text-xs text-slate-600 max-w-xs truncate">
+                            {{ os.descricao_problema }}
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <span
+                                class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold {% if os.status == 'CONCLUIDA' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                {{ os.status }}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-4 text-right font-mono font-semibold text-slate-900">
+                            R$ {{ os.valor_total|moeda }}
+                        </td>
+                        <td class="py-3.5 px-4 text-right">
+                            <a href="{{ url_for('ver_os', os_id=os.id) }}"
+                                class="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline">
+                                Ver OS &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-slate-400 text-xs">
+                            Nenhuma ordem de serviço registrada para este cliente.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

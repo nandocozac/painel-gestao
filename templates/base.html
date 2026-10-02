@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Painel de Gestão{% endblock %}</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+                color: black !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col font-sans antialiased">
+
+    <!-- Barra de Navegação Superior (Oculta na Impressão) -->
+    <header class="bg-slate-900 text-white shadow-md border-b border-slate-800 no-print sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+
+                <!-- Marca / Logótipo -->
+                <div class="flex items-center gap-3">
+                    <a href="{{ url_for('dashboard') }}"
+                        class="flex items-center gap-2.5 font-bold text-lg tracking-wide hover:text-blue-400 transition">
+                        <img src="{{ url_for('static', filename=empresa.logo_filename or 'logo.png') }}" alt="{{ empresa.nome_empresa }}"
+                            class="h-9 w-auto max-w-[140px] object-contain rounded"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                        <!-- Fallback visual caso o ficheiro logo ainda não tenha sido colocado na pasta static -->
+                        <span
+                            class="hidden items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white font-mono text-base font-extrabold shadow-sm">
+                            {{ empresa.nome_empresa[:2]|upper }}
+                        </span>
+                        <span>{{ empresa.nome_empresa }}</span>
+                    </a>
+                </div>
+
+                <!-- Links de Navegação Desktop -->
+                <nav class="hidden md:flex items-center gap-5 text-sm font-medium">
+                    {% if empresa %}
+                    <a href="{{ url_for('dashboard') }}" class="text-slate-300 hover:text-white transition">
+                        Dashboard
+                    </a>
+                    <a href="{{ url_for('lista_os') }}" class="text-slate-300 hover:text-white transition">
+                        Ordens de Serviço
+                    </a>
+                    <a href="{{ url_for('lista_clientes') }}" class="text-slate-300 hover:text-white transition">
+                        Clientes
+                    </a>
+                    <a href="{{ url_for('relatorio_financeiro') }}" class="text-slate-300 hover:text-white transition">
+                        Caixa & Faturação
+                    </a>
+                    <a href="{{ url_for('retornos_preventivos') }}" class="text-slate-300 hover:text-white transition">
+                        Retornos
+                    </a>
+                    <a href="{{ url_for('configuracoes_empresa') }}" class="text-slate-300 hover:text-white transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Empresa
+                    </a>
+
+                    {% if empresa.is_admin %}
+                    <a href="{{ url_for('admin_empresas') }}" class="text-indigo-300 hover:text-white transition flex items-center gap-1.5 bg-indigo-900/60 px-3 py-1.5 rounded-lg border border-indigo-700/60 text-xs font-bold shadow-xs">
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        Painel Master
+                    </a>
+                    {% endif %}
+
+                    <a href="{{ url_for('nova_os') }}"
+                        class="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3.5 py-1.5 rounded-lg shadow-sm text-xs uppercase tracking-wider transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Nova OS
+                    </a>
+                    <!-- Botão Sair -->
+                    <a href="{{ url_for('logout') }}" title="Sair da Conta"
+                        class="text-slate-400 hover:text-rose-400 transition p-1.5 rounded-lg hover:bg-slate-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('login') }}" class="text-slate-300 hover:text-white transition">Entrar</a>
+                    <a href="{{ url_for('cadastro') }}" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Criar Conta</a>
+                    {% endif %}
+                </nav>
+
+                <!-- Menu Mobile (Links Rápidos) -->
+                <div class="flex md:hidden items-center gap-2.5 text-xs">
+                    {% if empresa %}
+                    {% if empresa.is_admin %}
+                    <a href="{{ url_for('admin_empresas') }}" class="text-indigo-400 font-bold">Master</a>
+                    {% endif %}
+                    <a href="{{ url_for('lista_os') }}" class="text-slate-300 hover:text-white">OSs</a>
+                    <a href="{{ url_for('relatorio_financeiro') }}" class="text-slate-300 hover:text-white">Caixa</a>
+                    <a href="{{ url_for('configuracoes_empresa') }}" class="text-slate-300 hover:text-white">Empresa</a>
+                    <a href="{{ url_for('nova_os') }}"
+                        class="bg-blue-600 text-white font-semibold px-2 py-1 rounded text-xs">
+                        + OS
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="text-slate-400 hover:text-rose-400 p-1" title="Sair">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('login') }}" class="text-slate-300">Entrar</a>
+                    <a href="{{ url_for('cadastro') }}" class="bg-blue-600 text-white px-2 py-1 rounded">Cadastrar</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Notificações e Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mb-5 space-y-2 no-print">
+            {% for category, message in messages %}
+            <div
+                class="p-3.5 rounded-lg text-sm font-medium border shadow-sm {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-800{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Bloco de Conteúdo Específico das Páginas -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Rodapé (Oculto na Impressão) -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 no-print mt-auto">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>Painel Interno de Gestão e Ordens de Serviço &copy; 2026.</span>
+            <div>
+                <a href="{{ url_for('backup_banco') }}"
+                    class="text-blue-600 hover:text-blue-800 font-semibold hover:underline inline-flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Fazer Backup da Base de Dados (.db)
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- SCRIPTS DE FORMATAÇÃO E MÁSCARAS -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Máscara de Telefone / WhatsApp: (XX) XXXXX-XXXX
+            document.querySelectorAll('input[name*="telefone"]').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    let v = e.target.value.replace(/\D/g, '');
+                    if (v.length > 11) v = v.substring(0, 11);
+                    if (v.length > 10) {
+                        e.target.value = v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+                    } else if (v.length > 6) {
+                        e.target.value = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+                    } else if (v.length > 2) {
+                        e.target.value = v.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+                    } else {
+                        e.target.value = v;
+                    }
+                });
+            });
+
+            // 2. Máscara de Placa de Veículo (Mercosul e Tradicional em Maiúsculas)
+            document.querySelectorAll('input[name*="placa"]').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    if (v.length > 7) v = v.substring(0, 7);
+
+                    if (/^[A-Z]{3}\d{4}$/.test(v)) {
+                        e.target.value = v.substring(0, 3) + '-' + v.substring(3);
+                    } else {
+                        e.target.value = v;
+                    }
+                });
+            });
+
+            // 3. Formatação simples de Moeda para campos de valores
+            document.querySelectorAll('input[name*="valor"]').forEach(input => {
+                input.addEventListener('blur', (e) => {
+                    let v = e.target.value.trim().replace('.', '').replace(',', '.');
+                    let num = parseFloat(v);
+                    if (!isNaN(num) && num > 0) {
+                        e.target.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

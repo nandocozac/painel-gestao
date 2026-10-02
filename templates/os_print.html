@@ -1,0 +1,519 @@
+{% extends 'base.html' %}
+{% block title %}OS #{{ "%04d"|format(os.id) }} - {{ os.cliente.nome }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- BARRA SUPERIOR DE AÇÕES (NO-PRINT) -->
+    <div
+        class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm no-print">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('lista_os') }}"
+                class="text-xs font-semibold text-slate-500 hover:text-slate-800 transition flex items-center gap-1">
+                &larr; Voltar à Lista
+            </a>
+            <span class="text-slate-300">|</span>
+            <span
+                class="text-xs uppercase font-bold px-2.5 py-1 rounded-full {% if os.status == 'CONCLUIDA' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                Status: {{ os.status }}
+            </span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            {% if os.status == 'CONCLUIDA' %}
+            <!-- Botão de Reabrir OS para Edição -->
+            <form method="POST" action="{{ url_for('reabrir_os', os_id=os.id) }}"
+                onsubmit="return confirm('Deseja reabrir esta OS para edição? O valor lançado no caixa será estornado para que você possa corrigir os itens.');"
+                class="inline">
+                <button type="submit"
+                    class="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Reabrir / Editar OS
+                </button>
+                        {% set fone_limpo = os.cliente.telefone|fone_whatsapp %}
+            {% set veiculo_info = (os.veiculo.modelo ~ " (" ~ os.veiculo.placa ~ ")") if os.veiculo else "veículo" %}
+            {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu " ~ veiculo_info ~ " está pronto na oficina! O total da OS #" ~ ("%04d"|format(os.id)) ~ " com todas as peças e serviços detalhados foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o documento em PDF com todo o descritivo dos serviços e peças aplicadas. Aguardamos você para retirada! - " ~ empresa.nome_empresa %}
+            
+            <button type="button" onclick="baixarPdfEAbrirWhatsApp(this)" data-wa-url="https://wa.me/{{ fone_limpo }}?text={{ msg|urlencode }}"
+                class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-sm">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path
+                        d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z" />
+                </svg>
+                <span>Enviar PDF no WhatsApp</span>
+            </button>
+
+            <button type="button" onclick="baixarPdfDireto(this)"
+                class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3.5 py-2 rounded-lg transition border border-slate-300 shadow-xs">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Baixar PDF</span>
+            </button>
+            {% endif %}
+
+            <button onclick="window.print()"
+                class="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Imprimir Documento
+            </button>
+        </div>
+    </div>
+
+    <!-- FOLHA OFICIAL DA ORDEM DE SERVIÇO -->
+    <div id="folha-os"
+        class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 print:border-none print:shadow-none print:p-0">
+
+        <!-- Cabeçalho com Logótipo Oficial -->
+        <div class="flex justify-between items-start border-b border-slate-200 pb-5">
+            <div class="flex items-center gap-4">
+                <img src="{{ url_for('static', filename=empresa.logo_filename or 'logo.png') }}" alt="{{ empresa.nome_empresa }}"
+                    class="h-16 w-auto max-w-[160px] object-contain" onerror="this.style.display='none';">
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-slate-900">{{ empresa.nome_empresa }}</h1>
+                    {% if empresa.subtitulo %}
+                    <p class="text-xs text-slate-500 mt-0.5">{{ empresa.subtitulo }}</p>
+                    {% endif %}
+                    <div class="flex flex-wrap gap-x-3 text-xs text-slate-500 mt-1">
+                        {% if empresa.cnpj_cpf %}<span><strong>CNPJ/CPF:</strong> {{ empresa.cnpj_cpf }}</span>{% endif %}
+                        {% if empresa.telefone %}<span><strong>Tel:</strong> {{ empresa.telefone }}</span>{% endif %}
+                        {% if empresa.whatsapp %}<span><strong>WhatsApp:</strong> {{ empresa.whatsapp }}</span>{% endif %}
+                    </div>
+                    {% if empresa.endereco %}
+                    <p class="text-xs text-slate-500 mt-0.5">{{ empresa.endereco }}{% if empresa.cidade_uf %} - {{ empresa.cidade_uf }}{% endif %}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block">Número da OS</span>
+                <span class="text-2xl font-mono font-black text-blue-600">#{{ "%04d"|format(os.id) }}</span>
+                <span class="text-xs text-slate-500 block mt-1">Abertura: {{ os.data_abertura|data_br }}</span>
+                {% if os.data_conclusao %}
+                <span class="text-xs text-emerald-600 font-semibold block">Fechamento: {{ os.data_conclusao|data_br
+                    }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Cliente e Veículo -->
+        <div
+            class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Dados do Cliente</h2>
+                <p class="text-sm font-bold text-slate-800">{{ os.cliente.nome }}</p>
+                <p class="text-xs text-slate-600 mt-0.5">Telefone: {{ os.cliente.telefone }}</p>
+            </div>
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Identificação do Veículo</h2>
+                {% if os.veiculo %}
+                <p class="text-sm font-bold text-slate-800">{{ os.veiculo.modelo }}</p>
+                <p class="text-xs font-mono font-semibold text-slate-600 mt-0.5">Placa: {{ os.veiculo.placa }}</p>
+                {% else %}
+                <p class="text-sm italic text-slate-400">Não informado</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Problema Relatado na Entrada -->
+        <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Problema Relatado na Entrada
+            </h2>
+            <div
+                class="p-3.5 bg-slate-50 rounded-lg text-sm text-slate-700 border border-slate-100 print:bg-white print:border-slate-300">
+                {{ os.descricao_problema }}
+            </div>
+        </div>
+
+        <!-- TABELAS DE ITENS DETALHADOS -->
+        {% if os.itens %}
+        <div class="space-y-4">
+            <!-- Tabela de Peças -->
+            {% set pecas = os.itens|selectattr('tipo', 'equalto', 'PECA')|list %}
+            {% if pecas %}
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Peças e Materiais Aplicados
+                </h2>
+                <table class="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
+                    <thead class="bg-slate-100 text-slate-600 uppercase font-semibold">
+                        <tr>
+                            <th class="py-2.5 px-3">Item / Peça</th>
+                            <th class="py-2.5 px-3 text-center w-20">Qtd</th>
+                            <th class="py-2.5 px-3 text-right w-28">Valor Unit.</th>
+                            <th class="py-2.5 px-3 text-right w-28">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        {% for item in pecas %}
+                        <tr>
+                            <td class="py-2.5 px-3 text-slate-800 font-medium">{{ item.descricao }}</td>
+                            <td class="py-2.5 px-3 text-center text-slate-600 font-mono">{{
+                                "%0.0f"|format(item.quantidade) if item.quantidade == item.quantidade|int else
+                                item.quantidade }}</td>
+                            <td class="py-2.5 px-3 text-right font-mono text-slate-600">R$ {{ item.valor_unitario|moeda
+                                }}</td>
+                            <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">R$ {{
+                                item.subtotal|moeda }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Tabela de Serviços -->
+            {% set servicos = os.itens|selectattr('tipo', 'equalto', 'SERVICO')|list %}
+            {% if servicos %}
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Serviços e Mão de Obra
+                    Executada</h2>
+                <table class="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
+                    <thead class="bg-slate-100 text-slate-600 uppercase font-semibold">
+                        <tr>
+                            <th class="py-2.5 px-3">Descrição do Serviço</th>
+                            <th class="py-2.5 px-3 text-center w-20">Qtd / Horas</th>
+                            <th class="py-2.5 px-3 text-right w-28">Valor Unit.</th>
+                            <th class="py-2.5 px-3 text-right w-28">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        {% for item in servicos %}
+                        <tr>
+                            <td class="py-2.5 px-3 text-slate-800 font-medium">{{ item.descricao }}</td>
+                            <td class="py-2.5 px-3 text-center text-slate-600 font-mono">{{
+                                "%0.0f"|format(item.quantidade) if item.quantidade == item.quantidade|int else
+                                item.quantidade }}</td>
+                            <td class="py-2.5 px-3 text-right font-mono text-slate-600">R$ {{ item.valor_unitario|moeda
+                                }}</td>
+                            <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">R$ {{
+                                item.subtotal|moeda }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Observações do Fechamento -->
+        {% if os.servico_executado %}
+        <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Parecer Técnico / Observações
+                Finais</h2>
+            <div
+                class="p-3.5 bg-slate-50 rounded-lg text-sm text-slate-700 border border-slate-100 print:bg-white print:border-slate-300">
+                {{ os.servico_executado }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Fechamento de Totais da OS -->
+        {% if os.status == 'CONCLUIDA' %}
+        <div class="border-t border-slate-200 pt-4 flex justify-between items-end">
+            <div class="text-xs text-slate-500">
+                Forma de Pagamento: <strong class="text-slate-800 uppercase font-mono">{{ os.forma_pagamento or 'Não
+                    Informado' }}</strong>
+            </div>
+            <div class="w-full sm:w-72 space-y-1.5 text-sm">
+                <div class="flex justify-between text-slate-600">
+                    <span>Total em Peças:</span>
+                    <span class="font-mono">R$ {{ os.valor_pecas|moeda }}</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>Total de Serviços:</span>
+                    <span class="font-mono">R$ {{ os.valor_mao_obra|moeda }}</span>
+                </div>
+                <div class="flex justify-between border-t border-slate-200 pt-2 font-bold text-base text-slate-900">
+                    <span>Valor Total Geral:</span>
+                    <span class="font-mono text-emerald-600">R$ {{ os.valor_total|moeda }}</span>
+                </div>
+                {% if os.retorno_previsto %}
+                <div class="text-[11px] text-right text-slate-500 pt-1">
+                    Próxima revisão preventiva sugerida: <strong class="text-slate-700">{{ os.retorno_previsto|data_br
+                        }}</strong>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Assinaturas (Impressão) -->
+        <div class="hidden print:grid grid-cols-2 gap-10 pt-16 mt-8 border-t border-slate-200 text-center text-xs">
+            <div>
+                <div class="border-t border-slate-400 mx-auto w-3/4 mb-1"></div>
+                <p class="font-semibold text-slate-800">Assinatura do Cliente</p>
+                <p class="text-[10px] text-slate-500">Declaro aprovação e recebimento dos itens listados acima.</p>
+            </div>
+            <div>
+                <div class="border-t border-slate-400 mx-auto w-3/4 mb-1"></div>
+                <p class="font-semibold text-slate-800">Responsável Técnico</p>
+                <p class="text-[10px] text-slate-500">{{ empresa.mensagem_rodape or 'Garantia legal de 90 dias sobre peças e serviços aplicados.' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORMULÁRIO DE FECHAMENTO COM TABELA DINÂMICA (NO-PRINT) -->
+    {% if os.status == 'ABERTA' %}
+    <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm no-print space-y-6">
+        <div>
+            <h2 class="text-base font-bold text-slate-900">Conclusão do Atendimento e Discriminação Detalhada</h2>
+            <p class="text-xs text-slate-500">Adicione os materiais trocados e a mão de obra aplicada com total clareza
+                para o cliente.</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('concluir_os', os_id=os.id) }}" class="space-y-6">
+
+            <!-- 1. BLOCO DE PEÇAS / INSUMOS -->
+            <div class="space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">1. Peças e Insumos
+                        Utilizados</span>
+                    <button type="button" onclick="adicionarLinha('container-pecas', 'peca')"
+                        class="text-xs font-semibold text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
+                        + Adicionar Peça
+                    </button>
+                </div>
+
+                <div id="container-pecas" class="space-y-2">
+                    <div class="grid grid-cols-12 gap-2 items-center linha-item">
+                        <div class="col-span-6 sm:col-span-7">
+                            <input type="text" name="peca_nome[]"
+                                placeholder="Nome da peça (ex: Bieleta Dianteira Direita)"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="col-span-2 sm:col-span-2">
+                            <input type="number" step="any" name="peca_qtd[]" value="1" placeholder="Qtd"
+                                oninput="atualizarTotais()"
+                                class="w-full border border-slate-300 rounded-lg px-2 py-2 text-xs text-center text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="col-span-3 sm:col-span-2">
+                            <input type="text" name="peca_valor[]" placeholder="0,00" oninput="atualizarTotais()"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="col-span-1 text-center">
+                            <button type="button" onclick="removerLinha(this)"
+                                class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. BLOCO DE MÃO DE OBRA / SERVIÇOS -->
+            <div class="space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">2. Serviços / Mão de
+                        Obra</span>
+                    <button type="button" onclick="adicionarLinha('container-servicos', 'servico')"
+                        class="text-xs font-semibold text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
+                        + Adicionar Serviço
+                    </button>
+                </div>
+
+                <div id="container-servicos" class="space-y-2">
+                    <div class="grid grid-cols-12 gap-2 items-center linha-item">
+                        <div class="col-span-6 sm:col-span-7">
+                            <input type="text" name="servico_nome[]"
+                                placeholder="Descrição do serviço (ex: Troca de bieletas e revisão da barra)"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="col-span-2 sm:col-span-2">
+                            <input type="number" step="any" name="servico_qtd[]" value="1" placeholder="Qtd"
+                                oninput="atualizarTotais()"
+                                class="w-full border border-slate-300 rounded-lg px-2 py-2 text-xs text-center text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="col-span-3 sm:col-span-2">
+                            <input type="text" name="servico_valor[]" placeholder="0,00" oninput="atualizarTotais()"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="col-span-1 text-center">
+                            <button type="button" onclick="removerLinha(this)"
+                                class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. OBSERVAÇÕES E FORMA DE PAGAMENTO -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Parecer Técnico / Observações
+                        Gerais</label>
+                    <textarea name="servico_executado" rows="2"
+                        placeholder="Ex: Teste de rodagem aprovado, reaperto geral da suspensão dianteira..."
+                        class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Forma de Pagamento *</label>
+                    <select name="forma_pagamento"
+                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Pix">Pix</option>
+                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <option value="Cartão de Débito">Cartão de Débito</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Boleto / Faturado">Boleto / Faturado</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- BARRA DE TOTAIS EM TEMPO REAL -->
+            <div
+                class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex gap-6 text-xs text-slate-600 font-medium">
+                    <span>Total Peças: <strong id="lbl-pecas" class="font-mono text-slate-900">R$ 0,00</strong></span>
+                    <span>Total Serviços: <strong id="lbl-servicos" class="font-mono text-slate-900">R$
+                            0,00</strong></span>
+                    <span class="text-sm">Total Geral: <strong id="lbl-total"
+                            class="font-mono text-emerald-600 text-base">R$ 0,00</strong></span>
+                </div>
+
+                <button type="submit"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2.5 rounded-lg shadow-sm transition">
+                    Concluir Serviço & Lançar no Caixa
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- JAVASCRIPT DE CÁLCULO E ADIÇÃO DINÂMICA DE LINHAS -->
+<script>
+    function parseMoeda(str) {
+        if (!str) return 0;
+        let limpo = str.toString().replace('.', '').replace(',', '.').trim();
+        let val = parseFloat(limpo);
+        return isNaN(val) ? 0 : val;
+    }
+
+    function formatMoeda(val) {
+        return 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function atualizarTotais() {
+        let totalPecas = 0;
+        let totalServicos = 0;
+
+        document.querySelectorAll('#container-pecas .linha-item').forEach(linha => {
+            let qtd = parseMoeda(linha.querySelector('input[name="peca_qtd[]"]').value) || 1;
+            let val = parseMoeda(linha.querySelector('input[name="peca_valor[]"]').value);
+            totalPecas += (qtd * val);
+        });
+
+        document.querySelectorAll('#container-servicos .linha-item').forEach(linha => {
+            let qtd = parseMoeda(linha.querySelector('input[name="servico_qtd[]"]').value) || 1;
+            let val = parseMoeda(linha.querySelector('input[name="servico_valor[]"]').value);
+            totalServicos += (qtd * val);
+        });
+
+        document.getElementById('lbl-pecas').innerText = formatMoeda(totalPecas);
+        document.getElementById('lbl-servicos').innerText = formatMoeda(totalServicos);
+        document.getElementById('lbl-total').innerText = formatMoeda(totalPecas + totalServicos);
+    }
+
+    function adicionarLinha(containerId, tipo) {
+        let container = document.getElementById(containerId);
+        let placeholderNome = tipo === 'peca' ? 'Nome da peça...' : 'Descrição do serviço...';
+        let prefixo = tipo === 'peca' ? 'peca' : 'servico';
+
+        let div = document.createElement('div');
+        div.className = 'grid grid-cols-12 gap-2 items-center linha-item';
+        div.innerHTML = `
+            <div class="col-span-6 sm:col-span-7">
+                <input type="text" name="${prefixo}_nome[]" placeholder="${placeholderNome}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="col-span-2 sm:col-span-2">
+                <input type="number" step="any" name="${prefixo}_qtd[]" value="1" placeholder="Qtd" oninput="atualizarTotais()" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-xs text-center text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="col-span-3 sm:col-span-2">
+                <input type="text" name="${prefixo}_valor[]" placeholder="0,00" oninput="atualizarTotais()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="col-span-1 text-center">
+                <button type="button" onclick="removerLinha(this)" class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+            </div>
+        `;
+        container.appendChild(div);
+    }
+
+    function removerLinha(btn) {
+        let linha = btn.closest('.linha-item');
+        let container = linha.parentElement;
+        if (container.querySelectorAll('.linha-item').length > 1) {
+            linha.remove();
+        } else {
+            linha.querySelectorAll('input').forEach(i => i.value = '');
+        }
+        atualizarTotais();
+    }
+
+    // --- GERAÇÃO DE PDF E ENVIO WHATSAPP ---
+    function gerarPdfConfig() {
+        const elemento = document.getElementById('folha-os');
+        return {
+            elemento: elemento,
+            opt: {
+                margin: [8, 8, 8, 8],
+                filename: 'OS_{{ "%04d"|format(os.id) }}_{{ os.cliente.nome|replace(" ", "_") }}.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }
+        };
+    }
+
+    function baixarPdfEAbrirWhatsApp(btn) {
+        const waUrl = btn.getAttribute('data-wa-url');
+        if (waUrl) {
+            window.open(waUrl, '_blank');
+        }
+
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = `
+            <svg class="w-4 h-4 animate-spin inline" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Gerando PDF...</span>
+        `;
+        btn.disabled = true;
+
+        const { elemento, opt } = gerarPdfConfig();
+        html2pdf().set(opt).from(elemento).save().then(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }).catch(err => {
+            console.error('Erro ao gerar PDF:', err);
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    }
+
+    function baixarPdfDireto(btn) {
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = `
+            <svg class="w-4 h-4 animate-spin text-slate-500 inline" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Baixando...</span>
+        `;
+        btn.disabled = true;
+
+        const { elemento, opt } = gerarPdfConfig();
+        html2pdf().set(opt).from(elemento).save().then(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }).catch(err => {
+            console.error('Erro ao gerar PDF:', err);
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    }
+</script>
+<script src="{{ url_for('static', filename='js/html2pdf.bundle.min.js') }}"></script>
+{% endblock %}

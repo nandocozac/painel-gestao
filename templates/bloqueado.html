@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Pendente / Assinatura | Painel de Gestão</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-xl">
+
+        <!-- Card de Bloqueio / Planos de Pagamento -->
+        <div class="bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl p-6 sm:p-8 text-center space-y-6">
+
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+
+            <div>
+                <span class="inline-block px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-semibold rounded-full uppercase tracking-wider mb-2">
+                    {% if empresa.status_assinatura == 'PENDENTE' %}Aguardando Ativação{% else %}Assinatura Expirada / Bloqueada{% endif %}
+                </span>
+                <h1 class="text-2xl font-black text-white">Olá, {{ empresa.nome_empresa }}!</h1>
+                <p class="text-xs text-slate-400 mt-2">
+                    {% if empresa.status_assinatura == 'PENDENTE' %}
+                    Sua conta foi criada com sucesso! Escolha um dos planos abaixo e faça o Pix para liberar seu acesso imediato.
+                    {% else %}
+                    Sua assinatura expirou. Escolha um dos planos para renovar seu acesso e continuar emitindo ordens de serviço.
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- OPÇÕES DE PLANOS (MENSAL E ANUAL) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                <!-- Plano Mensal -->
+                <div onclick="selecionarPlano('Mensal', '29,90')" id="card-mensal"
+                    class="border-2 border-slate-700 bg-slate-900/80 hover:border-slate-500 rounded-2xl p-4 cursor-pointer transition relative">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold uppercase text-slate-300">Plano Mensal</span>
+                        <input type="radio" name="plano" id="radio-mensal" checked class="text-blue-600">
+                    </div>
+                    <div class="text-xl font-black text-white">R$ {{ (master_empresa.valor_mensalidade or 29.90)|moeda }} <span class="text-xs font-normal text-slate-400">/ mês</span></div>
+                    <p class="text-[11px] text-slate-400 mt-1">Acesso garantido por 30 dias</p>
+                </div>
+
+                <!-- Plano Anual (Destaque) -->
+                <div onclick="selecionarPlano('Anual', '249,90')" id="card-anual"
+                    class="border-2 border-indigo-500 bg-indigo-950/40 rounded-2xl p-4 cursor-pointer transition relative">
+                    <span class="absolute -top-2.5 right-3 bg-indigo-600 text-white text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full shadow-sm">
+                        Economize R$ 108!
+                    </span>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold uppercase text-indigo-300">Plano Anual</span>
+                        <input type="radio" name="plano" id="radio-anual" class="text-indigo-600">
+                    </div>
+                    <div class="text-xl font-black text-white">R$ {{ (master_empresa.valor_anual or 249.90)|moeda }} <span class="text-xs font-normal text-slate-400">/ ano</span></div>
+                    <p class="text-[11px] text-indigo-200 mt-1">12 meses de acesso sem se preocupar</p>
+                </div>
+            </div>
+
+            <!-- Box com Chave Pix do Administrador Master -->
+            <div class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 text-left space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Dados para Pagamento Pix</span>
+                    <span id="label-valor-pix" class="text-sm font-black text-emerald-400">R$ {{ (master_empresa.valor_mensalidade or 29.90)|moeda }}</span>
+                </div>
+
+                {% if master_empresa and master_empresa.chave_pix %}
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-400 mb-1">Chave Pix:</label>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="chave-pix" value="{{ master_empresa.chave_pix }}" readonly
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white select-all outline-none">
+                        <button type="button" onclick="copiarPix()"
+                            class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition shrink-0">
+                            Copiar
+                        </button>
+                    </div>
+                </div>
+
+                {% if master_empresa.titular_pix %}
+                <p class="text-xs text-slate-400">
+                    <strong class="text-slate-300">Titular:</strong> {{ master_empresa.titular_pix }}
+                </p>
+                {% endif %}
+                {% else %}
+                <p class="text-xs text-slate-400 italic">
+                    Chave Pix padrão: nandocozac@gmail.com (Fernando Cozac)
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Botão de Envio de Comprovante no WhatsApp -->
+            {% set whatsapp_destino = (master_empresa.whatsapp if (master_empresa and master_empresa.whatsapp) else '62994941212')|fone_whatsapp %}
+            
+            <div class="space-y-3 pt-2">
+                <a id="btn-whatsapp" href="#" target="_blank"
+                    class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2 text-sm">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z" />
+                    </svg>
+                    <span>Enviar Comprovante no WhatsApp</span>
+                </a>
+
+                <a href="{{ url_for('logout') }}"
+                    class="inline-block text-xs text-slate-400 hover:text-rose-400 font-medium transition">
+                    Sair da Conta
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const nomeEmpresa = {{ empresa.nome_empresa|tojson }};
+        const emailEmpresa = {{ empresa.email|tojson }};
+        const foneDestino = {{ whatsapp_destino|tojson }};
+
+        let planoEscolhido = 'Mensal';
+        let valorEscolhido = '{{ (master_empresa.valor_mensalidade or 29.90)|moeda }}';
+
+        function atualizarBotaoWa() {
+            const texto = `Olá! Sou da empresa ${nomeEmpresa} (E-mail: ${emailEmpresa}). Acabei de efetuar o pagamento via Pix de R$ ${valorEscolhido} referente ao Plano ${planoEscolhido}. Segue o comprovante para ativação do meu acesso!`;
+            const url = `https://wa.me/${foneDestino}?text=${encodeURIComponent(texto)}`;
+            document.getElementById('btn-whatsapp').href = url;
+            document.getElementById('label-valor-pix').innerText = `R$ ${valorEscolhido}`;
+        }
+
+        function selecionarPlano(plano, valor) {
+            planoEscolhido = plano;
+            valorEscolhido = valor;
+
+            if (plano === 'Mensal') {
+                document.getElementById('radio-mensal').checked = true;
+                document.getElementById('radio-anual').checked = false;
+                document.getElementById('card-mensal').classList.add('border-indigo-500', 'bg-indigo-950/30');
+                document.getElementById('card-mensal').classList.remove('border-slate-700', 'bg-slate-900/80');
+                document.getElementById('card-anual').classList.remove('border-indigo-500', 'bg-indigo-950/40');
+                document.getElementById('card-anual').classList.add('border-slate-700', 'bg-slate-900/80');
+            } else {
+                document.getElementById('radio-mensal').checked = false;
+                document.getElementById('radio-anual').checked = true;
+                document.getElementById('card-anual').classList.add('border-indigo-500', 'bg-indigo-950/40');
+                document.getElementById('card-anual').classList.remove('border-slate-700', 'bg-slate-900/80');
+                document.getElementById('card-mensal').classList.remove('border-indigo-500', 'bg-indigo-950/30');
+                document.getElementById('card-mensal').classList.add('border-slate-700', 'bg-slate-900/80');
+            }
+            atualizarBotaoWa();
+        }
+
+        function copiarPix() {
+            const input = document.getElementById('chave-pix');
+            input.select();
+            document.execCommand('copy');
+            alert('Chave Pix copiada com sucesso!');
+        }
+
+        atualizarBotaoWa();
+    </script>
+
+</body>
+</html>

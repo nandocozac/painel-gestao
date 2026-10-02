@@ -1,0 +1,107 @@
+< !DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>OS #{{ os.id }
+}
+
+</title><script src="https://cdn.tailwindcss.com"></script><style>@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        font-size: 12pt;
+        color: #000;
+    }
+
+    .print-border {
+        border: 1px solid #333 !important;
+    }
+}
+
+</style></head><body class="bg-gray-50 p-6"><div class="max-w-3xl mx-auto bg-white p-8 rounded shadow print-border">< !-- Barra de Ações --><div class="no-print flex justify-between items-center mb-6 border-b pb-4"><a href="/" class="text-blue-600 font-medium">&larr;
+Voltar ao Painel</a><button onclick="window.print()" class="bg-blue-600 text-white px-4 py-2 rounded">Imprimir Ordem de Serviço </button></div>< !-- Cabeçalho OS --><div class="flex justify-between border-b pb-4 mb-4"><div><h1 class="text-2xl font-bold">ORDEM DE SERVIÇO #{{ os.id }
+}
+
+</h1><p class="text-sm text-gray-500">Abertura: {
+        {
+        os.data_abertura.strftime('%d/%m/%Y')
+    }
+}
+
+</p><p class="text-sm font-semibold">Status: {
+        {
+        os.status
+    }
+}
+
+</p></div><div class="text-right"><h2 class="font-bold">Oficina & Atendimento</h2><p class="text-sm text-gray-600">Comprovante de Serviço</p></div></div>< !-- Dados do Cliente & Veículo --><div class="grid grid-cols-2 gap-4 mb-6"><div class="border p-3 rounded"><h3 class="font-semibold text-gray-700 text-sm mb-1">CLIENTE</h3><p class="text-sm"><strong>Nome:</strong> {
+        {
+        os.cliente.nome
+    }
+}
+
+</p><p class="text-sm"><strong>Telefone:</strong> {
+        {
+        os.cliente.telefone
+    }
+}
+
+</p></div><div class="border p-3 rounded"><h3 class="font-semibold text-gray-700 text-sm mb-1">VEÍCULO / ATIVO</h3> {
+    % if os.veiculo %
+}
+
+<p class="text-sm"><strong>Modelo:</strong> {
+        {
+        os.veiculo.modelo
+    }
+}
+
+</p><p class="text-sm"><strong>Placa:</strong> {
+        {
+        os.veiculo.placa
+    }
+}
+
+</p> {
+    % else %
+}
+
+<p class="text-sm text-gray-400">Nenhum veículo vinculado.</p> {
+    % endif %
+}
+
+</div></div>< !-- Diagnóstico e Execução --><div class="mb-6"><h3 class="font-semibold text-sm mb-1">DEFEITO / RECLAMAÇÃO:</h3><p class="text-sm bg-gray-50 p-2 border rounded mb-3"> {
+        {
+        os.descricao_problema
+    }
+}
+
+</p><h3 class="font-semibold text-sm mb-1">SERVIÇO EXECUTADO:</h3><p class="text-sm bg-gray-50 p-2 border rounded"> {
+        {
+        os.servico_executado or 'Em andamento'
+    }
+}
+
+</p></div>< !-- Valores --><table class="w-full text-sm border-collapse mb-6"><tbody><tr class="border-b"><td class="py-2 text-gray-600">Peças e Insumos</td><td class="py-2 text-right">R$ {
+        {
+        "%.2f" |format(os.valor_pecas)
+    }
+}
+
+</td></tr><tr class="border-b"><td class="py-2 text-gray-600">Mão de Obra</td><td class="py-2 text-right">R$ {
+        {
+        "%.2f" |format(os.valor_mao_obra)
+    }
+}
+
+</td></tr><tr class="font-bold text-base"><td class="py-2">TOTAL</td><td class="py-2 text-right">R$ {
+        {
+        "%.2f" |format(os.valor_total)
+    }
+}
+
+</td></tr></tbody></table>< !-- Assinatura do Cliente --><div class="mt-12 pt-6 border-t border-gray-300 text-center"><p class="text-xs text-gray-500 mb-6">Declaro que os serviços e peças acima descritos foram executados e entregues conforme combinado.</p><div class="w-64 border-b border-black mx-auto mb-2"></div><p class="text-xs text-gray-700"> {
+        {
+        os.cliente.nome
+    }
+}
+
+</p></div></div></body></html>

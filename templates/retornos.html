@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Alertas de Retorno Preventivo | Painel de Gestão{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h1 class="text-xl font-bold text-slate-800">Alertas de Manutenção Preventiva</h1>
+        <p class="text-xs text-slate-500 mt-0.5">Veículos com retorno estimado para os próximos 15 dias (regra dos 90
+            dias após conclusão da OS).</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead
+                    class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3.5 px-4">Data Prevista</th>
+                        <th class="py-3.5 px-4">Cliente</th>
+                        <th class="py-3.5 px-4">Veículo</th>
+                        <th class="py-3.5 px-4">Último Serviço Realizado</th>
+                        <th class="py-3.5 px-4 text-right">Ação</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for a in alertas %}
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-3.5 px-4 font-mono font-bold text-blue-600 text-xs">
+                            {{ a.retorno_previsto|data_br }}
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <span class="font-semibold text-slate-900 block">{{ a.cliente.nome }}</span>
+                            <span class="text-xs text-slate-500">{{ a.cliente.telefone }}</span>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            {% if a.veiculo %}
+                            <span class="text-slate-800 font-medium block">{{ a.veiculo.modelo }}</span>
+                            <span class="text-xs font-mono font-semibold text-slate-500 uppercase">{{ a.veiculo.placa
+                                }}</span>
+                            {% else %}
+                            <span class="text-xs text-slate-400 italic">Sem ativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-4 text-xs text-slate-600 max-w-sm truncate">
+                            {{ a.servico_executado or a.descricao_problema }}
+                        </td>
+                        <td class="py-3.5 px-4 text-right">
+                            {% set fone_limpo = a.cliente.telefone|replace('(', '')|replace(')', '')|replace('-',
+                            '')|replace(' ', '') %}
+                            {% set msg = "Olá " ~ a.cliente.nome ~ "! Notamos que já se passaram quase 90 dias desde a
+                            última revisão do seu veículo no nosso centro técnico. Gostaria de agendar uma verificação
+                            preventiva?" %}
+                            <a href="https://wa.me/55{{ fone_limpo }}?text={{ msg|urlencode }}" target="_blank"
+                                class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-sm">
+                                Notificar WhatsApp
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="py-12 text-center text-slate-400">
+                            <p class="text-sm font-medium text-slate-500">Nenhum cliente com retorno preventivo previsto
+                                para os próximos 15 dias.</p>
+                            <p class="text-xs text-slate-400 mt-1">Conforme novas OSs forem concluídas, os lembretes
+                                aparecerão aqui automaticamente.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

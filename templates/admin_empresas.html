@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}Administração Master | Gestão de Assinaturas{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Cabeçalho Super Admin -->
+    <div class="bg-gradient-to-r from-slate-900 to-indigo-950 p-6 rounded-2xl shadow-md border border-slate-800 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2">
+                <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+                Área Exclusiva do Dono da Plataforma
+            </div>
+            <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+                <svg class="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Controle de Assinaturas & Empresas
+            </h1>
+            <p class="text-xs text-slate-300 mt-1">
+                Monitore os clientes cadastrados, libere acessos após receber pagamentos e defina seus dados de cobrança via Pix.
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="text-xs bg-slate-800/80 px-4 py-2 rounded-xl border border-slate-700 text-slate-300 font-semibold">
+                {{ empresas|length }} empresas no total
+            </span>
+        </div>
+    </div>
+
+    <!-- Configuração de Recebimento Pix do Dono -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Seus Dados de Cobrança (Exibidos para empresas bloqueadas/pendentes)
+        </h2>
+
+        <form method="POST" action="{{ url_for('admin_salvar_cobranca') }}" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Sua Chave Pix</label>
+                <input type="text" name="chave_pix" value="{{ empresa.chave_pix or '' }}" placeholder="CPF, CNPJ, E-mail ou Telefone"
+                    class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Nome do Titular Pix</label>
+                <input type="text" name="titular_pix" value="{{ empresa.titular_pix or '' }}" placeholder="Seu nome completo ou Razão Social"
+                    class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Plano Mensal (R$)</label>
+                <input type="number" step="0.01" name="valor_mensalidade" value="{{ '%.2f'|format(empresa.valor_mensalidade or 29.90) }}"
+                    class="w-full text-xs font-mono rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Plano Anual (R$)</label>
+                <div class="flex gap-2">
+                    <input type="number" step="0.01" name="valor_anual" value="{{ '%.2f'|format(empresa.valor_anual or 249.90) }}"
+                        class="w-full text-xs font-mono rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button type="submit"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition shrink-0">
+                        Salvar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabela de Empresas Cadastradas -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-slate-800">Empresas e Clientes da sua Plataforma</h2>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3.5 px-4">Empresa</th>
+                        <th class="py-3.5 px-4">Contato (E-mail / WhatsApp)</th>
+                        <th class="py-3.5 px-4">Cadastro</th>
+                        <th class="py-3.5 px-4">Status</th>
+                        <th class="py-3.5 px-4">Validade da Assinatura</th>
+                        <th class="py-3.5 px-4 text-right">Ações de Liberação</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for emp in empresas %}
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-4 px-4">
+                            <div class="font-bold text-slate-900 flex items-center gap-2">
+                                <span>{{ emp.nome_empresa }}</span>
+                                {% if emp.is_admin %}
+                                <span class="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wide">Dono / Master</span>
+                                {% endif %}
+                            </div>
+                            <span class="text-xs text-slate-500 block">{{ emp.subtitulo or 'Sem subtítulo' }}</span>
+                            <span class="text-[11px] text-slate-400">{{ emp.ordens_servico|length }} OS(s) geradas</span>
+                        </td>
+
+                        <td class="py-4 px-4 text-xs">
+                            <span class="text-slate-800 font-medium block">{{ emp.email }}</span>
+                            <span class="text-slate-500 block">{{ emp.whatsapp or emp.telefone or 'Sem telefone' }}</span>
+                        </td>
+
+                        <td class="py-4 px-4 text-xs font-mono text-slate-600">
+                            {{ emp.data_criacao|data_br }}
+                        </td>
+
+                        <td class="py-4 px-4">
+                            {% if emp.status_assinatura == 'ATIVO' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                Ativo / Liberado
+                            </span>
+                            {% elif emp.status_assinatura == 'PENDENTE' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                Aguardando Pix
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                Bloqueado
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="py-4 px-4 text-xs">
+                            {% if emp.is_admin %}
+                            <span class="text-slate-400 italic">Ilimitado (Master)</span>
+                            {% elif emp.data_validade %}
+                            <span class="font-mono font-bold {% if emp.data_validade < hoje %}text-rose-600{% else %}text-emerald-600{% endif %}">
+                                {{ emp.data_validade|data_br }}
+                            </span>
+                            {% if emp.data_validade < hoje %}
+                            <span class="block text-[10px] text-rose-500 font-semibold">Expirado</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-slate-400 italic">Não definida</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="py-4 px-4 text-right space-x-1 whitespace-nowrap">
+                            {% if not emp.is_admin %}
+                            <!-- Botão +30 Dias (Mensal) -->
+                            <form method="POST" action="{{ url_for('admin_renovar_empresa', empresa_id=emp.id) }}" class="inline">
+                                <button type="submit" title="Adicionar 30 dias de acesso"
+                                    class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2 py-1.5 rounded-lg transition shadow-xs">
+                                    +30 Dias
+                                </button>
+                            </form>
+
+                            <!-- Botão +1 Ano (Anual) -->
+                            <form method="POST" action="{{ url_for('admin_renovar_empresa_anual', empresa_id=emp.id) }}" class="inline">
+                                <button type="submit" title="Adicionar 365 dias (1 ano) de acesso"
+                                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-2 py-1.5 rounded-lg transition shadow-xs">
+                                    +1 Ano
+                                </button>
+                            </form>
+
+                            {% if emp.status_assinatura != 'ATIVO' %}
+                            <!-- Botão Liberar Acesso Imediato -->
+                            <form method="POST" action="{{ url_for('admin_ativar_empresa', empresa_id=emp.id) }}" class="inline">
+                                <button type="submit"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition shadow-xs">
+                                    Liberar
+                                </button>
+                            </form>
+                            {% else %}
+                            <!-- Botão Bloquear -->
+                            <form method="POST" action="{{ url_for('admin_bloquear_empresa', empresa_id=emp.id) }}" class="inline">
+                                <button type="submit"
+                                    class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition shadow-xs">
+                                    Bloquear
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            <!-- Botão WhatsApp Cobrança / Suporte -->
+                            {% if emp.whatsapp or emp.telefone %}
+                            {% set fone_dest = (emp.whatsapp or emp.telefone)|fone_whatsapp %}
+                            {% set msg_cob = "Olá " ~ emp.nome_empresa ~ "! Tudo bem? Entramos em contato referente à sua assinatura do Painel de Gestão. Caso queira renovar ou tirar dúvidas sobre o seu acesso, estamos à disposição!" %}
+                            <a href="https://wa.me/{{ fone_dest }}?text={{ msg_cob|urlencode }}" target="_blank"
+                                class="inline-flex items-center bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-2 py-1.5 rounded-lg border border-slate-300 transition">
+                                WhatsApp
+                            </a>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-xs text-slate-400 italic">Conta Principal</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS #{{ "%04d"|format(os.id) }} - {{ empresa.nome_empresa }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 p-4 sm:p-8">
+
+    <!-- BARRA SUPERIOR PARA O CLIENTE (NO-PRINT) -->
+    <div class="max-w-4xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm no-print">
+        <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-xs font-bold text-slate-700">Documento Oficial &bull; Ordem de Serviço #{{ "%04d"|format(os.id) }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="window.print()" class="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Baixar / Salvar PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- FOLHA OFICIAL DA ORDEM DE SERVIÇO -->
+    <div class="max-w-4xl mx-auto bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 print:border-none print:shadow-none print:p-0">
+
+        <!-- Cabeçalho com Logótipo Oficial -->
+        <div class="flex justify-between items-start border-b border-slate-200 pb-5">
+            <div class="flex items-center gap-4">
+                <img src="{{ url_for('static', filename=empresa.logo_filename or 'logo.png') }}" alt="{{ empresa.nome_empresa }}"
+                    class="h-16 w-auto max-w-[160px] object-contain" onerror="this.style.display='none';">
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-slate-900">{{ empresa.nome_empresa }}</h1>
+                    {% if empresa.subtitulo %}
+                    <p class="text-xs text-slate-500 mt-0.5">{{ empresa.subtitulo }}</p>
+                    {% endif %}
+                    <div class="flex flex-wrap gap-x-3 text-xs text-slate-500 mt-1">
+                        {% if empresa.cnpj_cpf %}<span><strong>CNPJ/CPF:</strong> {{ empresa.cnpj_cpf }}</span>{% endif %}
+                        {% if empresa.telefone %}<span><strong>Tel:</strong> {{ empresa.telefone }}</span>{% endif %}
+                        {% if empresa.whatsapp %}<span><strong>WhatsApp:</strong> {{ empresa.whatsapp }}</span>{% endif %}
+                    </div>
+                    {% if empresa.endereco %}
+                    <p class="text-xs text-slate-500 mt-0.5">{{ empresa.endereco }}{% if empresa.cidade_uf %} - {{ empresa.cidade_uf }}{% endif %}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block">Número da OS</span>
+                <span class="text-2xl font-mono font-black text-blue-600">#{{ "%04d"|format(os.id) }}</span>
+                <span class="text-xs text-slate-500 block mt-1">Abertura: {{ os.data_abertura|data_br }}</span>
+                {% if os.data_conclusao %}
+                <span class="text-xs text-emerald-600 font-semibold block">Conclusão: {{ os.data_conclusao|data_br }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Cliente e Veículo -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Dados do Cliente</h2>
+                <p class="text-sm font-bold text-slate-800">{{ os.cliente.nome }}</p>
+                <p class="text-xs text-slate-600 mt-0.5">Telefone: {{ os.cliente.telefone }}</p>
+            </div>
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Identificação do Veículo</h2>
+                {% if os.veiculo %}
+                <p class="text-sm font-bold text-slate-800">{{ os.veiculo.modelo }}</p>
+                <p class="text-xs font-mono font-semibold text-slate-600 mt-0.5">Placa: {{ os.veiculo.placa }}</p>
+                {% else %}
+                <p class="text-sm italic text-slate-400">Não informado</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Problema Relatado na Entrada -->
+        <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Problema Relatado na Entrada</h2>
+            <div class="p-3.5 bg-slate-50 rounded-lg text-sm text-slate-700 border border-slate-100 print:bg-white print:border-slate-300">
+                {{ os.descricao_problema }}
+            </div>
+        </div>
+
+        <!-- TABELAS DE ITENS DETALHADOS -->
+        {% if os.itens %}
+        <div class="space-y-4">
+            <!-- Tabela de Peças -->
+            {% set pecas = os.itens|selectattr('tipo', 'equalto', 'PECA')|list %}
+            {% if pecas %}
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Peças e Materiais Aplicados</h2>
+                <table class="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
+                    <thead class="bg-slate-100 text-slate-600 uppercase font-semibold">
+                        <tr>
+                            <th class="py-2.5 px-3">Item / Peça</th>
+                            <th class="py-2.5 px-3 text-center w-20">Qtd</th>
+                            <th class="py-2.5 px-3 text-right w-28">Valor Unit.</th>
+                            <th class="py-2.5 px-3 text-right w-28">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        {% for item in pecas %}
+                        <tr>
+                            <td class="py-2.5 px-3 text-slate-800 font-medium">{{ item.descricao }}</td>
+                            <td class="py-2.5 px-3 text-center text-slate-600 font-mono">{{ "%0.0f"|format(item.quantidade) if item.quantidade == item.quantidade|int else item.quantidade }}</td>
+                            <td class="py-2.5 px-3 text-right font-mono text-slate-600">R$ {{ item.valor_unitario|moeda }}</td>
+                            <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">R$ {{ item.subtotal|moeda }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Tabela de Serviços -->
+            {% set servicos = os.itens|selectattr('tipo', 'equalto', 'SERVICO')|list %}
+            {% if servicos %}
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Serviços e Mão de Obra Executada</h2>
+                <table class="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
+                    <thead class="bg-slate-100 text-slate-600 uppercase font-semibold">
+                        <tr>
+                            <th class="py-2.5 px-3">Descrição do Serviço</th>
+                            <th class="py-2.5 px-3 text-center w-20">Qtd / Horas</th>
+                            <th class="py-2.5 px-3 text-right w-28">Valor Unit.</th>
+                            <th class="py-2.5 px-3 text-right w-28">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        {% for item in servicos %}
+                        <tr>
+                            <td class="py-2.5 px-3 text-slate-800 font-medium">{{ item.descricao }}</td>
+                            <td class="py-2.5 px-3 text-center text-slate-600 font-mono">{{ "%0.0f"|format(item.quantidade) if item.quantidade == item.quantidade|int else item.quantidade }}</td>
+                            <td class="py-2.5 px-3 text-right font-mono text-slate-600">R$ {{ item.valor_unitario|moeda }}</td>
+                            <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">R$ {{ item.subtotal|moeda }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Observações do Fechamento -->
+        {% if os.servico_executado %}
+        <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Parecer Técnico / Observações Finais</h2>
+            <div class="p-3.5 bg-slate-50 rounded-lg text-sm text-slate-700 border border-slate-100 print:bg-white print:border-slate-300">
+                {{ os.servico_executado }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Fechamento de Totais da OS -->
+        <div class="border-t border-slate-200 pt-4 flex justify-between items-end">
+            <div class="text-xs text-slate-500">
+                Forma de Pagamento: <strong class="text-slate-800 uppercase font-mono">{{ os.forma_pagamento or 'A Combinar' }}</strong>
+            </div>
+            <div class="w-full sm:w-72 space-y-1.5 text-sm">
+                <div class="flex justify-between text-slate-600">
+                    <span>Total em Peças:</span>
+                    <span class="font-mono">R$ {{ os.valor_pecas|moeda }}</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>Total de Serviços:</span>
+                    <span class="font-mono">R$ {{ os.valor_mao_obra|moeda }}</span>
+                </div>
+                <div class="flex justify-between border-t border-slate-200 pt-2 font-bold text-base text-slate-900">
+                    <span>Valor Total Geral:</span>
+                    <span class="font-mono text-emerald-600">R$ {{ os.valor_total|moeda }}</span>
+                </div>
+                {% if os.retorno_previsto %}
+                <div class="text-[11px] text-right text-slate-500 pt-1">
+                    Próxima revisão preventiva sugerida: <strong class="text-slate-700">{{ os.retorno_previsto|data_br }}</strong>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Garantia e Termos Legais -->
+        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs text-slate-600 space-y-1">
+            <p><strong>Garantia dos Serviços:</strong> 90 (noventa) dias de garantia sobre a mão de obra e peças aplicadas, nos termos do art. 26 do Código de Defesa do Consumidor.</p>
+            <p class="text-[11px] text-slate-500">{{ empresa.mensagem_rodape or ('Agradecemos a preferência! ' ~ empresa.nome_empresa ~ '.') }}</p>
+        </div>
+
+        <!-- Assinaturas (Impressão) -->
+        <div class="hidden print:grid grid-cols-2 gap-10 pt-16 mt-8 border-t border-slate-200 text-center text-xs">
+            <div>
+                <div class="border-t border-slate-400 mx-auto w-3/4 mb-1"></div>
+                <p class="font-semibold text-slate-800">Assinatura do Cliente</p>
+                <p class="text-[10px] text-slate-500">Declaro aprovação e recebimento dos itens listados acima.</p>
+            </div>
+            <div>
+                <div class="border-t border-slate-400 mx-auto w-3/4 mb-1"></div>
+                <p class="font-semibold text-slate-800">Responsável Técnico</p>
+                <p class="text-[10px] text-slate-500">Garantia legal de 90 dias sobre peças e serviços aplicados.</p>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

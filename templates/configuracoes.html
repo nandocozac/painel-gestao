@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% block title %}Configurações da Empresa | Painel de Gestão{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Cabeçalho da Página -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Configurações da Empresa (White-label)
+            </h1>
+            <p class="text-xs text-slate-500 mt-1">
+                Personalize os dados e a logomarca da oficina. Essas informações serão exibidas em todas as Ordens de Serviço, PDFs e mensagens de WhatsApp.
+            </p>
+        </div>
+        <a href="{{ url_for('dashboard') }}" class="text-xs text-slate-600 hover:text-slate-900 font-medium inline-flex items-center gap-1 self-start sm:self-auto">
+            &larr; Voltar ao Painel
+        </a>
+    </div>
+
+    <!-- Formulário Principal -->
+    <form method="POST" action="{{ url_for('configuracoes_empresa') }}" enctype="multipart/form-data" class="space-y-6">
+
+        <!-- 1. IDENTIDADE VISUAL & LOGOTIPO -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Logotipo da Oficina / Empresa
+            </h2>
+
+            <div class="flex flex-col sm:flex-row items-center gap-6 pt-2">
+                <!-- Pré-visualização da Logo Atual -->
+                <div class="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl w-48 h-32 shrink-0">
+                    <img id="logo-preview" src="{{ url_for('static', filename=empresa.logo_filename or 'logo.png') }}"
+                        alt="Logotipo Atual" class="max-h-24 max-w-full object-contain"
+                        onerror="this.src='{{ url_for('static', filename='logo.png') }}';">
+                </div>
+
+                <div class="flex-1 space-y-3 w-full">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Substituir Logotipo</label>
+                        <input type="file" name="logo" id="logo-input" accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                            class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-lg p-1">
+                        <p class="text-[11px] text-slate-400 mt-1">
+                            Formatos suportados: PNG, JPG, WEBP ou SVG (Fundo transparente recomendado).
+                        </p>
+                    </div>
+
+                    {% if empresa.logo_filename and empresa.logo_filename != 'logo.png' %}
+                    <div>
+                        <button type="submit" formaction="{{ url_for('remover_logo_empresa') }}" formmethod="POST"
+                            class="text-xs text-red-600 hover:text-red-700 font-medium inline-flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Restaurar logotipo original
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. DADOS PRINCIPAIS -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Dados Oficiais
+            </h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Nome Fantasia / Razão Social *</label>
+                    <input type="text" name="nome_empresa" value="{{ empresa.nome_empresa }}" required
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="Ex: Valkar Peças & Serviços Automotivos">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Slogan / Subtítulo</label>
+                    <input type="text" name="subtitulo" value="{{ empresa.subtitulo }}"
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="Ex: Serviços Especializados, Mecânica e Acessórios">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">CNPJ ou CPF</label>
+                    <input type="text" name="cnpj_cpf" value="{{ empresa.cnpj_cpf }}"
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="00.000.000/0001-00">
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. CONTATO & LOCALIZAÇÃO -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Contato & Endereço
+            </h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Telefone Fixo</label>
+                    <input type="text" name="telefone" value="{{ empresa.telefone }}"
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="(00) 0000-0000">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">WhatsApp da Empresa</label>
+                    <input type="text" name="whatsapp" value="{{ empresa.whatsapp }}"
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="(00) 90000-0000">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Endereço Completo</label>
+                    <input type="text" name="endereco" value="{{ empresa.endereco }}"
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="Rua Exemplo, 123 - Bairro">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Cidade / UF</label>
+                    <input type="text" name="cidade_uf" value="{{ empresa.cidade_uf }}"
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="Ex: São Paulo / SP">
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. TERMOS E MENSAGENS PERSONALIZADAS -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Mensagem de Rodapé da OS & Documentos
+            </h2>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Texto de Agradecimento / Termo Legal</label>
+                <input type="text" name="mensagem_rodape" value="{{ empresa.mensagem_rodape }}"
+                    class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="Ex: Agradecemos a preferência! Garantia legal de 90 dias sobre peças e serviços aplicados.">
+                <p class="text-[11px] text-slate-400 mt-1">
+                    Este texto aparece no rodapé do documento de impressão e no PDF enviado para o cliente.
+                </p>
+            </div>
+        </div>
+
+        <!-- 5. DADOS DE ACESSO (LOGIN & SENHA) -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Credenciais de Acesso (Login)
+            </h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">E-mail de Login</label>
+                    <input type="email" name="email" value="{{ empresa.email }}" required
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Alterar Senha (opcional)</label>
+                    <input type="password" name="nova_senha" minlength="6"
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="Deixe em branco para manter a atual">
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTÃO SALVAR -->
+        <div class="flex justify-end pt-2">
+            <button type="submit"
+                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl shadow-sm transition transform active:scale-95 text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Salvar Configurações da Empresa
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Preview imediato da logo ao selecionar arquivo
+    const logoInput = document.getElementById('logo-input');
+    const logoPreview = document.getElementById('logo-preview');
+    if (logoInput && logoPreview) {
+        logoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    logoPreview.src = evt.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+</script>
+{% endblock %}
