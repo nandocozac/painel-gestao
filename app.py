@@ -112,6 +112,60 @@ def migrar_banco_multiempresa():
                 if col not in colunas_itens:
                     db.session.execute(text(f"ALTER TABLE itens_os ADD COLUMN {col} {col_type}"))
             db.session.commit()
+        else:
+            # Migração para PostgreSQL (Render Cloud)
+            pg_colunas_empresas = {
+                'is_admin': 'BOOLEAN DEFAULT FALSE',
+                'status_assinatura': "VARCHAR(20) DEFAULT 'PENDENTE'",
+                'data_validade': 'DATE',
+                'observacoes_admin': "TEXT DEFAULT ''",
+                'chave_pix': "VARCHAR(100) DEFAULT ''",
+                'titular_pix': "VARCHAR(100) DEFAULT 'Fernando Cozac'",
+                'valor_mensalidade': 'FLOAT DEFAULT 29.90',
+                'valor_anual': 'FLOAT DEFAULT 249.90',
+                'valor_mensalidade_fiscal': 'FLOAT DEFAULT 79.90',
+                'valor_anual_fiscal': 'FLOAT DEFAULT 699.90',
+                'tipo_negocio': "VARCHAR(30) DEFAULT 'OFICINA'",
+                'permite_emissao_fiscal': 'BOOLEAN DEFAULT FALSE',
+                'fiscal_ativo': 'BOOLEAN DEFAULT FALSE',
+                'fiscal_ambiente': "VARCHAR(20) DEFAULT 'HOMOLOGACAO'",
+                'fiscal_cnpj': "VARCHAR(20) DEFAULT ''",
+                'fiscal_razao_social': "VARCHAR(150) DEFAULT ''",
+                'fiscal_nome_fantasia': "VARCHAR(150) DEFAULT ''",
+                'fiscal_inscricao_municipal': "VARCHAR(30) DEFAULT ''",
+                'fiscal_inscricao_estadual': "VARCHAR(30) DEFAULT ''",
+                'fiscal_regime_tributario': 'INTEGER DEFAULT 1',
+                'fiscal_certificado_filename': 'VARCHAR(255)',
+                'fiscal_certificado_senha': "VARCHAR(255) DEFAULT ''",
+                'fiscal_token_focus': "VARCHAR(100) DEFAULT ''"
+            }
+            for col, col_type in pg_colunas_empresas.items():
+                try:
+                    db.session.execute(text(f"ALTER TABLE empresas ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+
+            tabelas = ['clientes', 'ordens_servico', 'transacoes']
+            for tab in tabelas:
+                try:
+                    db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN IF NOT EXISTS empresa_id INTEGER REFERENCES empresas(id)"))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+
+            pg_colunas_itens = {
+                'ncm': "VARCHAR(10) DEFAULT ''",
+                'cfop': "VARCHAR(10) DEFAULT ''",
+                'codigo_servico_municipal': "VARCHAR(20) DEFAULT ''",
+                'aliquota_iss': 'FLOAT DEFAULT 0.0'
+            }
+            for col, col_type in pg_colunas_itens.items():
+                try:
+                    db.session.execute(text(f"ALTER TABLE itens_os ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
 
         # 3. Garantir que a empresa Master exista de forma segura
         empresa_padrao = Empresa.query.filter_by(is_admin=True).first()
@@ -158,12 +212,15 @@ def migrar_banco_multiempresa():
                 db.session.commit()
 
         # 4. Vincular dados anteriores existentes à empresa padrão
-        db.session.execute(text(f"UPDATE clientes SET empresa_id = {empresa_padrao.id} WHERE empresa_id IS NULL"))
-        db.session.execute(text(f"UPDATE ordens_servico SET empresa_id = {empresa_padrao.id} WHERE empresa_id IS NULL"))
-        db.session.execute(text(f"UPDATE transacoes SET empresa_id = {empresa_padrao.id} WHERE empresa_id IS NULL"))
-        # 5. Garantir que nenhuma empresa tenha 'logo.png' como padrão (sem imagem prévia até o cliente fazer upload)
-        db.session.execute(text("UPDATE empresas SET logo_filename = NULL WHERE logo_filename = 'logo.png'"))
-        db.session.commit()
+        try:
+            db.session.execute(text(f"UPDATE clientes SET empresa_id = {empresa_padrao.id} WHERE empresa_id IS NULL"))
+            db.session.execute(text(f"UPDATE ordens_servico SET empresa_id = {empresa_padrao.id} WHERE empresa_id IS NULL"))
+            db.session.execute(text(f"UPDATE transacoes SET empresa_id = {empresa_padrao.id} WHERE empresa_id IS NULL"))
+            # 5. Garantir que nenhuma empresa tenha 'logo.png' como padrão (sem imagem prévia até o cliente fazer upload)
+            db.session.execute(text("UPDATE empresas SET logo_filename = NULL WHERE logo_filename = 'logo.png'"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 migrar_banco_multiempresa()
 
