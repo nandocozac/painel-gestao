@@ -112,6 +112,48 @@ def migrar_banco_multiempresa():
 
 migrar_banco_multiempresa()
 
+def recuperar_banco_raiz_se_existir():
+    """Garante que se existir um painel_gestao.db antigo na raiz do Hostinger, os dados sejam migrados para instance/"""
+    root_db = os.path.join(BASE_DIR, 'painel_gestao.db')
+    if os.path.exists(root_db) and os.path.abspath(root_db) != os.path.abspath(DB_PATH):
+        try:
+            import sqlite3
+            con_root = sqlite3.connect(root_db)
+            cur_root = con_root.cursor()
+            
+            tabelas = [r[0] for r in cur_root.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+            if 'empresas' in tabelas:
+                empresas_root = cur_root.execute("SELECT email, nome_empresa, senha_hash, telefone, whatsapp, status_assinatura, data_validade, is_admin FROM empresas").fetchall()
+                with app.app_context():
+                    for emp_data in empresas_root:
+                        email, nome, senha_hash, tel, wa, status, validade, is_adm = emp_data
+                        if not is_adm and email:
+                            ja_existe = Empresa.query.filter_by(email=email).first()
+                            if not ja_existe:
+                                val_date = None
+                                if validade:
+                                    try:
+                                        val_date = date.fromisoformat(str(validade)[:10])
+                                    except Exception:
+                                        val_date = date.today() + timedelta(days=30)
+                                nova = Empresa(
+                                    nome_empresa=nome or "Empresa Recuperada",
+                                    email=email,
+                                    senha_hash=senha_hash,
+                                    telefone=tel or "",
+                                    whatsapp=wa or "",
+                                    status_assinatura=status or "ATIVO",
+                                    data_validade=val_date,
+                                    is_admin=False
+                                )
+                                db.session.add(nova)
+                    db.session.commit()
+            con_root.close()
+        except Exception:
+            pass
+
+recuperar_banco_raiz_se_existir()
+
 
 # --- CONTROLE DE SESSÃO E IDENTIFICAÇÃO DO USUÁRIO ---
 
@@ -362,6 +404,45 @@ def assinatura_bloqueada():
 def admin_empresas():
     empresas = Empresa.query.order_by(Empresa.id.desc()).all()
     return render_template('admin_empresas.html', empresas=empresas, hoje=date.today())
+
+
+@app.route('/admin/empresa/nova', methods=['POST'])
+@login_required
+@admin_required
+def admin_nova_empresa():
+    nome = request.form.get('nome_empresa', '').strip()
+    email = request.form.get('email', '').strip().lower()
+    telefone = request.form.get('telefone', '').strip()
+    senha = request.form.get('senha', '').strip()
+    status = request.form.get('status', 'ATIVO').strip()
+    dias_validade = int(request.form.get('dias_validade', 30))
+
+    if not nome or not email or not senha:
+        flash("Nome, e-mail e senha são obrigatórios.", "error")
+        return redirect(url_for('admin_empresas'))
+
+    if Empresa.query.filter_by(email=email).first():
+        flash("Este e-mail já está cadastrado em outra empresa.", "error")
+        return redirect(url_for('admin_empresas'))
+
+    hoje = date.today()
+    nova_emp = Empresa(
+        nome_empresa=nome,
+        email=email,
+        telefone=telefone,
+        whatsapp=telefone,
+        senha_hash=generate_password_hash(senha),
+        is_admin=False,
+        status_assinatura=status,
+        data_validade=hoje + timedelta(days=dias_validade) if status == 'ATIVO' else None,
+        logo_filename="logo.png",
+        mensagem_rodape="Agradecemos a preferência! Volte sempre."
+    )
+    db.session.add(nova_emp)
+    db.session.commit()
+
+    flash(f"Empresa '{nome}' cadastrada com sucesso com status '{status}'!", "success")
+    return redirect(url_for('admin_empresas'))
 
 
 @app.route('/admin/cobranca', methods=['POST'])
