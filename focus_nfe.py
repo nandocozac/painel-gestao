@@ -36,10 +36,16 @@ def autorizar_nfse(empresa, ordem_servico, itens_servico):
 
     # Tomador (Cliente que recebe a nota)
     tomador = {
-        "razao_social": cliente.nome or "Consumidor Final",
-        "email": getattr(cliente, 'email', '') or "",
-        "telefone": getattr(cliente, 'telefone', '') or ""
+        "razao_social": cliente.nome or "Consumidor Final"
     }
+
+    email_cliente = (getattr(cliente, 'email', '') or '').strip()
+    if email_cliente:
+        tomador["email"] = email_cliente
+
+    tel_cliente = "".join(filter(str.isdigit, getattr(cliente, 'telefone', '') or ''))
+    if tel_cliente:
+        tomador["telefone"] = tel_cliente
 
     cpf_cnpj = getattr(cliente, 'cpf_cnpj', '')
     if cpf_cnpj:
