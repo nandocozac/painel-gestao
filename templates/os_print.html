@@ -33,6 +33,7 @@
                     </svg>
                     Reabrir / Editar OS
                 </button>
+            </form>
                         {% set fone_limpo = os.cliente.telefone|fone_whatsapp %}
             {% if empresa.tipo_negocio == 'OFICINA' %}
                 {% set veiculo_info = (os.veiculo.modelo ~ " (" ~ os.veiculo.placa ~ ")") if os.veiculo else "veículo" %}
