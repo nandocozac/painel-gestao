@@ -77,6 +77,58 @@
         </form>
     </div>
 
+    <!-- Informações do Banco de Dados & Backup / Restauração -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+            <div>
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    Banco de Dados do Sistema & Cópia de Segurança
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">
+                    Seus dados ficam armazenados neste arquivo no servidor. Faça cópias de segurança ou restaure seus dados a qualquer momento.
+                </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <a href="{{ url_for('admin_backup_banco') }}"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Baixar Cópia (.db)</span>
+                </a>
+                <button type="button" onclick="document.getElementById('modal-restaurar-banco').classList.remove('hidden')"
+                    class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+                    </svg>
+                    <span>Restaurar / Subir Banco</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs">
+            <div>
+                <span class="text-slate-400 block font-semibold">Caminho no Servidor:</span>
+                <span class="font-mono text-slate-700 font-bold break-all" title="{{ db_path }}">{{ db_path }}</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block font-semibold">Tamanho do Arquivo:</span>
+                <span class="font-bold text-slate-800">{{ db_size_kb }} KB</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block font-semibold">Última Gravação:</span>
+                <span class="font-bold text-slate-800">{{ db_mtime }}</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block font-semibold">Total de Registros:</span>
+                <span class="font-bold text-indigo-700">{{ empresas|length }} empresas | {{ total_clientes }} clientes | {{ total_os }} O.S.</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Tabela de Empresas Cadastradas -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -299,6 +351,65 @@
                     <button type="submit"
                         class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm">
                         Cadastrar e Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Restaurar Banco de Dados -->
+    <div id="modal-restaurar-banco" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-amber-100 text-amber-700 rounded-xl">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-sm">Restaurar / Subir Banco de Dados</h3>
+                        <p class="text-xs text-slate-400">Substituir o arquivo painel_gestao.db</p>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('modal-restaurar-banco').classList.add('hidden')"
+                    class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin_restaurar_banco') }}" enctype="multipart/form-data" class="space-y-4">
+                <div class="p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs">
+                    <p class="font-bold mb-1 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Atenção ao restaurar:
+                    </p>
+                    <p class="text-[11px] leading-relaxed">
+                        Ao enviar um arquivo <strong>.db</strong>, os dados atuais serão substituídos pelos dados do arquivo enviado. O sistema cria automaticamente uma cópia de segurança do banco atual antes da substituição.
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Selecione o arquivo de banco (.db)</label>
+                    <input type="file" name="arquivo_banco" accept=".db,.sqlite,.sqlite3" required
+                        class="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-xl p-2 bg-slate-50 cursor-pointer">
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                    <button type="button" onclick="document.getElementById('modal-restaurar-banco').classList.add('hidden')"
+                        class="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-2 rounded-lg">
+                        Cancelar
+                    </button>
+                    <button type="submit" onclick="return confirm('Confirma a restauração do banco de dados? Os dados atuais serão substituídos pelo arquivo enviado.')"
+                        class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Confirmar e Restaurar</span>
                     </button>
                 </div>
             </form>

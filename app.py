@@ -2,6 +2,7 @@ import os
 import csv
 import re
 import time
+import shutil
 from io import StringIO
 from datetime import date, timedelta
 from functools import wraps
@@ -403,7 +404,21 @@ def assinatura_bloqueada():
 @admin_required
 def admin_empresas():
     empresas = Empresa.query.order_by(Empresa.id.desc()).all()
-    return render_template('admin_empresas.html', empresas=empresas, hoje=date.today())
+    db_exists = os.path.exists(DB_PATH)
+    db_size_kb = round(os.path.getsize(DB_PATH) / 1024, 1) if db_exists else 0
+    db_mtime = time.strftime('%d/%m/%Y %H:%M:%S', time.localtime(os.path.getmtime(DB_PATH))) if db_exists else 'N/A'
+    total_clientes = Cliente.query.count()
+    total_os = OrdemServico.query.count()
+    return render_template(
+        'admin_empresas.html',
+        empresas=empresas,
+        hoje=date.today(),
+        db_path=DB_PATH,
+        db_size_kb=db_size_kb,
+        db_mtime=db_mtime,
+        total_clientes=total_clientes,
+        total_os=total_os
+    )
 
 
 @app.route('/admin/empresa/nova', methods=['POST'])
@@ -575,6 +590,61 @@ def admin_excluir_empresa(empresa_id):
     db.session.commit()
 
     flash(f"A empresa '{nome}' e todos os seus registros foram excluídos com sucesso.", "success")
+    return redirect(url_for('admin_empresas'))
+
+
+@app.route('/admin/banco/backup')
+@login_required
+@admin_required
+def admin_backup_banco():
+    if not os.path.exists(DB_PATH):
+        flash("Arquivo de banco de dados não encontrado.", "error")
+        return redirect(url_for('admin_empresas'))
+
+    nome_arquivo = f"backup_painel_gestao_{date.today().strftime('%Y%m%d')}_{int(time.time())}.db"
+    return send_file(DB_PATH, as_attachment=True, download_name=nome_arquivo)
+
+
+@app.route('/admin/banco/restaurar', methods=['POST'])
+@login_required
+@admin_required
+def admin_restaurar_banco():
+    arquivo = request.files.get('arquivo_banco')
+    if not arquivo or not arquivo.filename:
+        flash("Nenhum arquivo de banco de dados foi selecionado.", "error")
+        return redirect(url_for('admin_empresas'))
+
+    if not arquivo.filename.lower().endswith(('.db', '.sqlite', '.sqlite3')):
+        flash("Formato de arquivo inválido. Por favor, envie um arquivo com extensão .db ou .sqlite.", "error")
+        return redirect(url_for('admin_empresas'))
+
+    conteudo = arquivo.read()
+    # Verifica assinatura do SQLite
+    if not conteudo.startswith(b'SQLite format 3\x00'):
+        flash("O arquivo enviado não é um banco de dados SQLite válido!", "error")
+        return redirect(url_for('admin_empresas'))
+
+    try:
+        # 1. Faz backup automático do banco atual antes de sobrescrever
+        if os.path.exists(DB_PATH):
+            backup_emergencia = f"{DB_PATH}.seguranca_{int(time.time())}"
+            shutil.copy2(DB_PATH, backup_emergencia)
+
+        # 2. Fecha conexões ativas do SQLAlchemy
+        db.session.remove()
+        db.engine.dispose()
+
+        # 3. Grava o novo banco
+        with open(DB_PATH, 'wb') as f:
+            f.write(conteudo)
+
+        # 4. Roda as migrações automáticas para garantir todas as tabelas e colunas
+        migrar_banco_multiempresa()
+
+        flash("Banco de dados restaurado com sucesso! Os novos dados já estão em vigor.", "success")
+    except Exception as e:
+        flash(f"Erro ao restaurar banco de dados: {str(e)}", "error")
+
     return redirect(url_for('admin_empresas'))
 
 
