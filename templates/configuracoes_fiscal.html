@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}Configurações Fiscais | Focus NFe | Painel de Gestão{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Cabeçalho -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                    Plano Fiscal Ativo
+                </span>
+                <span class="text-xs text-slate-500 font-medium">Integração Focus NFe</span>
+            </div>
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight mt-1">Configuração de Notas Fiscais</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Gerencie os dados tributários, certificado A1 e credenciais para emissão de NFS-e e NFC-e/NF-e.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('configuracoes_empresa') }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition">
+                Dados da Empresa
+            </a>
+            <a href="{{ url_for('dashboard') }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition">
+                Dashboard
+            </a>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-6">
+
+        <!-- 1. STATUS E AMBIENTE FISCAL -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Status de Emissão
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Ative para habilitar os botões de emissão nas Ordens de Serviço e Pedidos.</p>
+                </div>
+
+                <!-- Switch Liga / Desliga -->
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="fiscal_ativo" class="sr-only peer" {% if empresa.fiscal_ativo %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    <span class="ml-3 text-xs font-bold text-slate-700">Módulo Ativo</span>
+                </label>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Ambiente de Operação</label>
+                    <select name="fiscal_ambiente" class="w-full text-xs font-semibold rounded-lg border-slate-200 bg-slate-50 p-2.5 focus:border-purple-500 focus:ring-purple-500">
+                        <option value="HOMOLOGACAO" {% if empresa.fiscal_ambiente == 'HOMOLOGACAO' %}selected{% endif %}>
+                            🧪 Homologação (Ambiente de Testes - Sem valor fiscal)
+                        </option>
+                        <option value="PRODUCAO" {% if empresa.fiscal_ambiente == 'PRODUCAO' %}selected{% endif %}>
+                            🚀 Produção (Notas Oficiais válidas perante a SEFAZ/Prefeitura)
+                        </option>
+                    </select>
+                    <p class="text-[11px] text-slate-400 mt-1">Recomendamos fazer a primeira emissão em Homologação para testar seu certificado.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Token de API da Focus NFe</label>
+                    <input type="password" name="fiscal_token_focus" value="{{ empresa.fiscal_token_focus or '' }}"
+                        placeholder="Ex: u8Yt92KkLmqPz7..."
+                        class="w-full text-xs rounded-lg border-slate-200 bg-slate-50 p-2.5 focus:border-purple-500 focus:ring-purple-500">
+                    <p class="text-[11px] text-slate-400 mt-1">Obtido no painel da Focus NFe na aba Configurações de API.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. DADOS TRIBUTÁRIOS DA EMPRESA -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 border-b border-slate-100 pb-3 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Dados Tributários Oficiais
+            </h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">CNPJ (Apenas números)</label>
+                    <input type="text" name="fiscal_cnpj" value="{{ empresa.fiscal_cnpj or '' }}" placeholder="00.000.000/0000-00"
+                        class="w-full text-xs rounded-lg border-slate-200 bg-slate-50 p-2.5 focus:border-purple-500 focus:ring-purple-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Regime Tributário</label>
+                    <select name="fiscal_regime_tributario" class="w-full text-xs rounded-lg border-slate-200 bg-slate-50 p-2.5 focus:border-purple-500 focus:ring-purple-500">
+                        <option value="1" {% if empresa.fiscal_regime_tributario == 1 %}selected{% endif %}>1 - Simples Nacional (Mais comum para oficinas e lojas)</option>
+                        <option value="4" {% if empresa.fiscal_regime_tributario == 4 %}selected{% endif %}>4 - MEI (Microempreendedor Individual)</option>
+                        <option value="2" {% if empresa.fiscal_regime_tributario == 2 %}selected{% endif %}>2 - Simples Nacional (Excesso sublimite)</option>
+                        <option value="3" {% if empresa.fiscal_regime_tributario == 3 %}selected{% endif %}>3 - Regime Normal (Lucro Presumido ou Real)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Razão Social Completa</label>
+                    <input type="text" name="fiscal_razao_social" value="{{ empresa.fiscal_razao_social or '' }}" placeholder="Nome Oficial da Empresa LTDA"
+                        class="w-full text-xs rounded-lg border-slate-200 bg-slate-50 p-2.5 focus:border-purple-500 focus:ring-purple-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Nome Fantasia</label>
+                    <input type="text" name="fiscal_nome_fantasia" value="{{ empresa.fiscal_nome_fantasia or empresa.nome_empresa or '' }}" placeholder="Nome Fantasia Comercial"
+                        class="w-full text-xs rounded-lg border-slate-200 bg-slate-50 p-2.5 focus:border-purple-500 focus:ring-purple-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Inscrição Municipal (IM)</label>
+                    <input type="text" name="fiscal_inscricao_municipal" value="{{ empresa.fiscal_inscricao_municipal or '' }}" placeholder="Obrigatório para NFS-e (Mão de obra)"
+                        class="w-full text-xs rounded-lg border-slate-200 bg-slate-50 p-2.5 focus:border-purple-500 focus:ring-purple-500">
+                    <p class="text-[11px] text-slate-400 mt-0.5">Necessário para emitir serviços na prefeitura.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Inscrição Estadual (IE)</label>
+                    <input type="text" name="fiscal_inscricao_estadual" value="{{ empresa.fiscal_inscricao_estadual or '' }}" placeholder="Obrigatório para NFC-e / NF-e (Peças e Produtos)"
+                        class="w-full text-xs rounded-lg border-slate-200 bg-slate-50 p-2.5 focus:border-purple-500 focus:ring-purple-500">
+                    <p class="text-[11px] text-slate-400 mt-0.5">Necessário para emitir vendas de mercadorias na SEFAZ.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. CERTIFICADO DIGITAL A1 -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 border-b border-slate-100 pb-3 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Certificado Digital A1 (.pfx / .p12)
+            </h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Arquivo do Certificado A1</label>
+                        <input type="file" name="certificado" accept=".pfx,.p12"
+                            class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer border border-slate-200 rounded-lg p-1">
+                        <p class="text-[11px] text-slate-400 mt-1">Extensões válidas: .pfx ou .p12 (Certificado tipo A1 arquivo).</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Senha do Certificado Digital</label>
+                        <input type="password" name="fiscal_certificado_senha" value="{{ empresa.fiscal_certificado_senha or '' }}" placeholder="••••••••"
+                            class="w-full text-xs rounded-lg border-slate-200 bg-slate-50 p-2.5 focus:border-purple-500 focus:ring-purple-500">
+                    </div>
+                </div>
+
+                <!-- Status do Certificado Carregado -->
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Status do Certificado</h3>
+                    {% if empresa.fiscal_certificado_filename %}
+                    <div class="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 p-2.5 rounded-lg">
+                        <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Certificado A1 Carregado no Servidor</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500">Arquivo: <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">{{ empresa.fiscal_certificado_filename }}</code></p>
+                    
+                    <button type="submit" formaction="{{ url_for('remover_certificado_fiscal') }}" formmethod="POST"
+                        class="text-xs text-rose-600 hover:text-rose-700 font-semibold inline-flex items-center gap-1 pt-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Remover Certificado Digital
+                    </button>
+                    {% else %}
+                    <div class="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 p-2.5 rounded-lg">
+                        <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span>Nenhum certificado A1 enviado</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">Faça o upload do arquivo .pfx para assinar e emitir notas oficiais.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Botão Salvar -->
+        <div class="flex items-center justify-end gap-3 pt-2">
+            <button type="submit"
+                class="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-lg shadow-purple-600/30 transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Salvar Configurações Fiscais
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

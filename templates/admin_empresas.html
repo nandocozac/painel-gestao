@@ -58,16 +58,28 @@
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Plano Mensal (R$)</label>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Plano Básico Mensal (R$)</label>
                 <input type="number" step="0.01" name="valor_mensalidade" value="{{ '%.2f'|format(empresa.valor_mensalidade or 29.90) }}"
                     class="w-full text-xs font-mono rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Plano Anual (R$)</label>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Plano Básico Anual (R$)</label>
+                <input type="number" step="0.01" name="valor_anual" value="{{ '%.2f'|format(empresa.valor_anual or 249.90) }}"
+                    class="w-full text-xs font-mono rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-purple-700 mb-1">⭐ Plano Fiscal Mensal (R$)</label>
+                <input type="number" step="0.01" name="valor_mensalidade_fiscal" value="{{ '%.2f'|format(empresa.valor_mensalidade_fiscal or 79.90) }}"
+                    class="w-full text-xs font-mono rounded-lg border border-purple-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 bg-purple-50/30">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-purple-700 mb-1">⭐ Plano Fiscal Anual (R$)</label>
                 <div class="flex gap-2">
-                    <input type="number" step="0.01" name="valor_anual" value="{{ '%.2f'|format(empresa.valor_anual or 249.90) }}"
-                        class="w-full text-xs font-mono rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="number" step="0.01" name="valor_anual_fiscal" value="{{ '%.2f'|format(empresa.valor_anual_fiscal or 699.90) }}"
+                        class="w-full text-xs font-mono rounded-lg border border-purple-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 bg-purple-50/30">
                     <button type="submit"
                         class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition shrink-0">
                         Salvar
@@ -153,6 +165,7 @@
                         <th class="py-3.5 px-4">Contato (E-mail / WhatsApp)</th>
                         <th class="py-3.5 px-4">Cadastro</th>
                         <th class="py-3.5 px-4">Status</th>
+                        <th class="py-3.5 px-4">Módulo Fiscal</th>
                         <th class="py-3.5 px-4">Validade da Assinatura</th>
                         <th class="py-3.5 px-4 text-right">Ações de Liberação</th>
                     </tr>
@@ -201,6 +214,34 @@
                                 <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                                 Bloqueado
                             </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="py-4 px-4 text-xs">
+                            {% if emp.is_admin %}
+                            <span class="text-purple-700 font-bold bg-purple-50 px-2 py-0.5 rounded border border-purple-200">Total (Master)</span>
+                            {% elif emp.permite_emissao_fiscal %}
+                            <div class="space-y-1">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                    ✓ Habilitado
+                                </span>
+                                <form method="POST" action="{{ url_for('admin_alternar_fiscal', empresa_id=emp.id) }}" class="block">
+                                    <button type="submit" class="text-[11px] text-slate-500 hover:text-rose-600 underline font-medium">
+                                        Bloquear Fiscal
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <div class="space-y-1">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                                    Não contratado
+                                </span>
+                                <form method="POST" action="{{ url_for('admin_alternar_fiscal', empresa_id=emp.id) }}" class="block">
+                                    <button type="submit" class="text-[11px] text-purple-600 hover:text-purple-800 font-bold">
+                                        + Liberar Fiscal
+                                    </button>
+                                </form>
+                            </div>
                             {% endif %}
                         </td>
 

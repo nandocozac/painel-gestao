@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import text, event
 from sqlalchemy.engine import Engine
 from database import db
-from models import Empresa, Cliente, Veiculo, OrdemServico, Transacao, ItemOS
+from models import Empresa, Cliente, Veiculo, OrdemServico, Transacao, ItemOS, NotaFiscal
 
 # Diretórios e caminhos absolutos para compatibilidade total local e em produção (Hostinger / LiteSpeed)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -71,7 +71,21 @@ def migrar_banco_multiempresa():
                 'titular_pix': 'VARCHAR(100) DEFAULT "Fernando Cozac"',
                 'valor_mensalidade': 'FLOAT DEFAULT 29.90',
                 'valor_anual': 'FLOAT DEFAULT 249.90',
-                'tipo_negocio': 'VARCHAR(30) DEFAULT "OFICINA"'
+                'valor_mensalidade_fiscal': 'FLOAT DEFAULT 79.90',
+                'valor_anual_fiscal': 'FLOAT DEFAULT 699.90',
+                'tipo_negocio': 'VARCHAR(30) DEFAULT "OFICINA"',
+                'permite_emissao_fiscal': 'BOOLEAN DEFAULT 0',
+                'fiscal_ativo': 'BOOLEAN DEFAULT 0',
+                'fiscal_ambiente': 'VARCHAR(20) DEFAULT "HOMOLOGACAO"',
+                'fiscal_cnpj': 'VARCHAR(20) DEFAULT ""',
+                'fiscal_razao_social': 'VARCHAR(150) DEFAULT ""',
+                'fiscal_nome_fantasia': 'VARCHAR(150) DEFAULT ""',
+                'fiscal_inscricao_municipal': 'VARCHAR(30) DEFAULT ""',
+                'fiscal_inscricao_estadual': 'VARCHAR(30) DEFAULT ""',
+                'fiscal_regime_tributario': 'INTEGER DEFAULT 1',
+                'fiscal_certificado_filename': 'VARCHAR(255)',
+                'fiscal_certificado_senha': 'VARCHAR(255) DEFAULT ""',
+                'fiscal_token_focus': 'VARCHAR(100) DEFAULT ""'
             }
             for col, col_type in novas_colunas_empresas.items():
                 if col not in colunas_empresas:
@@ -84,6 +98,19 @@ def migrar_banco_multiempresa():
                 colunas = [row[1] for row in db.session.execute(text(f"PRAGMA table_info({tab})")).fetchall()]
                 if 'empresa_id' not in colunas:
                     db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN empresa_id INTEGER REFERENCES empresas(id)"))
+            db.session.commit()
+
+            # 3. Garantir colunas fiscais na tabela itens_os
+            colunas_itens = [row[1] for row in db.session.execute(text("PRAGMA table_info(itens_os)")).fetchall()]
+            novas_colunas_itens = {
+                'ncm': 'VARCHAR(10) DEFAULT ""',
+                'cfop': 'VARCHAR(10) DEFAULT ""',
+                'codigo_servico_municipal': 'VARCHAR(20) DEFAULT ""',
+                'aliquota_iss': 'FLOAT DEFAULT 0.0'
+            }
+            for col, col_type in novas_colunas_itens.items():
+                if col not in colunas_itens:
+                    db.session.execute(text(f"ALTER TABLE itens_os ADD COLUMN {col} {col_type}"))
             db.session.commit()
 
         # 3. Garantir que a empresa Master exista de forma segura
@@ -503,7 +530,7 @@ def admin_nova_empresa():
         tipo_negocio=tipo_negocio,
         status_assinatura=status,
         data_validade=hoje + timedelta(days=dias_validade) if status == 'ATIVO' else None,
-        logo_filename="logo.png",
+        logo_filename=None,
         mensagem_rodape="Agradecemos a preferência! Volte sempre."
     )
     db.session.add(nova_emp)
@@ -531,8 +558,40 @@ def admin_salvar_cobranca():
     except (ValueError, TypeError):
         pass
 
+    try:
+        val_mf = float(request.form.get('valor_mensalidade_fiscal', '79.90').replace(',', '.'))
+        g.empresa.valor_mensalidade_fiscal = round(val_mf, 2)
+    except (ValueError, TypeError):
+        pass
+
+    try:
+        val_af = float(request.form.get('valor_anual_fiscal', '699.90').replace(',', '.'))
+        g.empresa.valor_anual_fiscal = round(val_af, 2)
+    except (ValueError, TypeError):
+        pass
+
     db.session.commit()
     flash("Dados de cobrança e Pix atualizados com sucesso!", "success")
+    return redirect(url_for('admin_empresas'))
+
+
+@app.route('/admin/empresa/<int:empresa_id>/alternar-fiscal', methods=['POST'])
+@login_required
+@admin_required
+def admin_alternar_fiscal(empresa_id):
+    emp = db.session.get(Empresa, empresa_id)
+    if not emp:
+        flash("Empresa não encontrada.", "error")
+        return redirect(url_for('admin_empresas'))
+
+    emp.permite_emissao_fiscal = not emp.permite_emissao_fiscal
+    db.session.commit()
+
+    if emp.permite_emissao_fiscal:
+        flash(f"Módulo Fiscal LIBERADO com sucesso para a empresa '{emp.nome_empresa}'!", "success")
+    else:
+        flash(f"Módulo Fiscal BLOQUEADO para a empresa '{emp.nome_empresa}'.", "info")
+
     return redirect(url_for('admin_empresas'))
 
 
@@ -1308,6 +1367,193 @@ def remover_logo_empresa():
     db.session.commit()
     flash('Logotipo removido com sucesso. O sistema exibirá o nome da empresa.', 'info')
     return redirect(url_for('configuracoes_empresa'))
+
+
+# --- MÓDULO FISCAL & EMISSÃO DE NOTAS (FOCUS NFE) ---
+
+@app.route('/configuracoes/fiscal', methods=['GET', 'POST'])
+@login_required
+def configuracoes_fiscal():
+    empresa = g.empresa
+
+    # Trava de Segurança SaaS: apenas empresas com o plano fiscal liberado pelo Dono Master podem acessar
+    if not empresa.permite_emissao_fiscal and not empresa.is_admin:
+        return render_template('fiscal_bloqueado.html', empresa=empresa)
+
+    if request.method == 'POST':
+        empresa.fiscal_ativo = (request.form.get('fiscal_ativo') == 'on')
+        empresa.fiscal_ambiente = request.form.get('fiscal_ambiente', 'HOMOLOGACAO').strip().upper()
+        empresa.fiscal_cnpj = re.sub(r'\D', '', request.form.get('fiscal_cnpj', ''))
+        empresa.fiscal_razao_social = request.form.get('fiscal_razao_social', '').strip()
+        empresa.fiscal_nome_fantasia = request.form.get('fiscal_nome_fantasia', '').strip()
+        empresa.fiscal_inscricao_municipal = request.form.get('fiscal_inscricao_municipal', '').strip()
+        empresa.fiscal_inscricao_estadual = request.form.get('fiscal_inscricao_estadual', '').strip()
+        
+        try:
+            empresa.fiscal_regime_tributario = int(request.form.get('fiscal_regime_tributario', 1))
+        except (ValueError, TypeError):
+            empresa.fiscal_regime_tributario = 1
+
+        empresa.fiscal_token_focus = request.form.get('fiscal_token_focus', '').strip()
+
+        nova_senha_cert = request.form.get('fiscal_certificado_senha', '').strip()
+        if nova_senha_cert:
+            empresa.fiscal_certificado_senha = nova_senha_cert
+
+        # Upload do Certificado Digital A1 (.pfx ou .p12)
+        if 'certificado' in request.files:
+            file = request.files['certificado']
+            if file and file.filename != '':
+                ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+                if ext in ['pfx', 'p12']:
+                    cert_folder = os.path.join(INSTANCE_DIR, 'certificados')
+                    os.makedirs(cert_folder, exist_ok=True)
+                    cert_filename = f"cert_{empresa.id}_{int(time.time())}.{ext}"
+                    caminho_cert = os.path.join(cert_folder, cert_filename)
+                    file.save(caminho_cert)
+                    empresa.fiscal_certificado_filename = cert_filename
+                    flash("Certificado Digital A1 enviado com sucesso!", "info")
+                else:
+                    flash("Formato de certificado inválido! Envie um arquivo .pfx ou .p12.", "error")
+
+        db.session.commit()
+        flash("Configurações do Módulo Fiscal atualizadas com sucesso!", "success")
+        return redirect(url_for('configuracoes_fiscal'))
+
+    return render_template('configuracoes_fiscal.html', empresa=empresa)
+
+
+@app.route('/configuracoes/fiscal/remover-certificado', methods=['POST'])
+@login_required
+def remover_certificado_fiscal():
+    empresa = g.empresa
+    if not empresa.permite_emissao_fiscal and not empresa.is_admin:
+        return redirect(url_for('dashboard'))
+
+    if empresa.fiscal_certificado_filename:
+        caminho = os.path.join(INSTANCE_DIR, 'certificados', empresa.fiscal_certificado_filename)
+        if os.path.exists(caminho):
+            try:
+                os.remove(caminho)
+            except Exception:
+                pass
+        empresa.fiscal_certificado_filename = None
+        empresa.fiscal_certificado_senha = ""
+        db.session.commit()
+        flash("Certificado Digital removido com sucesso.", "info")
+
+    return redirect(url_for('configuracoes_fiscal'))
+
+
+@app.route('/os/<int:os_id>/emitir-nfse', methods=['POST'])
+@login_required
+def emitir_nfse_os(os_id):
+    os = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+    empresa = g.empresa
+
+    # Trava de Segurança SaaS
+    if not empresa.permite_emissao_fiscal and not empresa.is_admin:
+        flash("Sua empresa não possui o Módulo Fiscal contratado. Fale com o suporte para ativar.", "warning")
+        return redirect(url_for('ver_os', os_id=os.id))
+
+    if not empresa.fiscal_ativo or not empresa.fiscal_token_focus:
+        flash("O Módulo Fiscal não está ativo ou o Token da Focus NFe não foi configurado nas Configurações Fiscais.", "error")
+        return redirect(url_for('configuracoes_fiscal'))
+
+    itens_servico = [it for it in os.itens if it.tipo == 'SERVICO']
+    if not itens_servico:
+        flash("Esta Ordem de Serviço não possui itens de serviço/mão de obra para emissão de NFS-e.", "warning")
+        return redirect(url_for('ver_os', os_id=os.id))
+
+    import focus_nfe
+    sucesso, res = focus_nfe.autorizar_nfse(empresa, os, itens_servico)
+
+    if sucesso:
+        nova_nota = NotaFiscal(
+            empresa_id=empresa.id,
+            ordem_servico_id=os.id,
+            tipo_nota='NFSE',
+            referencia_uuid=res['referencia'],
+            status=res.get('status', 'PROCESSANDO'),
+            mensagem_sefaz=res.get('mensagem', ''),
+            valor_total=sum(float(it.subtotal or 0.0) for it in itens_servico),
+            data_emissao=date.today()
+        )
+        db.session.add(nova_nota)
+        db.session.commit()
+        flash("NFS-e enviada com sucesso para a Prefeitura! Status: " + res.get('status', 'PROCESSANDO'), "success")
+    else:
+        flash(f"Erro ao emitir NFS-e: {res}", "error")
+
+    return redirect(url_for('ver_os', os_id=os.id))
+
+
+@app.route('/os/<int:os_id>/emitir-nfce', methods=['POST'])
+@login_required
+def emitir_nfce_os(os_id):
+    os = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+    empresa = g.empresa
+
+    if not empresa.permite_emissao_fiscal and not empresa.is_admin:
+        flash("Sua empresa não possui o Módulo Fiscal contratado.", "warning")
+        return redirect(url_for('ver_os', os_id=os.id))
+
+    if not empresa.fiscal_ativo or not empresa.fiscal_token_focus:
+        flash("O Módulo Fiscal não está ativo ou o Token da Focus NFe não foi configurado.", "error")
+        return redirect(url_for('configuracoes_fiscal'))
+
+    itens_pecas = [it for it in os.itens if it.tipo == 'PECA']
+    if not itens_pecas:
+        flash("Esta Ordem de Serviço não possui peças ou produtos para emissão de NFC-e.", "warning")
+        return redirect(url_for('ver_os', os_id=os.id))
+
+    import focus_nfe
+    sucesso, res = focus_nfe.autorizar_nfce(empresa, os, itens_pecas)
+
+    if sucesso:
+        nova_nota = NotaFiscal(
+            empresa_id=empresa.id,
+            ordem_servico_id=os.id,
+            tipo_nota='NFCE',
+            referencia_uuid=res['referencia'],
+            status=res.get('status', 'PROCESSANDO'),
+            mensagem_sefaz=res.get('mensagem', ''),
+            valor_total=sum(float(it.subtotal or 0.0) for it in itens_pecas),
+            data_emissao=date.today()
+        )
+        db.session.add(nova_nota)
+        db.session.commit()
+        flash("NFC-e enviada com sucesso para a SEFAZ! Status: " + res.get('status', 'PROCESSANDO'), "success")
+    else:
+        flash(f"Erro ao emitir NFC-e: {res}", "error")
+
+    return redirect(url_for('ver_os', os_id=os.id))
+
+
+@app.route('/fiscal/nota/<int:nota_id>/consultar', methods=['POST'])
+@login_required
+def consultar_status_nota(nota_id):
+    nota = NotaFiscal.query.filter_by(id=nota_id, empresa_id=g.empresa.id).first_or_404()
+    import focus_nfe
+    sucesso, res = focus_nfe.consultar_nfse(g.empresa, nota.referencia_uuid)
+
+    if sucesso:
+        nota.status = res.get('status', nota.status)
+        if res.get('numero'):
+            nota.numero_nota = str(res.get('numero'))
+        if res.get('url_danfe'):
+            nota.url_danfe_pdf = res.get('url_danfe')
+        if res.get('url_xml'):
+            nota.url_xml = res.get('url_xml')
+        if res.get('mensagem'):
+            nota.mensagem_sefaz = res.get('mensagem')
+        db.session.commit()
+        flash(f"Status da nota atualizado: {nota.status}", "info")
+    else:
+        flash(f"Erro ao consultar Focus NFe: {res}", "error")
+
+    next_url = request.form.get('next') or request.referrer or url_for('ver_os', os_id=nota.ordem_servico_id)
+    return redirect(next_url)
 
 
 if __name__ == '__main__':
