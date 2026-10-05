@@ -46,7 +46,8 @@ def migrar_banco_multiempresa():
             'chave_pix': 'VARCHAR(100) DEFAULT ""',
             'titular_pix': 'VARCHAR(100) DEFAULT "Fernando Cozac"',
             'valor_mensalidade': 'FLOAT DEFAULT 29.90',
-            'valor_anual': 'FLOAT DEFAULT 249.90'
+            'valor_anual': 'FLOAT DEFAULT 249.90',
+            'tipo_negocio': 'VARCHAR(30) DEFAULT "OFICINA"'
         }
         for col, col_type in novas_colunas_empresas.items():
             if col not in colunas_empresas:
@@ -348,6 +349,10 @@ def cadastro():
             flash("Este e-mail já está cadastrado. Faça login ou use outro e-mail.", "error")
             return render_template('cadastro.html')
 
+        tipo_negocio = request.form.get('tipo_negocio', 'OFICINA').strip().upper()
+        if tipo_negocio not in ['OFICINA', 'LOJA']:
+            tipo_negocio = 'OFICINA'
+
         # Nova empresa cadastrada fica PENDENTE aguardando aprovação/pagamento do Pix
         nova_empresa = Empresa(
             nome_empresa=nome_empresa,
@@ -356,6 +361,7 @@ def cadastro():
             whatsapp=telefone,
             senha_hash=generate_password_hash(senha),
             is_admin=False,
+            tipo_negocio=tipo_negocio,
             status_assinatura="PENDENTE",
             logo_filename="logo.png",
             mensagem_rodape="Agradecemos a preferência! Volte sempre."
@@ -441,6 +447,10 @@ def admin_nova_empresa():
         return redirect(url_for('admin_empresas'))
 
     hoje = date.today()
+    tipo_negocio = request.form.get('tipo_negocio', 'OFICINA').strip().upper()
+    if tipo_negocio not in ['OFICINA', 'LOJA']:
+        tipo_negocio = 'OFICINA'
+
     nova_emp = Empresa(
         nome_empresa=nome,
         email=email,
@@ -448,6 +458,7 @@ def admin_nova_empresa():
         whatsapp=telefone,
         senha_hash=generate_password_hash(senha),
         is_admin=False,
+        tipo_negocio=tipo_negocio,
         status_assinatura=status,
         data_validade=hoje + timedelta(days=dias_validade) if status == 'ATIVO' else None,
         logo_filename="logo.png",
@@ -1206,6 +1217,10 @@ def configuracoes_empresa():
         empresa.endereco = request.form.get('endereco', '').strip()
         empresa.cidade_uf = request.form.get('cidade_uf', '').strip()
         empresa.mensagem_rodape = request.form.get('mensagem_rodape', '').strip()
+
+        tipo_negocio = request.form.get('tipo_negocio', '').strip().upper()
+        if tipo_negocio in ['OFICINA', 'LOJA']:
+            empresa.tipo_negocio = tipo_negocio
 
         # Atualização de e-mail e senha
         novo_email = request.form.get('email', '').strip().lower()

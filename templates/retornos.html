@@ -4,8 +4,16 @@
 {% block content %}
 <div class="space-y-5">
     <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-        <h1 class="text-xl font-bold text-slate-800">Alertas de Manutenção Preventiva</h1>
-        <p class="text-xs text-slate-500 mt-0.5">Veículos com retorno estimado para os próximos 15 dias. Você pode alterar a data de retorno de qualquer cliente a qualquer momento.</p>
+        <h1 class="text-xl font-bold text-slate-800">
+            {% if empresa.tipo_negocio == 'OFICINA' %}Alertas de Manutenção Preventiva{% else %}Lembretes de Pós-Venda e Retorno{% endif %}
+        </h1>
+        <p class="text-xs text-slate-500 mt-0.5">
+            {% if empresa.tipo_negocio == 'OFICINA' %}
+            Veículos com retorno estimado para os próximos 15 dias. Você pode alterar a data de retorno de qualquer cliente a qualquer momento.
+            {% else %}
+            Clientes com data de pós-venda ou retorno agendada para os próximos 15 dias. Você pode alterar a data de contato a qualquer momento.
+            {% endif %}
+        </p>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -16,8 +24,10 @@
                     <tr>
                         <th class="py-3.5 px-4">Data Prevista</th>
                         <th class="py-3.5 px-4">Cliente</th>
+                        {% if empresa.tipo_negocio == 'OFICINA' %}
                         <th class="py-3.5 px-4">Veículo</th>
-                        <th class="py-3.5 px-4">Último Serviço Realizado</th>
+                        {% endif %}
+                        <th class="py-3.5 px-4">{% if empresa.tipo_negocio == 'OFICINA' %}Último Serviço Realizado{% else %}Último Pedido / Compra{% endif %}</th>
                         <th class="py-3.5 px-4 text-right">Ações</th>
                     </tr>
                 </thead>
@@ -31,6 +41,7 @@
                             <span class="font-semibold text-slate-900 block">{{ a.cliente.nome }}</span>
                             <span class="text-xs text-slate-500">{{ a.cliente.telefone }}</span>
                         </td>
+                        {% if empresa.tipo_negocio == 'OFICINA' %}
                         <td class="py-3.5 px-4">
                             {% if a.veiculo %}
                             <span class="text-slate-800 font-medium block">{{ a.veiculo.modelo }}</span>
@@ -39,6 +50,7 @@
                             <span class="text-xs text-slate-400 italic">Sem ativo</span>
                             {% endif %}
                         </td>
+                        {% endif %}
                         <td class="py-3.5 px-4 text-xs text-slate-600 max-w-sm truncate">
                             {{ a.servico_executado or a.descricao_problema }}
                         </td>
@@ -52,8 +64,12 @@
                             </button>
 
                             {% set fone_limpo = a.cliente.telefone|replace('(', '')|replace(')', '')|replace('-', '')|replace(' ', '') %}
-                            {% set veic_info = " do seu veículo " ~ a.veiculo.modelo if a.veiculo else "" %}
-                            {% set msg = "Olá " ~ a.cliente.nome ~ "! Notamos que está próxima a data prevista para a revisão preventiva" ~ veic_info ~ " no nosso centro técnico. Gostaria de agendar seu atendimento?" %}
+                            {% if empresa.tipo_negocio == 'OFICINA' %}
+                                {% set veic_info = " do seu veículo " ~ a.veiculo.modelo if a.veiculo else "" %}
+                                {% set msg = "Olá " ~ a.cliente.nome ~ "! Notamos que está próxima a data prevista para a revisão preventiva" ~ veic_info ~ " na oficina " ~ empresa.nome_empresa ~ ". Gostaria de agendar seu atendimento?" %}
+                            {% else %}
+                                {% set msg = "Olá " ~ a.cliente.nome ~ "! Tudo bem? Passando para saber como foi sua experiência com sua última compra na " ~ empresa.nome_empresa ~ ". Temos novidades que você vai adorar, estamos à disposição!" %}
+                            {% endif %}
                             <a href="https://wa.me/55{{ fone_limpo }}?text={{ msg|urlencode }}" target="_blank"
                                 class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-sm">
                                 Notificar WhatsApp

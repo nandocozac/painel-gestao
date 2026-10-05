@@ -166,9 +166,14 @@
                                 {% if emp.is_admin %}
                                 <span class="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wide">Dono / Master</span>
                                 {% endif %}
+                                {% if emp.tipo_negocio == 'OFICINA' %}
+                                <span class="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-semibold border border-blue-200">🚗 Oficina</span>
+                                {% else %}
+                                <span class="bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded font-semibold border border-purple-200">🛍️ Loja/Serviços</span>
+                                {% endif %}
                             </div>
                             <span class="text-xs text-slate-500 block">{{ emp.subtitulo or 'Sem subtítulo' }}</span>
-                            <span class="text-[11px] text-slate-400">{{ emp.ordens_servico|length }} OS(s) geradas</span>
+                            <span class="text-[11px] text-slate-400">{{ emp.ordens_servico|length }} {% if emp.tipo_negocio == 'OFICINA' %}OS(s){% else %}pedidos{% endif %} gerados</span>
                         </td>
 
                         <td class="py-4 px-4 text-xs">
@@ -316,6 +321,14 @@
                     <label class="block text-xs font-semibold text-slate-700 mb-1">WhatsApp / Telefone</label>
                     <input type="text" name="telefone" placeholder="(00) 90000-0000"
                         class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Ramo de Atividade / Segmento *</label>
+                    <select name="tipo_negocio" class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="OFICINA" selected>🚗 Oficina / Centro Automotivo (Com veículos/placas)</option>
+                        <option value="LOJA">🛍️ Loja / Comércio Geral / Serviços (Sem veículos)</option>
+                    </select>
                 </div>
 
                 <div>

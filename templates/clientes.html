@@ -44,7 +44,9 @@
                     <tr>
                         <th class="py-3.5 px-4">Nome</th>
                         <th class="py-3.5 px-4">Telefone / WhatsApp</th>
+                        {% if empresa.tipo_negocio == 'OFICINA' %}
                         <th class="py-3.5 px-4">Veículos Vinculados</th>
+                        {% endif %}
                         <th class="py-3.5 px-4">Total de Atendimentos</th>
                         <th class="py-3.5 px-4 text-right">Ação</th>
                     </tr>
@@ -58,6 +60,7 @@
                         <td class="py-3.5 px-4 text-slate-600">
                             {{ c.telefone }}
                         </td>
+                        {% if empresa.tipo_negocio == 'OFICINA' %}
                         <td class="py-3.5 px-4 text-xs text-slate-600">
                             {% for v in c.veiculos %}
                             <span
@@ -68,8 +71,9 @@
                             <span class="text-slate-400 italic">Sem veículos</span>
                             {% endfor %}
                         </td>
+                        {% endif %}
                         <td class="py-3.5 px-4 text-slate-700 font-mono">
-                            {{ c.ordens_servico|length }} OS(s)
+                            {{ c.ordens_servico|length }} {% if empresa.tipo_negocio == 'OFICINA' %}OS(s){% else %}pedidos{% endif %}
                         </td>
                         <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
                             <button type="button" onclick="abrirEditarClienteRapido({{ c.id }}, {{ c.nome|tojson }}, {{ c.telefone|tojson }})"
@@ -129,6 +133,7 @@
                     class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
             </div>
 
+            {% if empresa.tipo_negocio == 'OFICINA' %}
             <div class="border-t border-slate-100 pt-2">
                 <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Veículo do Cliente (Opcional)</label>
                 <div class="grid grid-cols-2 gap-2">
@@ -142,6 +147,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button type="button" onclick="document.getElementById('modal-novo-cliente').classList.add('hidden')"

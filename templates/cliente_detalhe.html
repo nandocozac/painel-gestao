@@ -40,40 +40,48 @@
     </div>
 
     <!-- CARDS DE RESUMO -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 {% if empresa.tipo_negocio == 'OFICINA' %}md:grid-cols-3{% else %}md:grid-cols-2{% endif %} gap-4">
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
             <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">Histórico Financeiro</span>
             <div class="text-2xl font-bold mt-2 text-emerald-600 font-mono">R$ {{ total_gasto|moeda }}</div>
-            <p class="text-[11px] text-slate-500 mt-1">Total investido em serviços concluídos</p>
+            <p class="text-[11px] text-slate-500 mt-1">Total investido em serviços/pedidos concluídos</p>
         </div>
 
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">Total de Ordens</span>
+            <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">
+                {% if empresa.tipo_negocio == 'OFICINA' %}Total de Ordens{% else %}Total de Pedidos{% endif %}
+            </span>
             <div class="text-2xl font-bold mt-2 text-slate-900 font-mono">{{ historico_os|length }}</div>
             <p class="text-[11px] text-slate-500 mt-1">Atendimentos abertos e fechados</p>
         </div>
 
+        {% if empresa.tipo_negocio == 'OFICINA' %}
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
             <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">Veículos Cadastrados</span>
             <div class="text-2xl font-bold mt-2 text-slate-900 font-mono">{{ cliente.veiculos|length }}</div>
             <p class="text-[11px] text-slate-500 mt-1">Ativos associados a este cliente</p>
         </div>
+        {% endif %}
     </div>
 
     <!-- TABELA DE ATENDIMENTOS DO CLIENTE -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="p-4 border-b border-slate-200 bg-slate-50/50">
-            <h2 class="text-sm font-bold text-slate-800">Histórico de Atendimentos</h2>
+            <h2 class="text-sm font-bold text-slate-800">
+                {% if empresa.tipo_negocio == 'OFICINA' %}Histórico de Ordens de Serviço{% else %}Histórico de Pedidos e Compras{% endif %}
+            </h2>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
                 <thead
                     class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
                     <tr>
-                        <th class="py-3 px-4"># OS</th>
+                        <th class="py-3 px-4">{% if empresa.tipo_negocio == 'OFICINA' %}# OS{% else %}# Pedido{% endif %}</th>
                         <th class="py-3 px-4">Abertura</th>
+                        {% if empresa.tipo_negocio == 'OFICINA' %}
                         <th class="py-3 px-4">Veículo</th>
-                        <th class="py-3 px-4">Problema / Serviço</th>
+                        {% endif %}
+                        <th class="py-3 px-4">{% if empresa.tipo_negocio == 'OFICINA' %}Problema / Serviço{% else %}Itens / Solicitação{% endif %}</th>
                         <th class="py-3 px-4">Status</th>
                         <th class="py-3 px-4 text-right">Valor Total</th>
                         <th class="py-3 px-4 text-right">Ação</th>
@@ -84,6 +92,7 @@
                     <tr class="hover:bg-slate-50/80 transition">
                         <td class="py-3.5 px-4 font-mono font-bold text-slate-900">#{{ "%04d"|format(os.id) }}</td>
                         <td class="py-3.5 px-4 text-xs text-slate-600">{{ os.data_abertura|data_br }}</td>
+                        {% if empresa.tipo_negocio == 'OFICINA' %}
                         <td class="py-3.5 px-4">
                             {% if os.veiculo %}
                             <span class="text-slate-800 font-medium block">{{ os.veiculo.modelo }}</span>
@@ -93,6 +102,7 @@
                             <span class="text-xs text-slate-400 italic">Sem ativo</span>
                             {% endif %}
                         </td>
+                        {% endif %}
                         <td class="py-3.5 px-4 text-xs text-slate-600 max-w-xs truncate">
                             {{ os.descricao_problema }}
                         </td>
@@ -108,14 +118,14 @@
                         <td class="py-3.5 px-4 text-right">
                             <a href="{{ url_for('ver_os', os_id=os.id) }}"
                                 class="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline">
-                                Ver OS &rarr;
+                                Ver &rarr;
                             </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
                         <td colspan="7" class="py-8 text-center text-slate-400 text-xs">
-                            Nenhuma ordem de serviço registrada para este cliente.
+                            Nenhum registro encontrado para este cliente.
                         </td>
                     </tr>
                     {% endfor %}
@@ -158,6 +168,7 @@
                     </div>
                 </div>
 
+                {% if empresa.tipo_negocio == 'OFICINA' %}
                 <!-- Veículos Já Cadastrados -->
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Veículos Vinculados</label>
@@ -196,6 +207,7 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                     <button type="button" onclick="document.getElementById('modal-editar-cliente').classList.add('hidden')"

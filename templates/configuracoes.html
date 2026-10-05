@@ -25,6 +25,57 @@
     <!-- Formulário Principal -->
     <form method="POST" action="{{ url_for('configuracoes_empresa') }}" enctype="multipart/form-data" class="space-y-6">
 
+        <!-- 0. RAMO DE ATIVIDADE / TIPO DE NEGÓCIO -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Tipo de Negócio / Ramo de Atuação
+                </h2>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full {% if empresa.tipo_negocio == 'OFICINA' %}bg-blue-100 text-blue-700{% else %}bg-purple-100 text-purple-700{% endif %}">
+                    Atual: {{ 'Oficina / Automotivo' if empresa.tipo_negocio == 'OFICINA' else 'Loja / Comércio / Serviços' }}
+                </span>
+            </div>
+
+            <p class="text-xs text-slate-500">
+                Selecione o modelo operacional da sua empresa para que as telas, campos e mensagens se adaptem automaticamente:
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <!-- Opção Oficina -->
+                <label class="relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition {% if empresa.tipo_negocio == 'OFICINA' %}border-blue-600 bg-blue-50/40{% else %}border-slate-200 hover:border-slate-300 bg-white{% endif %}">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">🚗</span>
+                            <span class="font-bold text-sm text-slate-900">Oficina / Automotivo</span>
+                        </div>
+                        <input type="radio" name="tipo_negocio" value="OFICINA" {% if empresa.tipo_negocio == 'OFICINA' %}checked{% endif %} class="text-blue-600 focus:ring-blue-500">
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Habilita controle completo de <strong>veículos, placas, quilometragem, histórico de peças</strong> e envio de avisos de carro pronto e retorno de revisão preventiva.
+                    </p>
+                    <span class="mt-2 text-[10px] font-semibold text-blue-700">Ideal para: Mecânicas, Auto Centers, Funilarias, Lava-Jatos e Motos.</span>
+                </label>
+
+                <!-- Opção Loja / Comércio -->
+                <label class="relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition {% if empresa.tipo_negocio != 'OFICINA' %}border-purple-600 bg-purple-50/40{% else %}border-slate-200 hover:border-slate-300 bg-white{% endif %}">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">🛍️</span>
+                            <span class="font-bold text-sm text-slate-900">Loja / Comércio / Serviços</span>
+                        </div>
+                        <input type="radio" name="tipo_negocio" value="LOJA" {% if empresa.tipo_negocio != 'OFICINA' %}checked{% endif %} class="text-purple-600 focus:ring-purple-500">
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Sistema simplificado focado em <strong>clientes, pedidos, produtos, vendas e caixa</strong>. Oculta placas e veículos e adapta as mensagens de WhatsApp ("seu pedido está pronto").
+                    </p>
+                    <span class="mt-2 text-[10px] font-semibold text-purple-700">Ideal para: Roupas, Alimentação, Bebidas, Eletrônicos, Cosméticos e Prestadores.</span>
+                </label>
+            </div>
+        </div>
+
         <!-- 1. IDENTIDADE VISUAL & LOGOTIPO -->
         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
             <h2 class="text-sm font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2 flex items-center gap-2">

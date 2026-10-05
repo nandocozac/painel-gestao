@@ -48,10 +48,10 @@
                 <thead
                     class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
                     <tr>
-                        <th class="py-3.5 px-4"># OS</th>
+                        <th class="py-3.5 px-4">{% if empresa.tipo_negocio == 'OFICINA' %}# OS{% else %}# Pedido{% endif %}</th>
                         <th class="py-3.5 px-4">Abertura</th>
                         <th class="py-3.5 px-4">Cliente</th>
-                        <th class="py-3.5 px-4">Veículo / Ativo</th>
+                        <th class="py-3.5 px-4">{% if empresa.tipo_negocio == 'OFICINA' %}Veículo / Ativo{% else %}Descrição / Itens{% endif %}</th>
                         <th class="py-3.5 px-4">Estado</th>
                         <th class="py-3.5 px-4 text-right">Valor Total</th>
                         <th class="py-3.5 px-4 text-right">Ação</th>
@@ -71,12 +71,17 @@
                             <span class="text-xs text-slate-500">{{ os.cliente.telefone }}</span>
                         </td>
                         <td class="py-3.5 px-4">
-                            {% if os.veiculo %}
-                            <span class="text-slate-800 font-medium block">{{ os.veiculo.modelo }}</span>
-                            <span class="text-xs font-mono font-semibold text-slate-500 uppercase">{{ os.veiculo.placa
-                                }}</span>
+                            {% if empresa.tipo_negocio == 'OFICINA' %}
+                                {% if os.veiculo %}
+                                <span class="text-slate-800 font-medium block">{{ os.veiculo.modelo }}</span>
+                                <span class="text-xs font-mono font-semibold text-slate-500 uppercase">{{ os.veiculo.placa }}</span>
+                                {% else %}
+                                <span class="text-xs text-slate-400 italic">Sem ativo</span>
+                                {% endif %}
                             {% else %}
-                            <span class="text-xs text-slate-400 italic">Sem ativo registado</span>
+                                <span class="text-slate-800 text-xs block truncate max-w-xs" title="{{ os.descricao_problema }}">
+                                    {{ os.descricao_problema or 'Venda / Pedido' }}
+                                </span>
                             {% endif %}
                         </td>
                         <td class="py-3.5 px-4">

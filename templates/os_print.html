@@ -34,8 +34,12 @@
                     Reabrir / Editar OS
                 </button>
                         {% set fone_limpo = os.cliente.telefone|fone_whatsapp %}
-            {% set veiculo_info = (os.veiculo.modelo ~ " (" ~ os.veiculo.placa ~ ")") if os.veiculo else "veículo" %}
-            {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu " ~ veiculo_info ~ " está pronto na oficina! O total da OS #" ~ ("%04d"|format(os.id)) ~ " com todas as peças e serviços detalhados foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o documento em PDF com todo o descritivo dos serviços e peças aplicadas. Aguardamos você para retirada! - " ~ empresa.nome_empresa %}
+            {% if empresa.tipo_negocio == 'OFICINA' %}
+                {% set veiculo_info = (os.veiculo.modelo ~ " (" ~ os.veiculo.placa ~ ")") if os.veiculo else "veículo" %}
+                {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu " ~ veiculo_info ~ " está pronto na oficina! O total da OS #" ~ ("%04d"|format(os.id)) ~ " com todas as peças e serviços detalhados foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o documento em PDF com todo o descritivo dos serviços e peças aplicadas. Aguardamos você para retirada! - " ~ empresa.nome_empresa %}
+            {% else %}
+                {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu pedido / atendimento #" ~ ("%04d"|format(os.id)) ~ " na " ~ empresa.nome_empresa ~ " está pronto! O valor total foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o comprovante detalhado em PDF com todos os itens. Agradecemos a preferência! - " ~ empresa.nome_empresa %}
+            {% endif %}
             
             <button type="button" onclick="baixarPdfEAbrirWhatsApp(this)" data-wa-url="https://wa.me/{{ fone_limpo }}?text={{ msg|urlencode }}"
                 class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-sm">
@@ -100,14 +104,15 @@
                 {% endif %}
             </div>
         </div>
-        <!-- Cliente e Veículo -->
+        <!-- Cliente e Veículo / Detalhes -->
         <div
-            class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
+            class="grid grid-cols-1 {% if empresa.tipo_negocio == 'OFICINA' %}md:grid-cols-2{% endif %} gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
             <div>
                 <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Dados do Cliente</h2>
                 <p class="text-sm font-bold text-slate-800">{{ os.cliente.nome }}</p>
                 <p class="text-xs text-slate-600 mt-0.5">Telefone: {{ os.cliente.telefone }}</p>
             </div>
+            {% if empresa.tipo_negocio == 'OFICINA' %}
             <div>
                 <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Identificação do Veículo</h2>
                 {% if os.veiculo %}
@@ -117,11 +122,13 @@
                 <p class="text-sm italic text-slate-400">Não informado</p>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
 
-        <!-- Problema Relatado na Entrada -->
+        <!-- Problema / Solicitação Relatada -->
         <div>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Problema Relatado na Entrada
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                {% if empresa.tipo_negocio == 'OFICINA' %}Problema Relatado na Entrada{% else %}Solicitação / Detalhes do Pedido{% endif %}
             </h2>
             <div
                 class="p-3.5 bg-slate-50 rounded-lg text-sm text-slate-700 border border-slate-100 print:bg-white print:border-slate-300">

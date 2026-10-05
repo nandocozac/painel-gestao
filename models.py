@@ -20,6 +20,9 @@ class Empresa(db.Model):
     senha_hash = db.Column(db.String(255), nullable=False)
     data_criacao = db.Column(db.Date, default=date.today)
     
+    # Segmento / Ramo de Atividade ('OFICINA' ou 'LOJA')
+    tipo_negocio = db.Column(db.String(30), default='OFICINA')
+
     # Controle de Acesso / Assinaturas (SaaS)
     is_admin = db.Column(db.Boolean, default=False)
     status_assinatura = db.Column(db.String(20), default='PENDENTE') # 'ATIVO', 'PENDENTE', 'BLOQUEADO'
