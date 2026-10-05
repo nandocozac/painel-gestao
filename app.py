@@ -21,7 +21,12 @@ DB_PATH = os.path.join(INSTANCE_DIR, 'painel_gestao.db').replace('\\', '/')
 
 app = Flask(__name__, instance_path=INSTANCE_DIR)
 app.config['SECRET_KEY'] = 'chave-segura-painel-interno-multiempresa-2026'
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
+# Conexão de Banco de Dados: Suporta PostgreSQL na nuvem (Render) ou SQLite local
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -36,11 +41,12 @@ db.init_app(app)
 # Otimização de concorrência e integridade SQLite para múltiplos workers / acessos simultâneos
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode = WAL")
-    cursor.execute("PRAGMA synchronous = NORMAL")
-    cursor.execute("PRAGMA busy_timeout = 5000")
-    cursor.close()
+    if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode = WAL")
+        cursor.execute("PRAGMA synchronous = NORMAL")
+        cursor.execute("PRAGMA busy_timeout = 5000")
+        cursor.close()
 
 
 # --- MIGRAÇÃO AUTOMÁTICA MULTI-EMPRESA E ADMINISTRAÇÃO SAAS ---
@@ -49,31 +55,33 @@ def migrar_banco_multiempresa():
     with app.app_context():
         db.create_all()
 
-        # 1. Garantir que as novas colunas existam na tabela 'empresas' (execução antes de qualquer query SQLAlchemy)
-        colunas_empresas = [row[1] for row in db.session.execute(text("PRAGMA table_info(empresas)")).fetchall()]
-        novas_colunas_empresas = {
-            'is_admin': 'BOOLEAN DEFAULT 0',
-            'status_assinatura': 'VARCHAR(20) DEFAULT "PENDENTE"',
-            'data_validade': 'DATE',
-            'observacoes_admin': 'TEXT DEFAULT ""',
-            'chave_pix': 'VARCHAR(100) DEFAULT ""',
-            'titular_pix': 'VARCHAR(100) DEFAULT "Fernando Cozac"',
-            'valor_mensalidade': 'FLOAT DEFAULT 29.90',
-            'valor_anual': 'FLOAT DEFAULT 249.90',
-            'tipo_negocio': 'VARCHAR(30) DEFAULT "OFICINA"'
-        }
-        for col, col_type in novas_colunas_empresas.items():
-            if col not in colunas_empresas:
-                db.session.execute(text(f"ALTER TABLE empresas ADD COLUMN {col} {col_type}"))
-        db.session.commit()
+        is_sqlite = 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']
+        if is_sqlite:
+            # 1. Garantir que as novas colunas existam na tabela 'empresas' (execução antes de qualquer query SQLAlchemy no SQLite)
+            colunas_empresas = [row[1] for row in db.session.execute(text("PRAGMA table_info(empresas)")).fetchall()]
+            novas_colunas_empresas = {
+                'is_admin': 'BOOLEAN DEFAULT 0',
+                'status_assinatura': 'VARCHAR(20) DEFAULT "PENDENTE"',
+                'data_validade': 'DATE',
+                'observacoes_admin': 'TEXT DEFAULT ""',
+                'chave_pix': 'VARCHAR(100) DEFAULT ""',
+                'titular_pix': 'VARCHAR(100) DEFAULT "Fernando Cozac"',
+                'valor_mensalidade': 'FLOAT DEFAULT 29.90',
+                'valor_anual': 'FLOAT DEFAULT 249.90',
+                'tipo_negocio': 'VARCHAR(30) DEFAULT "OFICINA"'
+            }
+            for col, col_type in novas_colunas_empresas.items():
+                if col not in colunas_empresas:
+                    db.session.execute(text(f"ALTER TABLE empresas ADD COLUMN {col} {col_type}"))
+            db.session.commit()
 
-        # 2. Garantir que as colunas 'empresa_id' existam nas tabelas de dados
-        tabelas = ['clientes', 'ordens_servico', 'transacoes']
-        for tab in tabelas:
-            colunas = [row[1] for row in db.session.execute(text(f"PRAGMA table_info({tab})")).fetchall()]
-            if 'empresa_id' not in colunas:
-                db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN empresa_id INTEGER REFERENCES empresas(id)"))
-        db.session.commit()
+            # 2. Garantir que as colunas 'empresa_id' existam nas tabelas de dados
+            tabelas = ['clientes', 'ordens_servico', 'transacoes']
+            for tab in tabelas:
+                colunas = [row[1] for row in db.session.execute(text(f"PRAGMA table_info({tab})")).fetchall()]
+                if 'empresa_id' not in colunas:
+                    db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN empresa_id INTEGER REFERENCES empresas(id)"))
+            db.session.commit()
 
         # 3. Garantir que a empresa Master exista de forma segura
         empresa_padrao = Empresa.query.filter_by(is_admin=True).first()
@@ -131,6 +139,8 @@ migrar_banco_multiempresa()
 
 def recuperar_banco_raiz_se_existir():
     """Garante que se existir um painel_gestao.db antigo na raiz do Hostinger, os dados sejam migrados para instance/"""
+    if 'sqlite' not in app.config['SQLALCHEMY_DATABASE_URI']:
+        return
     root_db = os.path.join(BASE_DIR, 'painel_gestao.db')
     if os.path.exists(root_db) and os.path.abspath(root_db) != os.path.abspath(DB_PATH):
         try:
