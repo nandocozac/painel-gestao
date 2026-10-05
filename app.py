@@ -802,7 +802,24 @@ def concluir_os(os_id):
         os.forma_pagamento = request.form.get('forma_pagamento', 'Dinheiro').strip()
         os.status = 'CONCLUIDA'
         os.data_conclusao = date.today()
-        os.retorno_previsto = date.today() + timedelta(days=90)
+
+        # Configuração flexível da data de retorno preventivo
+        opcao_retorno = request.form.get('opcao_retorno', '90').strip()
+        data_retorno_manual = request.form.get('data_retorno_manual', '').strip()
+
+        if data_retorno_manual:
+            try:
+                os.retorno_previsto = date.fromisoformat(data_retorno_manual)
+            except (ValueError, TypeError):
+                os.retorno_previsto = date.today() + timedelta(days=90)
+        elif opcao_retorno == 'sem_retorno':
+            os.retorno_previsto = None
+        else:
+            try:
+                dias = int(opcao_retorno)
+                os.retorno_previsto = date.today() + timedelta(days=dias)
+            except (ValueError, TypeError):
+                os.retorno_previsto = date.today() + timedelta(days=90)
 
         # Entrada no Livro Caixa com isolamento de empresa
         if os.valor_total > 0:
@@ -855,6 +872,39 @@ def reabrir_os(os_id):
     return redirect(url_for('ver_os', os_id=os.id))
 
 
+@app.route('/os/<int:os_id>/alterar-retorno', methods=['POST'])
+@login_required
+def alterar_retorno_os(os_id):
+    os = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+
+    data_manual = request.form.get('data_retorno', '').strip()
+    opcao = request.form.get('opcao_retorno', '').strip()
+
+    if data_manual:
+        try:
+            os.retorno_previsto = date.fromisoformat(data_manual)
+            db.session.commit()
+            flash(f"Data de retorno da OS #{os.id:04d} alterada para {os.retorno_previsto.strftime('%d/%m/%Y')}!", "success")
+        except (ValueError, TypeError):
+            flash("Data de retorno inválida.", "error")
+    elif opcao == 'sem_retorno':
+        os.retorno_previsto = None
+        db.session.commit()
+        flash(f"Lembrete de retorno da OS #{os.id:04d} removido.", "info")
+    elif opcao:
+        try:
+            dias = int(opcao)
+            base = os.data_conclusao or date.today()
+            os.retorno_previsto = base + timedelta(days=dias)
+            db.session.commit()
+            flash(f"Data de retorno da OS #{os.id:04d} recalculada para {os.retorno_previsto.strftime('%d/%m/%Y')} (+{dias} dias)!", "success")
+        except (ValueError, TypeError):
+            flash("Opção de dias inválida.", "error")
+
+    next_url = request.form.get('next') or request.referrer or url_for('ver_os', os_id=os.id)
+    return redirect(next_url)
+
+
 # --- FICHA DE CLIENTES E HISTÓRICO ISOLADO ---
 
 @app.route('/clientes')
@@ -890,6 +940,79 @@ def detalhe_cliente(cliente_id):
         historico_os=historico_os,
         total_gasto=total_gasto
     )
+
+
+@app.route('/clientes/novo', methods=['POST'])
+@login_required
+def novo_cliente():
+    nome = request.form.get('nome', '').strip()
+    telefone = request.form.get('telefone', '').strip()
+    veiculo_modelo = request.form.get('veiculo_modelo', '').strip()
+    veiculo_placa = request.form.get('veiculo_placa', '').strip().upper()
+
+    if not nome or not telefone:
+        flash("Nome e telefone do cliente são obrigatórios.", "error")
+        return redirect(url_for('lista_clientes'))
+
+    # Verifica se já existe cliente com esse telefone na empresa
+    cliente = Cliente.query.filter_by(empresa_id=g.empresa.id, telefone=telefone).first()
+    if cliente:
+        flash(f"Já existe um cliente cadastrado com o telefone '{telefone}': {cliente.nome}.", "warning")
+        return redirect(url_for('detalhe_cliente', cliente_id=cliente.id))
+
+    cliente = Cliente(empresa_id=g.empresa.id, nome=nome, telefone=telefone)
+    db.session.add(cliente)
+    db.session.flush()
+
+    if veiculo_placa:
+        veiculo = Veiculo(cliente_id=cliente.id, placa=veiculo_placa, modelo=veiculo_modelo or "Veículo")
+        db.session.add(veiculo)
+
+    db.session.commit()
+    flash(f"Cliente '{cliente.nome}' cadastrado com sucesso!", "success")
+    return redirect(url_for('detalhe_cliente', cliente_id=cliente.id))
+
+
+@app.route('/clientes/<int:cliente_id>/editar', methods=['POST'])
+@login_required
+def editar_cliente(cliente_id):
+    cliente = Cliente.query.filter_by(id=cliente_id, empresa_id=g.empresa.id).first_or_404()
+
+    nome = request.form.get('nome', '').strip()
+    telefone = request.form.get('telefone', '').strip()
+
+    if not nome or not telefone:
+        flash("Nome e telefone são obrigatórios.", "error")
+        return redirect(request.referrer or url_for('detalhe_cliente', cliente_id=cliente.id))
+
+    cliente.nome = nome
+    cliente.telefone = telefone
+
+    # Atualiza veículos existentes
+    veiculo_ids = request.form.getlist('veiculo_id[]')
+    veiculo_modelos = request.form.getlist('veiculo_modelo[]')
+    veiculo_placas = request.form.getlist('veiculo_placa[]')
+
+    for v_id_str, mod, plc in zip(veiculo_ids, veiculo_modelos, veiculo_placas):
+        try:
+            v_id = int(v_id_str)
+            v = Veiculo.query.filter_by(id=v_id, cliente_id=cliente.id).first()
+            if v:
+                v.modelo = mod.strip() or v.modelo
+                v.placa = plc.strip().upper() or v.placa
+        except (ValueError, TypeError):
+            continue
+
+    # Adiciona novo veículo caso preenchido
+    novo_mod = request.form.get('novo_veiculo_modelo', '').strip()
+    novo_plc = request.form.get('novo_veiculo_placa', '').strip().upper()
+    if novo_plc:
+        novo_v = Veiculo(cliente_id=cliente.id, placa=novo_plc, modelo=novo_mod or "Veículo")
+        db.session.add(novo_v)
+
+    db.session.commit()
+    flash(f"Cadastro de '{cliente.nome}' atualizado com sucesso!", "success")
+    return redirect(request.referrer or url_for('detalhe_cliente', cliente_id=cliente.id))
 
 
 # --- EXTRATO FINANCEIRO ISOLADO ---
