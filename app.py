@@ -8,7 +8,8 @@ from datetime import date, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file, session, g
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import text
+from sqlalchemy import text, event
+from sqlalchemy.engine import Engine
 from database import db
 from models import Empresa, Cliente, Veiculo, OrdemServico, Transacao, ItemOS
 
@@ -22,12 +23,24 @@ app = Flask(__name__, instance_path=INSTANCE_DIR)
 app.config['SECRET_KEY'] = 'chave-segura-painel-interno-multiempresa-2026'
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_NAME'] = 'painel_gestao_session'
 
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 db.init_app(app)
+
+# Otimização de concorrência e integridade SQLite para múltiplos workers / acessos simultâneos
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode = WAL")
+    cursor.execute("PRAGMA synchronous = NORMAL")
+    cursor.execute("PRAGMA busy_timeout = 5000")
+    cursor.close()
 
 
 # --- MIGRAÇÃO AUTOMÁTICA MULTI-EMPRESA E ADMINISTRAÇÃO SAAS ---
@@ -77,7 +90,7 @@ def migrar_banco_multiempresa():
                 whatsapp="62994941212",
                 endereco="",
                 cidade_uf="",
-                logo_filename="logo.png",
+                logo_filename=None,
                 mensagem_rodape="Agradecemos a preferência! Volte sempre.",
                 email="nandocozac@gmail.com",
                 senha_hash=generate_password_hash("Matheus10#"),
@@ -110,6 +123,8 @@ def migrar_banco_multiempresa():
         db.session.execute(text(f"UPDATE clientes SET empresa_id = {empresa_padrao.id} WHERE empresa_id IS NULL"))
         db.session.execute(text(f"UPDATE ordens_servico SET empresa_id = {empresa_padrao.id} WHERE empresa_id IS NULL"))
         db.session.execute(text(f"UPDATE transacoes SET empresa_id = {empresa_padrao.id} WHERE empresa_id IS NULL"))
+        # 5. Garantir que nenhuma empresa tenha 'logo.png' como padrão (sem imagem prévia até o cliente fazer upload)
+        db.session.execute(text("UPDATE empresas SET logo_filename = NULL WHERE logo_filename = 'logo.png'"))
         db.session.commit()
 
 migrar_banco_multiempresa()
@@ -169,6 +184,20 @@ def carregar_empresa_logada():
             g.empresa = None
     else:
         g.empresa = None
+
+
+@app.after_request
+def add_no_cache_headers(response):
+    """
+    Garante que LiteSpeed, proxies intermediários e navegadores NUNCA façam cache de páginas dinâmicas ou cookies.
+    Isso é vital para evitar vazamento ou compartilhamento de telas/sessões entre diferentes computadores na hospedagem.
+    """
+    if not request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        response.headers['X-LiteSpeed-Cache-Control'] = 'no-cache'
+    return response
 
 
 @app.context_processor
@@ -363,7 +392,7 @@ def cadastro():
             is_admin=False,
             tipo_negocio=tipo_negocio,
             status_assinatura="PENDENTE",
-            logo_filename="logo.png",
+            logo_filename=None,
             mensagem_rodape="Agradecemos a preferência! Volte sempre."
         )
         db.session.add(nova_empresa)
@@ -1262,9 +1291,9 @@ def configuracoes_empresa():
 @login_required
 def remover_logo_empresa():
     empresa = g.empresa
-    empresa.logo_filename = 'logo.png'
+    empresa.logo_filename = None
     db.session.commit()
-    flash('Logotipo redefinido para o padrão.', 'info')
+    flash('Logotipo removido com sucesso. O sistema exibirá o nome da empresa.', 'info')
     return redirect(url_for('configuracoes_empresa'))
 
 

@@ -12,7 +12,7 @@ class Empresa(db.Model):
     whatsapp = db.Column(db.String(30), default="")
     endereco = db.Column(db.String(200), default="")
     cidade_uf = db.Column(db.String(100), default="")
-    logo_filename = db.Column(db.String(255), default="logo.png")
+    logo_filename = db.Column(db.String(255), nullable=True, default=None)
     mensagem_rodape = db.Column(db.String(255), default="Agradecemos a preferência! Volte sempre.")
     
     # Credenciais de Acesso

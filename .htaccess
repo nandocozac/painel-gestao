@@ -1,0 +1,13 @@
+# Configurações do LiteSpeed Web Server na Hostinger
+# Desativa o cache do servidor para rotas dinâmicas do Python, evitando vazamento ou compartilhamento de sessões entre diferentes computadores
+
+<IfModule LiteSpeed>
+    CacheDisable public /
+    CacheDisable private /
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, private"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</IfModule>
