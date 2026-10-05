@@ -82,6 +82,7 @@ def migrar_banco_multiempresa():
                 'fiscal_nome_fantasia': 'VARCHAR(150) DEFAULT ""',
                 'fiscal_inscricao_municipal': 'VARCHAR(30) DEFAULT ""',
                 'fiscal_inscricao_estadual': 'VARCHAR(30) DEFAULT ""',
+                'fiscal_codigo_municipio': 'VARCHAR(10) DEFAULT "5208707"',
                 'fiscal_regime_tributario': 'INTEGER DEFAULT 1',
                 'fiscal_certificado_filename': 'VARCHAR(255)',
                 'fiscal_certificado_senha': 'VARCHAR(255) DEFAULT ""',
@@ -134,6 +135,7 @@ def migrar_banco_multiempresa():
                 'fiscal_nome_fantasia': "VARCHAR(150) DEFAULT ''",
                 'fiscal_inscricao_municipal': "VARCHAR(30) DEFAULT ''",
                 'fiscal_inscricao_estadual': "VARCHAR(30) DEFAULT ''",
+                'fiscal_codigo_municipio': "VARCHAR(10) DEFAULT '5208707'",
                 'fiscal_regime_tributario': 'INTEGER DEFAULT 1',
                 'fiscal_certificado_filename': 'VARCHAR(255)',
                 'fiscal_certificado_senha': "VARCHAR(255) DEFAULT ''",
@@ -1445,6 +1447,7 @@ def configuracoes_fiscal():
         empresa.fiscal_nome_fantasia = request.form.get('fiscal_nome_fantasia', '').strip()
         empresa.fiscal_inscricao_municipal = request.form.get('fiscal_inscricao_municipal', '').strip()
         empresa.fiscal_inscricao_estadual = request.form.get('fiscal_inscricao_estadual', '').strip()
+        empresa.fiscal_codigo_municipio = re.sub(r'\D', '', request.form.get('fiscal_codigo_municipio', '5208707')) or '5208707'
         
         try:
             empresa.fiscal_regime_tributario = int(request.form.get('fiscal_regime_tributario', 1))

@@ -48,6 +48,7 @@ class Empresa(db.Model):
     fiscal_nome_fantasia = db.Column(db.String(150), default='')
     fiscal_inscricao_municipal = db.Column(db.String(30), default='')
     fiscal_inscricao_estadual = db.Column(db.String(30), default='')
+    fiscal_codigo_municipio = db.Column(db.String(10), default='5208707') # Código IBGE (ex: 5208707 Goiânia)
     fiscal_regime_tributario = db.Column(db.Integer, default=1) # 1=Simples Nacional, 2=Simples Excesso, 3=Normal, 4=MEI
     fiscal_certificado_filename = db.Column(db.String(255), nullable=True)
     fiscal_certificado_senha = db.Column(db.String(255), default='')

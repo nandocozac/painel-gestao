@@ -73,17 +73,34 @@ def autorizar_nfse(empresa, ordem_servico, itens_servico):
             item_codigo = it.codigo_servico_municipal
             break
 
+    # Código IBGE do município do prestador (ex: 5208707 para Goiânia, 5209952 para Hidrolândia)
+    cod_municipio = "".join(filter(str.isdigit, getattr(empresa, 'fiscal_codigo_municipio', '') or ''))
+    if not cod_municipio:
+        cidade_uf = (empresa.cidade_uf or '').lower()
+        if 'hidrol' in cidade_uf:
+            cod_municipio = '5209952'
+        elif 'aparecida' in cidade_uf:
+            cod_municipio = '5201405'
+        elif 'anapol' in cidade_uf:
+            cod_municipio = '5201108'
+        elif 'brasilia' in cidade_uf:
+            cod_municipio = '5300108'
+        else:
+            cod_municipio = '5208707' # Goiânia (padrão GO)
+
     payload = {
         "data_emissao": datetime.now().isoformat(),
         "prestador": {
             "cnpj": "".join(filter(str.isdigit, empresa.fiscal_cnpj or "")),
-            "inscricao_municipal": empresa.fiscal_inscricao_municipal or ""
+            "inscricao_municipal": empresa.fiscal_inscricao_municipal or "",
+            "codigo_municipio": cod_municipio
         },
         "tomador": tomador,
         "servico": {
             "valor_servicos": round(valor_total_servicos, 2),
             "discriminacao": discriminacao_texto[:1000],
             "item_lista_servico": item_codigo,
+            "codigo_municipio": cod_municipio,
             "iss_retido": False
         }
     }
