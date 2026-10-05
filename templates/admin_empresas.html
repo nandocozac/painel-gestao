@@ -22,6 +22,13 @@
             </p>
         </div>
         <div class="flex items-center gap-3">
+            {% set total_pendentes = empresas|selectattr('status_assinatura', 'equalto', 'PENDENTE')|list|length %}
+            {% if total_pendentes > 0 %}
+            <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-2 rounded-xl font-bold flex items-center gap-2 animate-pulse">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                {{ total_pendentes }} aguardando liberação
+            </span>
+            {% endif %}
             <span class="text-xs bg-slate-800/80 px-4 py-2 rounded-xl border border-slate-700 text-slate-300 font-semibold">
                 {{ empresas|length }} empresas no total
             </span>

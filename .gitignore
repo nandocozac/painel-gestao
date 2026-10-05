@@ -8,3 +8,7 @@ env/
 *.log
 *.zip
 staging/
+instance/
+*.db
+*.sqlite
+*.sqlite3

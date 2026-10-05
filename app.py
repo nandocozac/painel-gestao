@@ -11,12 +11,18 @@ from sqlalchemy import text
 from database import db
 from models import Empresa, Cliente, Veiculo, OrdemServico, Transacao, ItemOS
 
-app = Flask(__name__)
+# Diretórios e caminhos absolutos para compatibilidade total local e em produção (Hostinger / LiteSpeed)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')
+os.makedirs(INSTANCE_DIR, exist_ok=True)
+DB_PATH = os.path.join(INSTANCE_DIR, 'painel_gestao.db').replace('\\', '/')
+
+app = Flask(__name__, instance_path=INSTANCE_DIR)
 app.config['SECRET_KEY'] = 'chave-segura-painel-interno-multiempresa-2026'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///painel_gestao.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -54,11 +60,16 @@ def migrar_banco_multiempresa():
                 db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN empresa_id INTEGER REFERENCES empresas(id)"))
         db.session.commit()
 
-        # 3. Criar a empresa padrão caso não exista nenhuma no banco
-        empresa_padrao = Empresa.query.first()
+        # 3. Garantir que a empresa Master exista de forma segura
+        empresa_padrao = Empresa.query.filter_by(is_admin=True).first()
+        if not empresa_padrao:
+            empresa_padrao = Empresa.query.filter_by(email="nandocozac@gmail.com").first()
+        if not empresa_padrao:
+            empresa_padrao = Empresa.query.order_by(Empresa.id.asc()).first()
+
         if not empresa_padrao:
             empresa_padrao = Empresa(
-                nome_empresa="Valkar Peças e Serviços",
+                nome_empresa="SPOT MARKETING",
                 subtitulo="Serviços Especializados e Atendimento Profissional",
                 telefone="(62) 99494-1212",
                 whatsapp="62994941212",
@@ -79,11 +90,18 @@ def migrar_banco_multiempresa():
             db.session.add(empresa_padrao)
             db.session.commit()
         else:
-            # Garantir que a primeira empresa seja sempre Master Admin e Ativa
-            if not empresa_padrao.is_admin or empresa_padrao.status_assinatura != 'ATIVO':
+            # Garantir que a empresa master continue sempre Master Admin e Ativa
+            mudou = False
+            if not empresa_padrao.is_admin:
                 empresa_padrao.is_admin = True
+                mudou = True
+            if empresa_padrao.status_assinatura != 'ATIVO':
                 empresa_padrao.status_assinatura = 'ATIVO'
+                mudou = True
+            if not empresa_padrao.data_validade or empresa_padrao.data_validade < date.today():
                 empresa_padrao.data_validade = date(2099, 12, 31)
+                mudou = True
+            if mudou:
                 db.session.commit()
 
         # 4. Vincular dados anteriores existentes à empresa padrão
@@ -238,6 +256,18 @@ def login():
         empresa = Empresa.query.filter_by(email=email).first()
         if empresa and check_password_hash(empresa.senha_hash, senha):
             session['empresa_id'] = empresa.id
+            
+            # Se for empresa comum e estiver pendente ou bloqueada, informa com clareza
+            if not empresa.is_admin:
+                hoje = date.today()
+                esta_bloqueada = (empresa.status_assinatura != 'ATIVO') or (empresa.data_validade and empresa.data_validade < hoje)
+                if esta_bloqueada:
+                    if empresa.status_assinatura == 'PENDENTE':
+                        flash(f"Conta encontrada! Seu cadastro está concluído e aguarda confirmação de pagamento para liberar o acesso.", "info")
+                    else:
+                        flash("Sua assinatura está expirada ou bloqueada. Efetue o pagamento para renovar o acesso.", "warning")
+                    return redirect(url_for('assinatura_bloqueada'))
+
             flash(f"Bem-vindo(a), {empresa.nome_empresa}!", "success")
             next_url = request.args.get('next')
             return redirect(next_url or url_for('dashboard'))
@@ -872,9 +902,11 @@ def retornos_preventivos():
 @app.route('/sistema/backup')
 @login_required
 def backup_banco():
-    caminho_db = os.path.join(app.root_path, 'instance', 'painel_gestao.db')
+    caminho_db = DB_PATH
     if not os.path.exists(caminho_db):
-        caminho_db = os.path.join(app.root_path, 'painel_gestao.db')
+        caminho_db = os.path.join(BASE_DIR, 'instance', 'painel_gestao.db')
+    if not os.path.exists(caminho_db):
+        caminho_db = os.path.join(BASE_DIR, 'painel_gestao.db')
 
     data_str = date.today().strftime('%Y%m%d')
     return send_file(
