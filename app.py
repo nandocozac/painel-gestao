@@ -15,6 +15,7 @@ from sqlalchemy import text, event, or_
 from sqlalchemy.engine import Engine
 from database import db
 from models import Empresa, Cliente, Veiculo, OrdemServico, Transacao, ItemOS, NotaFiscal, Produto
+from mercadopago_service import criar_preferencia_checkout, consultar_pagamento, ativar_assinatura_por_referencia
 
 # Diretórios e caminhos absolutos para compatibilidade total local e em produção (Hostinger / LiteSpeed)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -90,7 +91,9 @@ def migrar_banco_multiempresa():
                 'fiscal_certificado_filename': 'VARCHAR(255)',
                 'fiscal_certificado_senha': 'VARCHAR(255) DEFAULT ""',
                 'fiscal_token_focus': 'VARCHAR(100) DEFAULT ""',
-                'logo_base64': 'TEXT'
+                'logo_base64': 'TEXT',
+                'mercadopago_access_token': 'VARCHAR(255) DEFAULT ""',
+                'mercadopago_public_key': 'VARCHAR(255) DEFAULT ""'
             }
             for col, col_type in novas_colunas_empresas.items():
                 if col not in colunas_empresas:
@@ -175,7 +178,9 @@ def migrar_banco_multiempresa():
                 'fiscal_certificado_filename': 'VARCHAR(255)',
                 'fiscal_certificado_senha': "VARCHAR(255) DEFAULT ''",
                 'fiscal_token_focus': "VARCHAR(100) DEFAULT ''",
-                'logo_base64': 'TEXT'
+                'logo_base64': 'TEXT',
+                'mercadopago_access_token': "VARCHAR(255) DEFAULT ''",
+                'mercadopago_public_key': "VARCHAR(255) DEFAULT ''"
             }
             for col, col_type in pg_colunas_empresas.items():
                 try:
@@ -277,6 +282,12 @@ def migrar_banco_multiempresa():
                 mudou = True
             if not empresa_padrao.data_validade or empresa_padrao.data_validade < date.today():
                 empresa_padrao.data_validade = date(2099, 12, 31)
+                mudou = True
+            if not getattr(empresa_padrao, 'mercadopago_access_token', None):
+                empresa_padrao.mercadopago_access_token = "APP_USR-8367202767793031-100215-34ce1dd4ef26c49b3f2a97f844fd6334-3731345293"
+                mudou = True
+            if not getattr(empresa_padrao, 'mercadopago_public_key', None):
+                empresa_padrao.mercadopago_public_key = "APP_USR-cf109e45-06eb-41d2-910d-f7a90012463c"
                 mudou = True
             if mudou:
                 db.session.commit()
@@ -640,6 +651,93 @@ def assinatura_bloqueada():
     return render_template('bloqueado.html', empresa=g.empresa, master_empresa=master_empresa)
 
 
+@app.route('/assinatura/checkout-mercadopago', methods=['POST'])
+def assinatura_checkout_mercadopago():
+    """Gera link de pagamento do Mercado Pago (Pix, Cartão, Boleto) para a assinatura"""
+    if not getattr(g, 'empresa', None):
+        return redirect(url_for('login'))
+
+    plano = request.form.get('plano', 'MENSAL').upper() # 'MENSAL' ou 'ANUAL'
+    tipo_plano = request.form.get('tipo_plano', 'BASICO').upper() # 'BASICO' ou 'FISCAL'
+
+    resultado = criar_preferencia_checkout(
+        empresa_compradora=g.empresa,
+        plano=plano,
+        tipo_plano=tipo_plano,
+        base_url=request.host_url
+    )
+
+    if resultado.get('success') and resultado.get('init_point'):
+        return redirect(resultado['init_point'])
+    else:
+        erro = resultado.get('error', 'Falha ao conectar com o gateway do Mercado Pago.')
+        flash(f"Não foi possível iniciar o pagamento no Mercado Pago: {erro}", "error")
+        return redirect(url_for('assinatura_bloqueada'))
+
+
+@app.route('/assinatura/retorno')
+def assinatura_retorno():
+    """Retorno do cliente após realizar ou tentar o pagamento no Mercado Pago"""
+    if not getattr(g, 'empresa', None):
+        return redirect(url_for('login'))
+
+    collection_status = request.args.get('collection_status') or request.args.get('status')
+    external_reference = request.args.get('external_reference')
+    payment_id = request.args.get('payment_id') or request.args.get('collection_id')
+
+    # Caso status venha aprovado no redirect
+    if collection_status == 'approved' and external_reference:
+        sucesso, emp, msg = ativar_assinatura_por_referencia(external_reference, payment_id)
+        if sucesso:
+            flash(f"🎉 Pagamento aprovado! {msg}", "success")
+            return redirect(url_for('dashboard'))
+
+    # Caso haja payment_id, consulta diretamente na API do Mercado Pago para conferir se foi aprovado
+    if payment_id:
+        payment_info = consultar_pagamento(payment_id)
+        if payment_info and payment_info.get('status') == 'approved':
+            ext_ref = payment_info.get('external_reference') or external_reference
+            sucesso, emp, msg = ativar_assinatura_por_referencia(ext_ref, payment_id)
+            if sucesso:
+                flash(f"🎉 Pagamento confirmado pelo Mercado Pago! {msg}", "success")
+                return redirect(url_for('dashboard'))
+
+    if collection_status == 'pending':
+        flash("⏳ Seu pagamento via Pix/Boleto está sendo processado. Assim que confirmado (geralmente poucos segundos para Pix), seu acesso será liberado automaticamente!", "info")
+    else:
+        flash("O pagamento ainda não foi concluído ou está em processamento.", "warning")
+
+    return redirect(url_for('assinatura_bloqueada'))
+
+
+@app.route('/webhook/mercadopago', methods=['GET', 'POST'])
+def webhook_mercadopago():
+    """Webhook do Mercado Pago para liberação automática e instantânea de assinaturas"""
+    payment_id = None
+
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        inner_data = data.get('data') or {}
+        if isinstance(inner_data, dict):
+            payment_id = inner_data.get('id')
+        if not payment_id:
+            payment_id = data.get('id')
+
+    if not payment_id:
+        payment_id = request.args.get('data.id') or request.args.get('id')
+
+    if payment_id:
+        payment_info = consultar_pagamento(payment_id)
+        if payment_info and payment_info.get('status') == 'approved':
+            external_ref = payment_info.get('external_reference')
+            if external_ref:
+                sucesso, emp, msg = ativar_assinatura_por_referencia(external_ref, payment_id)
+                if sucesso:
+                    print(f"[Webhook Mercado Pago] {msg} (Payment ID: {payment_id})")
+
+    return jsonify({"status": "received"}), 200
+
+
 # --- PAINEL DO ADMINISTRADOR MASTER (DONO DA PLATAFORMA) ---
 
 @app.route('/admin/empresas')
@@ -739,8 +837,11 @@ def admin_salvar_cobranca():
     except (ValueError, TypeError):
         pass
 
+    g.empresa.mercadopago_access_token = request.form.get('mercadopago_access_token', '').strip()
+    g.empresa.mercadopago_public_key = request.form.get('mercadopago_public_key', '').strip()
+
     db.session.commit()
-    flash("Dados de cobrança e Pix atualizados com sucesso!", "success")
+    flash("Dados de cobrança e Mercado Pago atualizados com sucesso!", "success")
     return redirect(url_for('admin_empresas'))
 
 

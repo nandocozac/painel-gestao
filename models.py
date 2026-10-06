@@ -38,6 +38,8 @@ class Empresa(db.Model):
     valor_anual = db.Column(db.Float, default=249.90)
     valor_mensalidade_fiscal = db.Column(db.Float, default=79.90)
     valor_anual_fiscal = db.Column(db.Float, default=699.90)
+    mercadopago_access_token = db.Column(db.String(255), default="")
+    mercadopago_public_key = db.Column(db.String(255), default="")
 
     # Controle do Plano Fiscal SaaS (Dono Master habilita para quem paga)
     permite_emissao_fiscal = db.Column(db.Boolean, default=False)
