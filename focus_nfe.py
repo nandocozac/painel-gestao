@@ -47,13 +47,26 @@ def autorizar_nfse(empresa, ordem_servico, itens_servico):
     if tel_cliente:
         tomador["telefone"] = tel_cliente
 
-    cpf_cnpj = getattr(cliente, 'cpf_cnpj', '')
-    if cpf_cnpj:
-        doc_limpo = "".join(filter(str.isdigit, cpf_cnpj))
-        if len(doc_limpo) == 11:
-            tomador["cpf"] = doc_limpo
-        elif len(doc_limpo) == 14:
-            tomador["cnpj"] = doc_limpo
+    cpf_cnpj = "".join(filter(str.isdigit, getattr(cliente, 'cpf_cnpj', '') or ''))
+    if len(cpf_cnpj) == 11:
+        tomador["cpf"] = cpf_cnpj
+    elif len(cpf_cnpj) == 14:
+        tomador["cnpj"] = cpf_cnpj
+
+    # Endereço do Tomador (se informado)
+    logradouro = (getattr(cliente, 'endereco', '') or '').strip()
+    if logradouro:
+        end_tomador = {
+            "logradouro": logradouro,
+            "numero": getattr(cliente, 'numero', '') or "S/N",
+            "bairro": getattr(cliente, 'bairro', '') or "Centro",
+            "codigo_municipio": cod_municipio,
+            "uf": getattr(cliente, 'uf', '') or "GO"
+        }
+        cep_limpo = "".join(filter(str.isdigit, getattr(cliente, 'cep', '') or ''))
+        if cep_limpo:
+            end_tomador["cep"] = cep_limpo
+        tomador["endereco"] = end_tomador
 
     # Monta a discriminação dos serviços executados
     discriminacao_linhas = []
@@ -234,6 +247,21 @@ def autorizar_nfce(empresa, ordem_servico, itens_pecas):
             }
         ]
     }
+
+    # Se o cliente tiver CPF/CNPJ informado, identifica o consumidor na NFC-e ("CPF na Nota")
+    cliente = getattr(ordem_servico, 'cliente', None)
+    if cliente and getattr(cliente, 'cpf_cnpj', ''):
+        doc_limpo = "".join(filter(str.isdigit, cliente.cpf_cnpj))
+        if len(doc_limpo) == 11:
+            payload["destinatario"] = {
+                "cpf": doc_limpo,
+                "nome_completo": cliente.nome
+            }
+        elif len(doc_limpo) == 14:
+            payload["destinatario"] = {
+                "cnpj": doc_limpo,
+                "razao_social": cliente.nome
+            }
 
     try:
         response = requests.post(endpoint, json=payload, auth=(token, ''), timeout=30)

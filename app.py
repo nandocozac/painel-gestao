@@ -113,6 +113,23 @@ def migrar_banco_multiempresa():
                 if col not in colunas_itens:
                     db.session.execute(text(f"ALTER TABLE itens_os ADD COLUMN {col} {col_type}"))
             db.session.commit()
+
+            # 4. Garantir colunas de CPF/CNPJ e endereço na tabela clientes (SQLite)
+            colunas_clientes = [row[1] for row in db.session.execute(text("PRAGMA table_info(clientes)")).fetchall()]
+            novas_colunas_clientes = {
+                'cpf_cnpj': 'VARCHAR(20) DEFAULT ""',
+                'email': 'VARCHAR(120) DEFAULT ""',
+                'endereco': 'VARCHAR(200) DEFAULT ""',
+                'numero': 'VARCHAR(20) DEFAULT ""',
+                'bairro': 'VARCHAR(100) DEFAULT ""',
+                'cidade': 'VARCHAR(100) DEFAULT ""',
+                'uf': 'VARCHAR(2) DEFAULT ""',
+                'cep': 'VARCHAR(10) DEFAULT ""'
+            }
+            for col, col_type in novas_colunas_clientes.items():
+                if col not in colunas_clientes:
+                    db.session.execute(text(f"ALTER TABLE clientes ADD COLUMN {col} {col_type}"))
+            db.session.commit()
         else:
             # Migração para PostgreSQL (Render Cloud)
             pg_colunas_empresas = {
@@ -165,6 +182,23 @@ def migrar_banco_multiempresa():
             for col, col_type in pg_colunas_itens.items():
                 try:
                     db.session.execute(text(f"ALTER TABLE itens_os ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+
+            pg_colunas_clientes = {
+                'cpf_cnpj': "VARCHAR(20) DEFAULT ''",
+                'email': "VARCHAR(120) DEFAULT ''",
+                'endereco': "VARCHAR(200) DEFAULT ''",
+                'numero': "VARCHAR(20) DEFAULT ''",
+                'bairro': "VARCHAR(100) DEFAULT ''",
+                'cidade': "VARCHAR(100) DEFAULT ''",
+                'uf': "VARCHAR(2) DEFAULT ''",
+                'cep': "VARCHAR(10) DEFAULT ''"
+            }
+            for col, col_type in pg_colunas_clientes.items():
+                try:
+                    db.session.execute(text(f"ALTER TABLE clientes ADD COLUMN IF NOT EXISTS {col} {col_type}"))
                     db.session.commit()
                 except Exception:
                     db.session.rollback()
@@ -919,12 +953,20 @@ def nova_os():
         modelo = request.form.get('veiculo_modelo', '').strip()
         problema = request.form.get('problema', '').strip()
 
+        cpf_cnpj = request.form.get('cliente_cpf_cnpj', '').strip()
+        email = request.form.get('cliente_email', '').strip().lower()
+
         # Busca ou cadastra cliente restrito a esta empresa
         cliente = Cliente.query.filter_by(empresa_id=g.empresa.id, telefone=telefone).first()
         if not cliente:
-            cliente = Cliente(empresa_id=g.empresa.id, nome=nome, telefone=telefone)
+            cliente = Cliente(empresa_id=g.empresa.id, nome=nome, telefone=telefone, cpf_cnpj=cpf_cnpj, email=email)
             db.session.add(cliente)
             db.session.flush()
+        else:
+            if cpf_cnpj and not cliente.cpf_cnpj:
+                cliente.cpf_cnpj = cpf_cnpj
+            if email and not cliente.email:
+                cliente.email = email
 
         veiculo = None
         if placa:
@@ -1188,6 +1230,15 @@ def detalhe_cliente(cliente_id):
 def novo_cliente():
     nome = request.form.get('nome', '').strip()
     telefone = request.form.get('telefone', '').strip()
+    cpf_cnpj = request.form.get('cpf_cnpj', '').strip()
+    email = request.form.get('email', '').strip().lower()
+    endereco = request.form.get('endereco', '').strip()
+    numero = request.form.get('numero', '').strip()
+    bairro = request.form.get('bairro', '').strip()
+    cidade = request.form.get('cidade', '').strip()
+    uf = request.form.get('uf', '').strip().upper()
+    cep = request.form.get('cep', '').strip()
+
     veiculo_modelo = request.form.get('veiculo_modelo', '').strip()
     veiculo_placa = request.form.get('veiculo_placa', '').strip().upper()
 
@@ -1201,7 +1252,19 @@ def novo_cliente():
         flash(f"Já existe um cliente cadastrado com o telefone '{telefone}': {cliente.nome}.", "warning")
         return redirect(url_for('detalhe_cliente', cliente_id=cliente.id))
 
-    cliente = Cliente(empresa_id=g.empresa.id, nome=nome, telefone=telefone)
+    cliente = Cliente(
+        empresa_id=g.empresa.id,
+        nome=nome,
+        telefone=telefone,
+        cpf_cnpj=cpf_cnpj,
+        email=email,
+        endereco=endereco,
+        numero=numero,
+        bairro=bairro,
+        cidade=cidade,
+        uf=uf,
+        cep=cep
+    )
     db.session.add(cliente)
     db.session.flush()
 
@@ -1228,6 +1291,22 @@ def editar_cliente(cliente_id):
 
     cliente.nome = nome
     cliente.telefone = telefone
+    if 'cpf_cnpj' in request.form:
+        cliente.cpf_cnpj = request.form.get('cpf_cnpj', '').strip()
+    if 'email' in request.form:
+        cliente.email = request.form.get('email', '').strip().lower()
+    if 'endereco' in request.form:
+        cliente.endereco = request.form.get('endereco', '').strip()
+    if 'numero' in request.form:
+        cliente.numero = request.form.get('numero', '').strip()
+    if 'bairro' in request.form:
+        cliente.bairro = request.form.get('bairro', '').strip()
+    if 'cidade' in request.form:
+        cliente.cidade = request.form.get('cidade', '').strip()
+    if 'uf' in request.form:
+        cliente.uf = request.form.get('uf', '').strip().upper()
+    if 'cep' in request.form:
+        cliente.cep = request.form.get('cep', '').strip()
 
     # Atualiza veículos existentes
     veiculo_ids = request.form.getlist('veiculo_id[]')
