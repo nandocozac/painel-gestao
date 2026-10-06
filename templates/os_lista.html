@@ -1,40 +1,79 @@
 {% extends 'base.html' %}
-{% block title %}Ordens de Serviço | Painel de Gestão{% endblock %}
+{% block title %}{% if empresa.tipo_negocio == 'OFICINA' %}Ordens de Serviço{% else %}Vendas & Pedidos{% endif %} | Painel de Gestão{% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div class="space-y-6">
     <!-- Cabeçalho e Barra de Filtros -->
-    <div
-        class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div class="bg-white p-6 rounded-2xl shadow-premium border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h1 class="text-xl font-bold text-slate-800">Ordens de Serviço</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Consulte o histórico, filtre por estado ou pesquise por matrícula e
-                cliente.</p>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/60">
+                    Histórico Geral
+                </span>
+                <span class="text-xs text-slate-400 font-medium">
+                    Total: {{ todas_os|length }} atendimento(s)
+                </span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
+                {% if empresa.tipo_negocio == 'OFICINA' %}Ordens de Serviço{% else %}Vendas & Pedidos{% endif %}
+            </h1>
+            <p class="text-xs text-slate-500 mt-0.5">
+                Consulte o histórico, filtre por status de conclusão ou pesquise por cliente, veículo e telefone.
+            </p>
         </div>
 
-        <form method="GET" action="{{ url_for('lista_os') }}"
-            class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <!-- Filtro de Estado -->
-            <select name="status"
-                class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Todos os Estados</option>
-                <option value="ABERTA" {% if status_atual=='ABERTA' %}selected{% endif %}>Abertas</option>
-                <option value="CONCLUIDA" {% if status_atual=='CONCLUIDA' %}selected{% endif %}>Concluídas</option>
-            </select>
+        <div class="flex items-center gap-2.5 w-full md:w-auto">
+            <a href="{{ url_for('nova_os') }}"
+                class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-linear-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md shadow-blue-500/25 transition inline-flex items-center gap-1.5 active:scale-95 shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>{% if empresa.tipo_negocio == 'OFICINA' %}Nova OS{% else %}Novo Pedido{% endif %}</span>
+            </a>
+        </div>
+    </div>
 
-            <!-- Campo de Busca -->
-            <input type="text" name="busca" value="{{ busca }}" placeholder="Cliente, telefone ou placa..."
-                class="border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64">
+    <!-- Barra de Filtros e Pesquisa -->
+    <div class="bg-white p-4 rounded-2xl shadow-premium border border-slate-200/80 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
+        <!-- Abas de Status Rápidas -->
+        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold overflow-x-auto">
+            <a href="{{ url_for('lista_os', busca=busca) }}"
+                class="px-3 py-1.5 rounded-lg transition-all whitespace-nowrap {% if not status_atual %}bg-white text-slate-900 shadow-xs font-bold{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                Todos
+            </a>
+            <a href="{{ url_for('lista_os', status='ABERTA', busca=busca) }}"
+                class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap {% if status_atual == 'ABERTA' %}bg-white text-amber-700 shadow-xs font-bold{% else %}text-slate-600 hover:text-amber-700{% endif %}">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                Em Aberto
+            </a>
+            <a href="{{ url_for('lista_os', status='CONCLUIDA', busca=busca) }}"
+                class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap {% if status_atual == 'CONCLUIDA' %}bg-white text-emerald-700 shadow-xs font-bold{% else %}text-slate-600 hover:text-emerald-700{% endif %}">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                Concluídas
+            </a>
+        </div>
 
-            <!-- Botões de Ação -->
+        <!-- Formulário de Busca -->
+        <form method="GET" action="{{ url_for('lista_os') }}" class="flex items-center gap-2">
+            {% if status_atual %}
+            <input type="hidden" name="status" value="{{ status_atual }}">
+            {% endif %}
+            <div class="relative w-full sm:w-72">
+                <input type="text" name="busca" value="{{ busca }}" placeholder="Pesquisar cliente, telefone, placa..."
+                    class="w-full border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+
             <button type="submit"
-                class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm">
-                Filtrar
+                class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-xs">
+                Buscar
             </button>
 
             {% if status_atual or busca %}
             <a href="{{ url_for('lista_os') }}"
-                class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium px-3 py-2 rounded-lg transition">
+                class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium px-2.5 py-2 rounded-xl transition">
                 Limpar
             </a>
             {% endif %}
@@ -42,41 +81,53 @@
     </div>
 
     <!-- Tabela Geral de Ordens de Serviço -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-premium border border-slate-200/80 overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-                <thead
-                    class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50/80 text-slate-500 border-b border-slate-200/80 font-bold uppercase tracking-wider text-[10px]">
                     <tr>
                         <th class="py-3.5 px-4">{% if empresa.tipo_negocio == 'OFICINA' %}# OS{% else %}# Pedido{% endif %}</th>
                         <th class="py-3.5 px-4">Abertura</th>
                         <th class="py-3.5 px-4">Cliente</th>
                         <th class="py-3.5 px-4">{% if empresa.tipo_negocio == 'OFICINA' %}Veículo / Ativo{% else %}Descrição / Itens{% endif %}</th>
-                        <th class="py-3.5 px-4">Estado</th>
+                        <th class="py-3.5 px-4 text-center">Status</th>
                         <th class="py-3.5 px-4 text-right">Valor Total</th>
                         <th class="py-3.5 px-4 text-right">Ação</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for os in todas_os %}
-                    <tr class="hover:bg-slate-50/80 transition">
-                        <td class="py-3.5 px-4 font-mono font-bold text-slate-900">
-                            #{{ "%04d"|format(os.id) }}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-3.5 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
+                            <span class="bg-slate-100 px-2 py-1 rounded-md text-slate-800">
+                                #{{ "%04d"|format(os.id) }}
+                            </span>
                         </td>
-                        <td class="py-3.5 px-4 text-slate-600 text-xs">
+                        <td class="py-3.5 px-4 text-slate-600 whitespace-nowrap">
                             {{ os.data_abertura|data_br }}
                         </td>
                         <td class="py-3.5 px-4">
-                            <span class="font-medium text-slate-900 block">{{ os.cliente.nome }}</span>
-                            <span class="text-xs text-slate-500">{{ os.cliente.telefone }}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-[10px] shrink-0">
+                                    {{ os.cliente.nome[:2]|upper }}
+                                </span>
+                                <div>
+                                    <span class="font-bold text-slate-900 block leading-tight">{{ os.cliente.nome }}</span>
+                                    <span class="text-[11px] text-slate-500 font-mono">{{ os.cliente.telefone }}</span>
+                                </div>
+                            </div>
                         </td>
                         <td class="py-3.5 px-4">
                             {% if empresa.tipo_negocio == 'OFICINA' %}
                                 {% if os.veiculo %}
-                                <span class="text-slate-800 font-medium block">{{ os.veiculo.modelo }}</span>
-                                <span class="text-xs font-mono font-semibold text-slate-500 uppercase">{{ os.veiculo.placa }}</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-mono text-[10px] font-bold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded uppercase">
+                                        {{ os.veiculo.placa }}
+                                    </span>
+                                    <span class="text-slate-800 font-medium text-xs">{{ os.veiculo.modelo }}</span>
+                                </div>
                                 {% else %}
-                                <span class="text-xs text-slate-400 italic">Sem ativo</span>
+                                <span class="text-slate-400 italic">Sem ativo</span>
                                 {% endif %}
                             {% else %}
                                 <span class="text-slate-800 text-xs block truncate max-w-xs" title="{{ os.descricao_problema }}">
@@ -84,33 +135,40 @@
                                 </span>
                             {% endif %}
                         </td>
-                        <td class="py-3.5 px-4">
+                        <td class="py-3.5 px-4 text-center whitespace-nowrap">
                             {% if os.status == 'CONCLUIDA' %}
-                            <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 Concluída
                             </span>
                             {% else %}
-                            <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                 Em Aberto
                             </span>
                             {% endif %}
                         </td>
-                        <td class="py-3.5 px-4 text-right font-mono font-semibold text-slate-900">
+                        <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900 whitespace-nowrap text-xs">
                             R$ {{ os.valor_total|moeda }}
                         </td>
-                        <td class="py-3.5 px-4 text-right">
+                        <td class="py-3.5 px-4 text-right whitespace-nowrap">
                             <a href="{{ url_for('ver_os', os_id=os.id) }}"
-                                class="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline">
-                                Abrir OS &rarr;
+                                class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
+                                <span>Abrir OS</span>
+                                <span>&rarr;</span>
                             </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="py-10 text-center text-slate-400">
-                            <p class="text-sm">Nenhuma ordem de serviço encontrada com os critérios informados.</p>
+                        <td colspan="7" class="py-12 text-center text-slate-400">
+                            <div class="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <p class="text-xs font-semibold text-slate-600">Nenhum registro encontrado com os filtros atuais.</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Tente remover os filtros ou buscar por outros termos.</p>
                         </td>
                     </tr>
                     {% endfor %}
