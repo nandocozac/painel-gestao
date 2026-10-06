@@ -1506,6 +1506,202 @@ def api_busca_produtos():
     return jsonify(dados)
 
 
+# --- ENTRADA DE MERCADORIAS POR NOTA (XML / PDF) ---
+
+@app.route('/produtos/importar-nota', methods=['POST'])
+@login_required
+def importar_nota_produtos():
+    arquivo = request.files.get('arquivo_nota')
+    if not arquivo or not arquivo.filename:
+        flash("Por favor, selecione um arquivo XML da NF-e ou PDF da DANFE.", "warning")
+        return redirect(url_for('lista_produtos'))
+
+    import importador_nota
+    resultado = importador_nota.processar_arquivo_nota(arquivo)
+
+    if not resultado.get('sucesso'):
+        flash(resultado.get('erro', 'Falha ao processar arquivo de nota fiscal.'), "error")
+        return redirect(url_for('lista_produtos'))
+
+    # Cruzar itens da nota com o catálogo da empresa
+    itens_decorados = []
+    for item in resultado.get('itens', []):
+        prod_existente = None
+        if item.get('codigo'):
+            prod_existente = Produto.query.filter_by(
+                empresa_id=g.empresa.id,
+                codigo=item['codigo'],
+                ativo=True
+            ).first()
+
+        if not prod_existente and item.get('nome'):
+            prod_existente = Produto.query.filter(
+                Produto.empresa_id == g.empresa.id,
+                Produto.ativo == True,
+                Produto.nome.ilike(item['nome'].strip())
+            ).first()
+
+        qtd = float(item.get('quantidade') or 1.0)
+        custo = float(item.get('preco_custo') or 0.0)
+
+        if prod_existente:
+            status_match = 'EXISTENTE'
+            prod_id = prod_existente.id
+            estoque_atual = float(prod_existente.estoque_atual or 0.0)
+            novo_estoque = round(estoque_atual + qtd, 2)
+            preco_venda_sugerido = float(prod_existente.preco_venda or 0.0)
+            if preco_venda_sugerido == 0.0:
+                preco_venda_sugerido = round(custo * 1.5, 2)
+        else:
+            status_match = 'NOVO'
+            prod_id = None
+            estoque_atual = 0.0
+            novo_estoque = qtd
+            preco_venda_sugerido = round(custo * 1.5, 2)
+
+        itens_decorados.append({
+            'status_match': status_match,
+            'produto_id': prod_id,
+            'codigo': item.get('codigo', ''),
+            'nome': item.get('nome', ''),
+            'ncm': item.get('ncm', ''),
+            'cfop': item.get('cfop', ''),
+            'unidade': item.get('unidade', 'UN'),
+            'quantidade': qtd,
+            'preco_custo': custo,
+            'subtotal': round(qtd * custo, 2),
+            'estoque_atual': estoque_atual,
+            'novo_estoque': novo_estoque,
+            'preco_venda_sugerido': preco_venda_sugerido
+        })
+
+    dados_nota = {
+        'tipo_arquivo': resultado.get('tipo_arquivo'),
+        'chave_acesso': resultado.get('chave_acesso'),
+        'numero_nota': resultado.get('numero_nota'),
+        'fornecedor_nome': resultado.get('fornecedor_nome'),
+        'fornecedor_cnpj': resultado.get('fornecedor_cnpj'),
+        'data_emissao': resultado.get('data_emissao')
+    }
+
+    return render_template(
+        'produtos_conferencia_nota.html',
+        dados_nota=dados_nota,
+        itens=itens_decorados
+    )
+
+
+@app.route('/produtos/confirmar-entrada', methods=['POST'])
+@login_required
+def confirmar_entrada_produtos():
+    indices = request.form.getlist('incluir_idx[]')
+    if not indices:
+        flash("Nenhum item foi selecionado para dar entrada no estoque.", "warning")
+        return redirect(url_for('lista_produtos'))
+
+    numero_nota = request.form.get('numero_nota', '').strip()
+    fornecedor_nome = request.form.get('fornecedor_nome', '').strip()
+    registrar_caixa = request.form.get('registrar_caixa') == '1'
+
+    def converter_valor(v):
+        if v is None:
+            return 0.0
+        if isinstance(v, (int, float)):
+            return max(0.0, float(v))
+        s = str(v).strip()
+        if not s:
+            return 0.0
+        if ',' in s and '.' in s:
+            if s.rfind(',') > s.rfind('.'):
+                s = s.replace('.', '').replace(',', '.')
+            else:
+                s = s.replace(',', '')
+        elif ',' in s:
+            s = s.replace(',', '.')
+        try:
+            return max(0.0, float(s))
+        except (ValueError, TypeError):
+            return 0.0
+
+    qtd_itens_processados = 0
+    total_financeiro_compra = 0.0
+
+    for idx in indices:
+        nome = request.form.get(f'nome_{idx}', '').strip()
+        if not nome:
+            continue
+
+        codigo = request.form.get(f'codigo_{idx}', '').strip()
+        ncm = re.sub(r'\D', '', request.form.get(f'ncm_{idx}', '').strip())
+        cfop = re.sub(r'\D', '', request.form.get(f'cfop_{idx}', '').strip())
+        unidade = (request.form.get(f'unidade_{idx}', 'UN').strip().upper())[:10]
+        qtd = converter_valor(request.form.get(f'qtd_{idx}', '1'))
+        custo = converter_valor(request.form.get(f'custo_{idx}', '0'))
+        venda = converter_valor(request.form.get(f'venda_{idx}', '0'))
+        prod_id_str = request.form.get(f'prod_id_{idx}', '').strip()
+
+        prod = None
+        if prod_id_str:
+            try:
+                p_id = int(prod_id_str)
+                prod = Produto.query.filter_by(id=p_id, empresa_id=g.empresa.id).first()
+            except (ValueError, TypeError):
+                prod = None
+
+        if prod:
+            # Incrementa produto existente
+            prod.estoque_atual = round(prod.estoque_atual + qtd, 2)
+            if custo > 0:
+                prod.preco_custo = custo
+            if venda > 0:
+                prod.preco_venda = venda
+            if ncm and not prod.ncm:
+                prod.ncm = ncm
+            if cfop and not prod.cfop:
+                prod.cfop = cfop
+            if not prod.ativo:
+                prod.ativo = True
+        else:
+            # Cadastra novo produto no catálogo
+            novo_prod = Produto(
+                empresa_id=g.empresa.id,
+                codigo=codigo,
+                nome=nome,
+                tipo='PECA',
+                preco_custo=custo,
+                preco_venda=venda,
+                estoque_atual=qtd,
+                estoque_minimo=1.0,
+                unidade=unidade,
+                ncm=ncm,
+                cfop=cfop,
+                ativo=True
+            )
+            db.session.add(novo_prod)
+
+        qtd_itens_processados += 1
+        total_financeiro_compra += (qtd * custo)
+
+    # Registro opcional de saída financeira no Livro Caixa
+    if registrar_caixa and total_financeiro_compra > 0:
+        desc_caixa = f"Compra Mercadoria / Nota #{numero_nota}"
+        if fornecedor_nome:
+            desc_caixa += f" - {fornecedor_nome}"
+        transacao = Transacao(
+            empresa_id=g.empresa.id,
+            tipo='DESPESA',
+            descricao=desc_caixa,
+            valor=round(total_financeiro_compra, 2),
+            forma_pagamento='Boleto / Faturado',
+            data_movimento=date.today()
+        )
+        db.session.add(transacao)
+
+    db.session.commit()
+    flash(f"Entrada concluída com sucesso! {qtd_itens_processados} produto(s) atualizado(s) no estoque.", "success")
+    return redirect(url_for('lista_produtos'))
+
+
 # --- FICHA DE CLIENTES E HISTÓRICO ISOLADO ---
 
 @app.route('/clientes')

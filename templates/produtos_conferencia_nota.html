@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Conferência de Entrada de Nota - {{ empresa.nome_empresa }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-6xl mx-auto">
+
+    <!-- Topo -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <a href="{{ url_for('lista_produtos') }}" class="text-xs font-semibold text-slate-500 hover:text-slate-800 transition">
+                    &larr; Voltar ao Catálogo
+                </a>
+                <span class="text-slate-300">|</span>
+                <span class="text-xs font-bold uppercase tracking-wider bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">
+                    Leitura de Nota Fiscal ({{ dados_nota.tipo_arquivo }})
+                </span>
+            </div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight mt-1 flex items-center gap-2">
+                <span>📥</span>
+                <span>Conferência de Entrada de Mercadorias</span>
+            </h1>
+            <p class="text-xs text-slate-500 mt-0.5">
+                Revise os itens extraídos da nota antes de gravar no estoque. O sistema já cruzou os produtos com seu catálogo.
+            </p>
+        </div>
+    </div>
+
+    <!-- Card de Dados da Nota Fiscal -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+        <div>
+            <span class="text-slate-400 font-medium block">Fornecedor / Emitente</span>
+            <span class="font-extrabold text-slate-800 text-sm block truncate" title="{{ dados_nota.fornecedor_nome or 'Não identificado' }}">
+                {{ dados_nota.fornecedor_nome or 'Não identificado' }}
+            </span>
+            {% if dados_nota.fornecedor_cnpj %}
+            <span class="text-[11px] text-slate-500 font-mono">{{ dados_nota.fornecedor_cnpj }}</span>
+            {% endif %}
+        </div>
+
+        <div>
+            <span class="text-slate-400 font-medium block">Número da Nota Fiscal</span>
+            <span class="font-black text-blue-600 text-base font-mono block">
+                {% if dados_nota.numero_nota %}#{{ dados_nota.numero_nota }}{% else %}Sem número{% endif %}
+            </span>
+            {% if dados_nota.data_emissao %}
+            <span class="text-[11px] text-slate-500">Emissão: {{ dados_nota.data_emissao }}</span>
+            {% endif %}
+        </div>
+
+        <div class="sm:col-span-2">
+            <span class="text-slate-400 font-medium block">Chave de Acesso (SEFAZ)</span>
+            <span class="font-mono text-[11px] text-slate-700 bg-slate-50 p-1.5 rounded border border-slate-200 block truncate select-all" title="{{ dados_nota.chave_acesso }}">
+                {{ dados_nota.chave_acesso or 'Chave de acesso não localizada' }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Formulário de Confirmação -->
+    <form method="POST" action="{{ url_for('confirmar_entrada_produtos') }}" id="formConfirmacao" class="space-y-6">
+        <input type="hidden" name="numero_nota" value="{{ dados_nota.numero_nota }}">
+        <input type="hidden" name="fornecedor_nome" value="{{ dados_nota.fornecedor_nome }}">
+
+        <!-- Tabela de Itens Extraídos -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="checkTodos" checked onchange="toggleTodosItens(this)"
+                        class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+                    <label for="checkTodos" class="font-bold text-slate-700 cursor-pointer select-none">
+                        Selecionar Todos os Itens (<span id="totalSelecionados">{{ itens|length }}</span> de {{ itens|length }})
+                    </label>
+                </div>
+
+                <div class="flex items-center gap-3 font-semibold text-slate-500">
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        {{ itens|selectattr('status_match', 'equalto', 'EXISTENTE')|list|length }} Existentes
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                        {{ itens|selectattr('status_match', 'equalto', 'NOVO')|list|length }} Novos
+                    </span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-100/70 text-slate-700 uppercase font-bold text-[11px] border-b border-slate-200">
+                        <tr>
+                            <th class="py-3 px-3 text-center w-10">#</th>
+                            <th class="py-3 px-3">Status</th>
+                            <th class="py-3 px-3" style="min-width: 220px;">Descrição do Produto</th>
+                            <th class="py-3 px-3 text-center">Qtd Compra</th>
+                            <th class="py-3 px-3 text-center">Estoque Resultante</th>
+                            <th class="py-3 px-3 text-right">Custo Unit. (R$)</th>
+                            <th class="py-3 px-3 text-right">Venda Sugerido (R$)</th>
+                            <th class="py-3 px-3 text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100" id="tabelaCorpo">
+                        {% for it in itens %}
+                        {% set idx = loop.index0 %}
+                        <tr class="hover:bg-slate-50/70 transition linha-item-conferencia" id="linha-{{ idx }}">
+                            <!-- Checkbox de Inclusão -->
+                            <td class="py-3 px-3 text-center">
+                                <input type="checkbox" name="incluir_idx[]" value="{{ idx }}" checked onchange="atualizarTotaisConferencia()"
+                                    class="check-item w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+                                <input type="hidden" name="prod_id_{{ idx }}" value="{{ it.produto_id or '' }}">
+                                <input type="hidden" name="unidade_{{ idx }}" value="{{ it.unidade }}">
+                                <input type="hidden" name="ncm_{{ idx }}" value="{{ it.ncm }}">
+                                <input type="hidden" name="cfop_{{ idx }}" value="{{ it.cfop }}">
+                            </td>
+
+                            <!-- Badge Status -->
+                            <td class="py-3 px-3 whitespace-nowrap">
+                                {% if it.status_match == 'EXISTENTE' %}
+                                <span class="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200" title="Produto encontrado no catálogo. O estoque será somado.">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    Já Cadastrado
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 border border-blue-200" title="Novo produto. Será criado automaticamente no catálogo.">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                    Novo Cadastro
+                                </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Descrição e Código -->
+                            <td class="py-3 px-3">
+                                <input type="text" name="nome_{{ idx }}" value="{{ it.nome }}" required
+                                    class="w-full font-bold text-slate-800 text-xs px-2 py-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden">
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[10px] text-slate-400">Ref:</span>
+                                    <input type="text" name="codigo_{{ idx }}" value="{{ it.codigo }}" placeholder="Cód/Ref"
+                                        class="font-mono text-[10px] text-slate-600 px-1.5 py-0.5 border border-slate-200 rounded w-28 outline-hidden">
+                                    {% if it.ncm %}
+                                    <span class="text-[10px] text-slate-400 font-mono">NCM: {{ it.ncm }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- Qtd Compra -->
+                            <td class="py-3 px-3 text-center whitespace-nowrap">
+                                <input type="number" step="any" name="qtd_{{ idx }}" value="{{ it.quantidade }}" required oninput="recalcularLinha({{ idx }})"
+                                    class="w-16 text-center font-bold font-mono text-xs px-2 py-1.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden">
+                                <span class="text-[11px] text-slate-400 block mt-0.5">{{ it.unidade }}</span>
+                            </td>
+
+                            <!-- Estoque Resultante -->
+                            <td class="py-3 px-3 text-center whitespace-nowrap text-xs">
+                                <span class="text-slate-400">{{ it.estoque_atual|round(2) }}</span>
+                                <span class="text-blue-500 font-bold mx-1">&rarr;</span>
+                                <strong id="lbl-novo-estoque-{{ idx }}" class="text-emerald-700 font-bold text-sm bg-emerald-50 px-2 py-0.5 rounded-full">
+                                    {{ it.novo_estoque|round(2) }}
+                                </strong>
+                            </td>
+
+                            <!-- Custo Unitário -->
+                            <td class="py-3 px-3 text-right whitespace-nowrap">
+                                <input type="text" name="custo_{{ idx }}" value="{{ it.preco_custo|moeda }}" required oninput="recalcularLinha({{ idx }})"
+                                    class="w-20 text-right font-mono text-xs px-2 py-1.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden">
+                            </td>
+
+                            <!-- Venda Sugerido -->
+                            <td class="py-3 px-3 text-right whitespace-nowrap">
+                                <input type="text" name="venda_{{ idx }}" value="{{ it.preco_venda_sugerido|moeda }}" required
+                                    class="w-20 text-right font-mono font-bold text-blue-700 text-xs px-2 py-1.5 border border-blue-200 bg-blue-50/30 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden">
+                            </td>
+
+                            <!-- Subtotal da Linha -->
+                            <td class="py-3 px-3 text-right font-mono font-black text-slate-800 text-xs whitespace-nowrap">
+                                R$ <span id="lbl-subtotal-{{ idx }}">{{ it.subtotal|moeda }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Barra Inferior de Confirmação & Integração com Caixa -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+            <!-- Opção de Livro Caixa -->
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" name="registrar_caixa" value="1" checked
+                    class="w-5 h-5 text-purple-600 rounded border-slate-300 focus:ring-purple-500 cursor-pointer">
+                <div>
+                    <span class="text-xs font-bold text-slate-800 block">Lançar saída financeira no Livro Caixa</span>
+                    <span class="text-[11px] text-slate-400 block">Registra automaticamente uma despesa no valor total dos itens selecionados.</span>
+                </div>
+            </label>
+
+            <!-- Totais e Ações -->
+            <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block">Total da Entrada:</span>
+                    <span class="text-xl font-black text-slate-900 font-mono" id="lbl-total-geral">R$ 0,00</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <a href="{{ url_for('lista_produtos') }}" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition">
+                        Cancelar
+                    </a>
+                    <button type="submit"
+                        class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-600/20 transition flex items-center gap-2 transform active:scale-95">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>Confirmar Entrada no Estoque</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+</div>
+
+<script>
+    function parseNum(str) {
+        if (!str) return 0;
+        let limpo = str.toString().replace('.', '').replace(',', '.').trim();
+        let val = parseFloat(limpo);
+        return isNaN(val) ? 0 : val;
+    }
+
+    function formatMoeda(val) {
+        return val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function recalcularLinha(idx) {
+        const linha = document.getElementById(`linha-${idx}`);
+        if (!linha) return;
+
+        const qtdInput = linha.querySelector(`input[name="qtd_${idx}"]`);
+        const custoInput = linha.querySelector(`input[name="custo_${idx}"]`);
+        const subtotalSpan = document.getElementById(`lbl-subtotal-${idx}`);
+
+        const qtd = parseNum(qtdInput.value) || 0;
+        const custo = parseNum(custoInput.value) || 0;
+        const sub = qtd * custo;
+
+        if (subtotalSpan) subtotalSpan.innerText = formatMoeda(sub);
+        atualizarTotaisConferencia();
+    }
+
+    function atualizarTotaisConferencia() {
+        let total = 0;
+        let selecionados = 0;
+
+        document.querySelectorAll('.linha-item-conferencia').forEach((linha, idx) => {
+            const check = linha.querySelector('.check-item');
+            if (check && check.checked) {
+                selecionados++;
+                linha.style.opacity = '1';
+                const qtd = parseNum(linha.querySelector(`input[name="qtd_${idx}"]`).value) || 0;
+                const custo = parseNum(linha.querySelector(`input[name="custo_${idx}"]`).value) || 0;
+                total += (qtd * custo);
+            } else if (check) {
+                linha.style.opacity = '0.4';
+            }
+        });
+
+        const totalSpan = document.getElementById('lbl-total-geral');
+        if (totalSpan) totalSpan.innerText = 'R$ ' + formatMoeda(total);
+
+        const selCountSpan = document.getElementById('totalSelecionados');
+        if (selCountSpan) selCountSpan.innerText = selecionados;
+    }
+
+    function toggleTodosItens(master) {
+        document.querySelectorAll('.check-item').forEach(c => c.checked = master.checked);
+        atualizarTotaisConferencia();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        atualizarTotaisConferencia();
+    });
+</script>
+{% endblock %}

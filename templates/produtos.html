@@ -17,13 +17,23 @@
             </p>
         </div>
 
-        <button onclick="abrirModalNovo()"
-            class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow transition transform active:scale-95 text-sm">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Novo Item / Peça</span>
-        </button>
+        <div class="flex items-center gap-2">
+            <button onclick="abrirModalImportarNota()"
+                class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow transition transform active:scale-95 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>📥 Entrada por Nota (XML / PDF)</span>
+            </button>
+
+            <button onclick="abrirModalNovo()"
+                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow transition transform active:scale-95 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Novo Item / Peça</span>
+            </button>
+        </div>
     </div>
 
     <!-- Cards de Indicadores de Estoque -->
@@ -353,5 +363,62 @@
     function fecharModal() {
         document.getElementById('modalItem').classList.add('hidden');
     }
+
+    function abrirModalImportarNota() {
+        document.getElementById('modalImportarNota').classList.remove('hidden');
+    }
+
+    function fecharModalImportarNota() {
+        document.getElementById('modalImportarNota').classList.add('hidden');
+    }
+
+    function mostrarArquivoSelecionado(input) {
+        const preview = document.getElementById('previewNomeArquivo');
+        if (input.files && input.files[0]) {
+            preview.innerText = '📄 Arquivo selecionado: ' + input.files[0].name;
+            preview.classList.remove('hidden');
+        } else {
+            preview.classList.add('hidden');
+        }
+    }
 </script>
+
+<!-- Modal Importar Nota Fiscal (XML ou PDF) -->
+<div id="modalImportarNota" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+                <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
+                    <span>📥</span> Entrada de Mercadorias por Nota
+                </h3>
+                <p class="text-xs text-slate-500">Faça upload do XML da NF-e ou PDF da DANFE</p>
+            </div>
+            <button onclick="fecharModalImportarNota()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">&times;</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('importar_nota_produtos') }}" enctype="multipart/form-data" id="formUploadNota" class="space-y-4">
+            <div class="border-2 border-dashed border-purple-300 hover:border-purple-500 rounded-2xl p-6 text-center bg-purple-50/40 hover:bg-purple-50/70 transition cursor-pointer"
+                 onclick="document.getElementById('inputArquivoNota').click()">
+                <div class="text-3xl mb-2">📑</div>
+                <p class="text-xs font-bold text-purple-900">Clique para selecionar o arquivo da Nota Fiscal</p>
+                <p class="text-[11px] text-purple-700/80 mt-1">Suporta arquivos <strong>.XML (NF-e)</strong> ou <strong>.PDF (DANFE)</strong></p>
+                <input type="file" name="arquivo_nota" id="inputArquivoNota" accept=".xml,.pdf" required class="hidden" onchange="mostrarArquivoSelecionado(this)">
+                <div id="previewNomeArquivo" class="hidden mt-3 text-xs font-bold text-slate-800 bg-white p-2 rounded-lg border border-purple-200"></div>
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <p>💡 <strong>Dica Pro:</strong> O arquivo <strong>XML da NF-e</strong> (enviado pelo fornecedor) garante 100% de precisão automática em códigos, NCM, quantidade e valor de custo sem nenhuma falha de leitura.</p>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="fecharModalImportarNota()" class="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 font-semibold text-xs hover:bg-slate-50">
+                    Cancelar
+                </button>
+                <button type="submit" id="btnProcessarNota" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow-sm flex items-center gap-1.5">
+                    <span>Processar e Ler Itens</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
