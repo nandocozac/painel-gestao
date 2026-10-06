@@ -91,60 +91,33 @@
                 </div>
             </div>
 
-            <!-- BOTAO PRINCIPAL MERCADO PAGO (PIX E CARTÃO COM LIBERAÇÃO INSTANTÂNEA) -->
+            <!-- BOTAO PRINCIPAL MERCADO PAGO (VERDE ELEGANTE / SÊNIOR) -->
             <div class="space-y-3 pt-2">
                 <form method="POST" action="{{ url_for('assinatura_checkout_mercadopago') }}" id="form-mp">
                     <input type="hidden" name="plano" id="input-plano-mp" value="MENSAL">
                     <input type="hidden" name="tipo_plano" value="BASICO">
                     <button type="submit"
-                        class="w-full relative group overflow-hidden rounded-2xl p-4 sm:p-5 text-white font-extrabold transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer"
-                        style="background: linear-gradient(135deg, #009EE3 0%, #0074BC 45%, #2563EB 100%); box-shadow: 0 14px 35px -6px rgba(0, 158, 227, 0.65), 0 0 25px rgba(37, 99, 235, 0.4); border: 1px solid rgba(255, 255, 255, 0.25);">
-                        
-                        <!-- Efeito de brilho/shimmer no hover -->
-                        <div class="absolute inset-0 w-1/2 h-full bg-white/20 skew-x-[-25deg] -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none"></div>
-
-                        <div class="relative flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-3.5 text-left">
-                                <div class="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 flex items-center justify-center shrink-0 shadow-inner">
-                                    <svg class="w-6 h-6 text-amber-300" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-                                <div>
-                                    <span class="block text-base sm:text-lg font-black tracking-tight text-white leading-tight drop-shadow-sm">
-                                        Pagar via Pix ou Cartão
-                                    </span>
-                                    <span class="block text-[11px] sm:text-xs text-blue-100 font-medium mt-0.5 opacity-95">
-                                        Aprovação imediata • Mercado Pago Seguro
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div class="flex items-center gap-2">
-                                <span class="hidden sm:inline-block text-[11px] font-bold bg-white/20 border border-white/30 px-3 py-1.5 rounded-full text-white tracking-wider uppercase">
-                                    Pagar Agora
-                                </span>
-                                <div class="w-10 h-10 rounded-xl bg-white text-blue-700 flex items-center justify-center font-black text-xl group-hover:translate-x-1 transition-transform shadow-md shrink-0">
-                                    →
-                                </div>
-                            </div>
-                        </div>
+                        class="w-full rounded-2xl py-3.5 px-6 text-white font-bold transition duration-200 hover:brightness-110 active:scale-[0.99] cursor-pointer flex items-center justify-center gap-3 text-base shadow-lg"
+                        style="background: linear-gradient(180deg, #059669 0%, #047857 100%); border: 1px solid rgba(16, 185, 129, 0.4); box-shadow: 0 4px 16px rgba(5, 150, 105, 0.25);">
+                        <svg class="w-5 h-5 text-emerald-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        <span class="tracking-wide">Pagar via Pix ou Cartão (Mercado Pago)</span>
+                        <svg class="w-4 h-4 text-emerald-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
                     </button>
                 </form>
 
-                <div class="grid grid-cols-3 gap-2 text-center pt-1">
-                    <div class="py-2 px-1 rounded-xl bg-slate-900/60 border border-slate-700/60 flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 font-semibold">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                        <span class="truncate">Liberação na Hora</span>
-                    </div>
-                    <div class="py-2 px-1 rounded-xl bg-slate-900/60 border border-slate-700/60 flex items-center justify-center gap-1.5 text-[11px] text-cyan-300 font-medium">
-                        <span>⚡</span>
-                        <span class="truncate">Pix Instantâneo</span>
-                    </div>
-                    <div class="py-2 px-1 rounded-xl bg-slate-900/60 border border-slate-700/60 flex items-center justify-center gap-1.5 text-[11px] text-slate-300 font-medium">
-                        <span>💳</span>
-                        <span class="truncate">Cartão até 12x</span>
-                    </div>
+                <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400 pt-1">
+                    <span class="inline-flex items-center gap-1.5 text-emerald-400 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        Liberação 100% Automática
+                    </span>
+                    <span>•</span>
+                    <span>Pix ou Cartão até 12x</span>
+                    <span>•</span>
+                    <span>Mercado Pago Seguro</span>
                 </div>
             </div>
 
