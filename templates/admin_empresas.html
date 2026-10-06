@@ -59,25 +59,25 @@
 
             <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Plano Básico Mensal (R$)</label>
-                <input type="number" step="0.01" name="valor_mensalidade" value="{{ '%.2f'|format(empresa.valor_mensalidade or 29.90) }}"
-                    class="w-full text-xs font-mono rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" inputmode="decimal" name="valor_mensalidade" value="{{ '%.2f'|format(empresa.valor_mensalidade or 29.90) }}" placeholder="29.90"
+                    class="w-full text-xs font-mono rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Plano Básico Anual (R$)</label>
-                <input type="number" step="0.01" name="valor_anual" value="{{ '%.2f'|format(empresa.valor_anual or 249.90) }}"
-                    class="w-full text-xs font-mono rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" inputmode="decimal" name="valor_anual" value="{{ '%.2f'|format(empresa.valor_anual or 249.90) }}" placeholder="249.90"
+                    class="w-full text-xs font-mono rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-purple-700 mb-1">⭐ Plano Fiscal Mensal (R$)</label>
-                <input type="number" step="0.01" name="valor_mensalidade_fiscal" value="{{ '%.2f'|format(empresa.valor_mensalidade_fiscal or 79.90) }}"
+                <input type="text" inputmode="decimal" name="valor_mensalidade_fiscal" value="{{ '%.2f'|format(empresa.valor_mensalidade_fiscal or 79.90) }}" placeholder="79.90"
                     class="w-full text-xs font-mono rounded-lg border border-purple-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 bg-purple-50/30">
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-purple-700 mb-1">⭐ Plano Fiscal Anual (R$)</label>
-                <input type="number" step="0.01" name="valor_anual_fiscal" value="{{ '%.2f'|format(empresa.valor_anual_fiscal or 699.90) }}"
+                <input type="text" inputmode="decimal" name="valor_anual_fiscal" value="{{ '%.2f'|format(empresa.valor_anual_fiscal or 699.90) }}" placeholder="699.90"
                     class="w-full text-xs font-mono rounded-lg border border-purple-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 bg-purple-50/30">
             </div>
 
@@ -95,16 +95,21 @@
                 <p class="text-[10px] text-blue-600 mt-1">Gera Pix e Cartão com liberação 100% automática da assinatura.</p>
             </div>
 
-            <div class="sm:col-span-2 bg-blue-50/60 border border-blue-200/80 rounded-xl p-3 flex items-end gap-3">
-                <div class="flex-1">
-                    <label class="block text-xs font-bold text-blue-900 mb-1">Mercado Pago Public Key</label>
-                    <input type="text" name="mercadopago_public_key" value="{{ empresa.mercadopago_public_key or '' }}"
-                        placeholder="APP_USR-cf109e45-..."
-                        class="w-full text-xs font-mono rounded-lg border border-blue-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                </div>
+            <div class="sm:col-span-2 bg-blue-50/60 border border-blue-200/80 rounded-xl p-3">
+                <label class="block text-xs font-bold text-blue-900 mb-1">Mercado Pago Public Key</label>
+                <input type="text" name="mercadopago_public_key" value="{{ empresa.mercadopago_public_key or '' }}"
+                    placeholder="APP_USR-cf109e45-..."
+                    class="w-full text-xs font-mono rounded-lg border border-blue-300 px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                <p class="text-[10px] text-slate-400 mt-1">Chave pública utilizada para integrações no frontend.</p>
+            </div>
+
+            <div class="sm:col-span-4 flex justify-end pt-3 border-t border-slate-100">
                 <button type="submit"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2.5 rounded-lg transition shrink-0 shadow-sm">
-                    Salvar Dados
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl transition shadow-sm flex items-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Salvar Dados de Cobrança e Valores
                 </button>
             </div>
         </form>

@@ -813,35 +813,25 @@ def admin_nova_empresa():
 def admin_salvar_cobranca():
     g.empresa.chave_pix = request.form.get('chave_pix', '').strip()
     g.empresa.titular_pix = request.form.get('titular_pix', '').strip()
-    try:
-        val_m = float(request.form.get('valor_mensalidade', '29.90').replace(',', '.'))
-        g.empresa.valor_mensalidade = round(val_m, 2)
-    except (ValueError, TypeError):
-        pass
+    def limpar_valor(val_raw, default_val):
+        if not val_raw:
+            return default_val
+        val_str = str(val_raw).replace('R$', '').replace(' ', '').replace(',', '.')
+        try:
+            return round(float(val_str), 2)
+        except (ValueError, TypeError):
+            return default_val
 
-    try:
-        val_a = float(request.form.get('valor_anual', '249.90').replace(',', '.'))
-        g.empresa.valor_anual = round(val_a, 2)
-    except (ValueError, TypeError):
-        pass
-
-    try:
-        val_mf = float(request.form.get('valor_mensalidade_fiscal', '79.90').replace(',', '.'))
-        g.empresa.valor_mensalidade_fiscal = round(val_mf, 2)
-    except (ValueError, TypeError):
-        pass
-
-    try:
-        val_af = float(request.form.get('valor_anual_fiscal', '699.90').replace(',', '.'))
-        g.empresa.valor_anual_fiscal = round(val_af, 2)
-    except (ValueError, TypeError):
-        pass
+    g.empresa.valor_mensalidade = limpar_valor(request.form.get('valor_mensalidade'), g.empresa.valor_mensalidade or 29.90)
+    g.empresa.valor_anual = limpar_valor(request.form.get('valor_anual'), g.empresa.valor_anual or 249.90)
+    g.empresa.valor_mensalidade_fiscal = limpar_valor(request.form.get('valor_mensalidade_fiscal'), g.empresa.valor_mensalidade_fiscal or 79.90)
+    g.empresa.valor_anual_fiscal = limpar_valor(request.form.get('valor_anual_fiscal'), g.empresa.valor_anual_fiscal or 699.90)
 
     g.empresa.mercadopago_access_token = request.form.get('mercadopago_access_token', '').strip()
     g.empresa.mercadopago_public_key = request.form.get('mercadopago_public_key', '').strip()
 
     db.session.commit()
-    flash("Dados de cobrança e Mercado Pago atualizados com sucesso!", "success")
+    flash("Dados de cobrança e valores atualizados com sucesso!", "success")
     return redirect(url_for('admin_empresas'))
 
 
