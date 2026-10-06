@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file, session, g, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import text, event
+from sqlalchemy import text, event, or_
 from sqlalchemy.engine import Engine
 from database import db
 from models import Empresa, Cliente, Veiculo, OrdemServico, Transacao, ItemOS, NotaFiscal, Produto
@@ -988,6 +988,7 @@ def lista_os():
 @login_required
 def nova_os():
     if request.method == 'POST':
+        cliente_id_form = request.form.get('cliente_id', type=int)
         nome = request.form.get('cliente_nome', '').strip()
         telefone = request.form.get('cliente_telefone', '').strip()
         placa = request.form.get('veiculo_placa', '').strip().upper()
@@ -997,13 +998,25 @@ def nova_os():
         cpf_cnpj = request.form.get('cliente_cpf_cnpj', '').strip()
         email = request.form.get('cliente_email', '').strip().lower()
 
-        # Busca ou cadastra cliente restrito a esta empresa
-        cliente = Cliente.query.filter_by(empresa_id=g.empresa.id, telefone=telefone).first()
+        cliente = None
+        if cliente_id_form:
+            cliente = Cliente.query.filter_by(id=cliente_id_form, empresa_id=g.empresa.id).first()
+
+        if not cliente and cpf_cnpj:
+            cliente = Cliente.query.filter_by(empresa_id=g.empresa.id, cpf_cnpj=cpf_cnpj).first()
+
+        if not cliente and telefone:
+            cliente = Cliente.query.filter_by(empresa_id=g.empresa.id, telefone=telefone).first()
+
         if not cliente:
             cliente = Cliente(empresa_id=g.empresa.id, nome=nome, telefone=telefone, cpf_cnpj=cpf_cnpj, email=email)
             db.session.add(cliente)
             db.session.flush()
         else:
+            if nome and cliente.nome != nome:
+                cliente.nome = nome
+            if telefone and not cliente.telefone:
+                cliente.telefone = telefone
             if cpf_cnpj and not cliente.cpf_cnpj:
                 cliente.cpf_cnpj = cpf_cnpj
             if email and not cliente.email:
@@ -1035,7 +1048,12 @@ def nova_os():
 
         return redirect(url_for('ver_os', os_id=os_nova.id))
 
-    return render_template('os_form.html')
+    cliente_id_arg = request.args.get('cliente_id', type=int)
+    cliente_pre = None
+    if cliente_id_arg:
+        cliente_pre = Cliente.query.filter_by(id=cliente_id_arg, empresa_id=g.empresa.id).first()
+
+    return render_template('os_form.html', cliente_pre=cliente_pre)
 
 
 @app.route('/os/<int:os_id>')
@@ -1711,13 +1729,77 @@ def lista_clientes():
 
     query = Cliente.query.filter_by(empresa_id=g.empresa.id)
     if busca:
-        query = query.filter(
-            (Cliente.nome.ilike(f'%{busca}%')) | 
-            (Cliente.telefone.ilike(f'%{busca}%'))
-        )
+        busca_limpa = re.sub(r'\D', '', busca)
+        filtros = [
+            Cliente.nome.ilike(f'%{busca}%'),
+            Cliente.telefone.ilike(f'%{busca}%'),
+            Cliente.cpf_cnpj.ilike(f'%{busca}%'),
+            Cliente.email.ilike(f'%{busca}%')
+        ]
+        if busca_limpa:
+            cpf_sem_pontos = db.func.replace(db.func.replace(db.func.replace(Cliente.cpf_cnpj, '.', ''), '-', ''), '/', '')
+            tel_sem_pontos = db.func.replace(db.func.replace(db.func.replace(db.func.replace(Cliente.telefone, '(', ''), ')', ''), '-', ''), ' ', '')
+            filtros.append(cpf_sem_pontos.ilike(f'%{busca_limpa}%'))
+            filtros.append(tel_sem_pontos.ilike(f'%{busca_limpa}%'))
+            # Se digitou 11 dígitos (CPF)
+            if len(busca_limpa) == 11:
+                cpf_fmt = f"{busca_limpa[:3]}.{busca_limpa[3:6]}.{busca_limpa[6:9]}-{busca_limpa[9:]}"
+                filtros.append(Cliente.cpf_cnpj.ilike(f'%{cpf_fmt}%'))
+            # Se digitou 14 dígitos (CNPJ)
+            elif len(busca_limpa) == 14:
+                cnpj_fmt = f"{busca_limpa[:2]}.{busca_limpa[2:5]}.{busca_limpa[5:8]}/{busca_limpa[8:12]}-{busca_limpa[12:]}"
+                filtros.append(Cliente.cpf_cnpj.ilike(f'%{cnpj_fmt}%'))
+
+        query = query.filter(or_(*filtros))
 
     clientes = query.order_by(Cliente.nome.asc()).all()
     return render_template('clientes.html', clientes=clientes, busca=busca)
+
+
+@app.route('/api/clientes/busca')
+@login_required
+def api_busca_clientes():
+    """Autocomplete rápido de clientes por nome, telefone ou CPF/CNPJ para abertura de OS e pedidos"""
+    termo = request.args.get('q', '').strip()
+    if not termo or len(termo) < 2:
+        return jsonify([])
+
+    termo_limpo = re.sub(r'\D', '', termo)
+    filtros = [
+        Cliente.nome.ilike(f'%{termo}%'),
+        Cliente.telefone.ilike(f'%{termo}%'),
+        Cliente.cpf_cnpj.ilike(f'%{termo}%'),
+        Cliente.email.ilike(f'%{termo}%')
+    ]
+    if termo_limpo:
+        cpf_sem_pontos = db.func.replace(db.func.replace(db.func.replace(Cliente.cpf_cnpj, '.', ''), '-', ''), '/', '')
+        tel_sem_pontos = db.func.replace(db.func.replace(db.func.replace(db.func.replace(Cliente.telefone, '(', ''), ')', ''), '-', ''), ' ', '')
+        filtros.append(cpf_sem_pontos.ilike(f'%{termo_limpo}%'))
+        filtros.append(tel_sem_pontos.ilike(f'%{termo_limpo}%'))
+        if len(termo_limpo) == 11:
+            cpf_fmt = f"{termo_limpo[:3]}.{termo_limpo[3:6]}.{termo_limpo[6:9]}-{termo_limpo[9:]}"
+            filtros.append(Cliente.cpf_cnpj.ilike(f'%{cpf_fmt}%'))
+        elif len(termo_limpo) == 14:
+            cnpj_fmt = f"{termo_limpo[:2]}.{termo_limpo[2:5]}.{termo_limpo[5:8]}/{termo_limpo[8:12]}-{termo_limpo[12:]}"
+            filtros.append(Cliente.cpf_cnpj.ilike(f'%{cnpj_fmt}%'))
+
+    resultados = Cliente.query.filter_by(empresa_id=g.empresa.id)\
+        .filter(or_(*filtros))\
+        .order_by(Cliente.nome.asc())\
+        .limit(10).all()
+
+    dados = []
+    for c in resultados:
+        veiculos_list = [{'id': v.id, 'placa': v.placa, 'modelo': v.modelo} for v in c.veiculos]
+        dados.append({
+            'id': c.id,
+            'nome': c.nome,
+            'telefone': c.telefone,
+            'cpf_cnpj': c.cpf_cnpj or '',
+            'email': c.email or '',
+            'veiculos': veiculos_list
+        })
+    return jsonify(dados)
 
 
 @app.route('/clientes/<int:cliente_id>')

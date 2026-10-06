@@ -17,17 +17,82 @@
             </p>
         </div>
 
-        <form method="POST" action="{{ url_for('nova_os') }}" class="space-y-4">
+        <!-- Seletor Rápido de Clientes Cadastrados -->
+        <div class="bg-blue-50/70 border border-blue-200/80 rounded-xl p-4 space-y-2 relative">
+            <div class="flex items-center justify-between">
+                <label for="campoBuscaCliente" class="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Buscar Cliente Cadastrado (Preenchimento Instantâneo)
+                </label>
+                <span class="text-[10px] text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full font-medium">Nome, CPF/CNPJ ou Telefone</span>
+            </div>
+
+            <div class="relative">
+                <input type="text" id="campoBuscaCliente" placeholder="Digite para pesquisar clientes cadastrados..." autocomplete="off"
+                    class="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-xs">
+                <div id="spinnerBuscaCliente" class="hidden absolute right-3 top-2.5">
+                    <svg class="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+
+                <!-- Dropdown de Sugestões de Clientes -->
+                <div id="dropdownClientes" class="hidden absolute z-30 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-72 overflow-y-auto divide-y divide-slate-100">
+                </div>
+            </div>
+
+            <!-- Banner Informativo de Cliente Selecionado -->
+            <div id="bannerClienteSelecionado" class="{% if not cliente_pre %}hidden{% endif %} flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span class="text-emerald-900 font-semibold" id="textoClienteSelecionado">
+                        {% if cliente_pre %}
+                        Cliente vinculado: <strong>{{ cliente_pre.nome }}</strong> ({{ cliente_pre.telefone }})
+                        {% endif %}
+                    </span>
+                </div>
+                <button type="button" onclick="limparClienteSelecionado()" class="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline ml-2">
+                    Trocar / Novo
+                </button>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('nova_os') }}" id="formNovaOS" class="space-y-4">
+            <!-- ID do Cliente selecionado (Opcional se for cliente novo) -->
+            <input type="hidden" name="cliente_id" id="cliente_id" value="{{ cliente_pre.id if cliente_pre else '' }}">
+
+            <!-- Sugestão de Veículos (Se houver) -->
+            <div id="containerVeiculosRapidos" class="{% if not (cliente_pre and cliente_pre.veiculos) %}hidden{% endif %} bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1.5">
+                <span class="font-bold text-slate-700 block text-[11px] uppercase tracking-wider">Veículos cadastrados deste cliente (Clique para selecionar):</span>
+                <div class="flex flex-wrap gap-2" id="listaVeiculosPills">
+                    {% if cliente_pre and cliente_pre.veiculos %}
+                        {% for v in cliente_pre.veiculos %}
+                        <button type="button" onclick="preencherVeiculo('{{ v.modelo }}', '{{ v.placa }}')"
+                            class="inline-flex items-center gap-1.5 bg-white border border-slate-300 hover:border-blue-500 hover:bg-blue-50 text-slate-700 hover:text-blue-700 px-2.5 py-1 rounded-md text-xs font-mono transition shadow-2xs">
+                            🚗 <strong>{{ v.placa }}</strong> - {{ v.modelo }}
+                        </button>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- Dados do Cliente -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Nome do Cliente *</label>
-                    <input type="text" name="cliente_nome" required placeholder="Ex: Carlos Alberto Silva"
+                    <input type="text" name="cliente_nome" id="cliente_nome" required
+                        value="{{ cliente_pre.nome if cliente_pre else '' }}"
+                        placeholder="Ex: Carlos Alberto Silva"
                         class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Telefone (WhatsApp) *</label>
-                    <input type="text" name="cliente_telefone" required placeholder="(00) 00000-0000"
+                    <input type="text" name="cliente_telefone" id="cliente_telefone" required
+                        value="{{ cliente_pre.telefone if cliente_pre else '' }}"
+                        placeholder="(00) 00000-0000"
                         class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
             </div>
@@ -35,12 +100,16 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">CPF ou CNPJ (Opcional - Para Nota Fiscal)</label>
-                    <input type="text" name="cliente_cpf_cnpj" placeholder="Apenas números"
+                    <input type="text" name="cliente_cpf_cnpj" id="cliente_cpf_cnpj"
+                        value="{{ cliente_pre.cpf_cnpj if cliente_pre and cliente_pre.cpf_cnpj else '' }}"
+                        placeholder="Apenas números ou formatado"
                         class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">E-mail (Opcional - Para Envio da NF)</label>
-                    <input type="email" name="cliente_email" placeholder="cliente@email.com"
+                    <input type="email" name="cliente_email" id="cliente_email"
+                        value="{{ cliente_pre.email if cliente_pre and cliente_pre.email else '' }}"
+                        placeholder="cliente@email.com"
                         class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
             </div>
@@ -50,12 +119,16 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Modelo do Veículo / Equipamento</label>
-                    <input type="text" name="veiculo_modelo" placeholder="Ex: Toyota Corolla 2.0"
+                    <input type="text" name="veiculo_modelo" id="veiculo_modelo"
+                        value="{{ cliente_pre.veiculos[0].modelo if (cliente_pre and cliente_pre.veiculos) else '' }}"
+                        placeholder="Ex: Toyota Corolla 2.0"
                         class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Placa / Identificador</label>
-                    <input type="text" name="veiculo_placa" placeholder="ABC-1234 ou BRA2E19"
+                    <input type="text" name="veiculo_placa" id="veiculo_placa"
+                        value="{{ cliente_pre.veiculos[0].placa if (cliente_pre and cliente_pre.veiculos) else '' }}"
+                        placeholder="ABC-1234 ou BRA2E19"
                         class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono uppercase text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
             </div>
@@ -89,4 +162,149 @@
         </form>
     </div>
 </div>
+
+<script>
+    let timerBusca = null;
+    const campoBusca = document.getElementById('campoBuscaCliente');
+    const dropdown = document.getElementById('dropdownClientes');
+    const spinner = document.getElementById('spinnerBuscaCliente');
+    const banner = document.getElementById('bannerClienteSelecionado');
+    const textoBanner = document.getElementById('textoClienteSelecionado');
+
+    campoBusca.addEventListener('input', function() {
+        clearTimeout(timerBusca);
+        const termo = this.value.trim();
+
+        if (termo.length < 2) {
+            dropdown.classList.add('hidden');
+            dropdown.innerHTML = '';
+            return;
+        }
+
+        spinner.classList.remove('hidden');
+
+        timerBusca = setTimeout(() => {
+            fetch(`/api/clientes/busca?q=${encodeURIComponent(termo)}`)
+                .then(res => res.json())
+                .then(data => {
+                    spinner.classList.add('hidden');
+                    renderizarResultados(data);
+                })
+                .catch(err => {
+                    spinner.classList.add('hidden');
+                    console.error("Erro ao buscar clientes:", err);
+                });
+        }, 250);
+    });
+
+    function renderizarResultados(clientes) {
+        if (!clientes || clientes.length === 0) {
+            dropdown.innerHTML = `
+                <div class="p-3 text-center text-slate-400 text-xs">
+                    Nenhum cliente encontrado. Você pode preencher os campos abaixo para cadastrá-lo agora.
+                </div>
+            `;
+            dropdown.classList.remove('hidden');
+            return;
+        }
+
+        let html = '';
+        clientes.forEach(c => {
+            const docInfo = c.cpf_cnpj ? `<span class="bg-slate-100 text-slate-600 font-mono text-[10px] px-1.5 py-0.5 rounded">Doc: ${c.cpf_cnpj}</span>` : '';
+            const veiculosStr = JSON.stringify(c.veiculos || []).replace(/"/g, '&quot;');
+            
+            let veiculosBadge = '';
+            if (c.veiculos && c.veiculos.length > 0) {
+                veiculosBadge = `<div class="flex flex-wrap gap-1 mt-1">` + 
+                    c.veiculos.map(v => `<span class="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.2 rounded font-mono">🚗 ${v.placa} (${v.modelo})</span>`).join('') +
+                    `</div>`;
+            }
+
+            html += `
+                <div onclick="selecionarCliente(${c.id}, '${escapeHtml(c.nome)}', '${escapeHtml(c.telefone)}', '${escapeHtml(c.cpf_cnpj || '')}', '${escapeHtml(c.email || '')}', ${veiculosStr})"
+                    class="p-3 hover:bg-blue-50/80 cursor-pointer transition text-left flex flex-col gap-0.5">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-xs text-slate-900">${c.nome}</span>
+                        ${docInfo}
+                    </div>
+                    <div class="text-[11px] text-slate-500 flex items-center gap-2">
+                        <span>📱 ${c.telefone}</span>
+                        ${c.email ? `<span class="text-slate-400">✉️ ${c.email}</span>` : ''}
+                    </div>
+                    ${veiculosBadge}
+                </div>
+            `;
+        });
+
+        dropdown.innerHTML = html;
+        dropdown.classList.remove('hidden');
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function selecionarCliente(id, nome, telefone, cpf_cnpj, email, veiculos) {
+        document.getElementById('cliente_id').value = id;
+        document.getElementById('cliente_nome').value = nome;
+        document.getElementById('cliente_telefone').value = telefone;
+        document.getElementById('cliente_cpf_cnpj').value = cpf_cnpj || '';
+        document.getElementById('cliente_email').value = email || '';
+
+        // Trata veículos se for oficina
+        const containerVeiculos = document.getElementById('containerVeiculosRapidos');
+        const listaPills = document.getElementById('listaVeiculosPills');
+        const campoModelo = document.getElementById('veiculo_modelo');
+        const campoPlaca = document.getElementById('veiculo_placa');
+
+        if (containerVeiculos && listaPills) {
+            if (veiculos && veiculos.length > 0) {
+                // Preenche o primeiro veículo
+                if (campoModelo) campoModelo.value = veiculos[0].modelo || '';
+                if (campoPlaca) campoPlaca.value = veiculos[0].placa || '';
+
+                // Monta os botões clicáveis de veículos
+                listaPills.innerHTML = veiculos.map(v => `
+                    <button type="button" onclick="preencherVeiculo('${escapeHtml(v.modelo)}', '${escapeHtml(v.placa)}')"
+                        class="inline-flex items-center gap-1.5 bg-white border border-slate-300 hover:border-blue-500 hover:bg-blue-50 text-slate-700 hover:text-blue-700 px-2.5 py-1 rounded-md text-xs font-mono transition shadow-2xs">
+                        🚗 <strong>${v.placa}</strong> - ${v.modelo}
+                    </button>
+                `).join('');
+                containerVeiculos.classList.remove('hidden');
+            } else {
+                containerVeiculos.classList.add('hidden');
+            }
+        }
+
+        // Mostra o banner de seleção
+        textoBanner.innerHTML = `Cliente vinculado: <strong>${nome}</strong> (${telefone}) ${cpf_cnpj ? `[Doc: ${cpf_cnpj}]` : ''}`;
+        banner.classList.remove('hidden');
+
+        // Esconde dropdown e limpa campo de busca
+        dropdown.classList.add('hidden');
+        campoBusca.value = '';
+    }
+
+    function preencherVeiculo(modelo, placa) {
+        const campoModelo = document.getElementById('veiculo_modelo');
+        const campoPlaca = document.getElementById('veiculo_placa');
+        if (campoModelo) campoModelo.value = modelo;
+        if (campoPlaca) campoPlaca.value = placa;
+    }
+
+    function limparClienteSelecionado() {
+        document.getElementById('cliente_id').value = '';
+        banner.classList.add('hidden');
+        campoBusca.value = '';
+        campoBusca.focus();
+    }
+
+    // Fecha dropdown ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!campoBusca.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+</script>
 {% endblock %}
