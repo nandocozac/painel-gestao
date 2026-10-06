@@ -97,25 +97,54 @@
                     <input type="hidden" name="plano" id="input-plano-mp" value="MENSAL">
                     <input type="hidden" name="tipo_plano" value="BASICO">
                     <button type="submit"
-                        class="w-full bg-linear-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold py-4 px-6 rounded-2xl shadow-xl shadow-blue-600/30 transition transform hover:-translate-y-0.5 flex items-center justify-center gap-3 text-base cursor-pointer">
-                        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        <span>Pagar via Pix ou Cartão (Mercado Pago)</span>
+                        class="w-full relative group overflow-hidden rounded-2xl p-4 sm:p-5 text-white font-extrabold transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer"
+                        style="background: linear-gradient(135deg, #009EE3 0%, #0074BC 45%, #2563EB 100%); box-shadow: 0 14px 35px -6px rgba(0, 158, 227, 0.65), 0 0 25px rgba(37, 99, 235, 0.4); border: 1px solid rgba(255, 255, 255, 0.25);">
+                        
+                        <!-- Efeito de brilho/shimmer no hover -->
+                        <div class="absolute inset-0 w-1/2 h-full bg-white/20 skew-x-[-25deg] -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none"></div>
+
+                        <div class="relative flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3.5 text-left">
+                                <div class="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 flex items-center justify-center shrink-0 shadow-inner">
+                                    <svg class="w-6 h-6 text-amber-300" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <span class="block text-base sm:text-lg font-black tracking-tight text-white leading-tight drop-shadow-sm">
+                                        Pagar via Pix ou Cartão
+                                    </span>
+                                    <span class="block text-[11px] sm:text-xs text-blue-100 font-medium mt-0.5 opacity-95">
+                                        Aprovação imediata • Mercado Pago Seguro
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <span class="hidden sm:inline-block text-[11px] font-bold bg-white/20 border border-white/30 px-3 py-1.5 rounded-full text-white tracking-wider uppercase">
+                                    Pagar Agora
+                                </span>
+                                <div class="w-10 h-10 rounded-xl bg-white text-blue-700 flex items-center justify-center font-black text-xl group-hover:translate-x-1 transition-transform shadow-md shrink-0">
+                                    →
+                                </div>
+                            </div>
+                        </div>
                     </button>
                 </form>
 
-                <div class="flex flex-col sm:flex-row items-center justify-center gap-2 text-xs text-slate-400">
-                    <span class="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Liberação 100% Automática
-                    </span>
-                    <span class="hidden sm:inline">•</span>
-                    <span>Pix Copia e Cola / QR Code com aprovação imediata</span>
-                    <span class="hidden sm:inline">•</span>
-                    <span>Cartão até 12x</span>
+                <div class="grid grid-cols-3 gap-2 text-center pt-1">
+                    <div class="py-2 px-1 rounded-xl bg-slate-900/60 border border-slate-700/60 flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 font-semibold">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                        <span class="truncate">Liberação na Hora</span>
+                    </div>
+                    <div class="py-2 px-1 rounded-xl bg-slate-900/60 border border-slate-700/60 flex items-center justify-center gap-1.5 text-[11px] text-cyan-300 font-medium">
+                        <span>⚡</span>
+                        <span class="truncate">Pix Instantâneo</span>
+                    </div>
+                    <div class="py-2 px-1 rounded-xl bg-slate-900/60 border border-slate-700/60 flex items-center justify-center gap-1.5 text-[11px] text-slate-300 font-medium">
+                        <span>💳</span>
+                        <span class="truncate">Cartão até 12x</span>
+                    </div>
                 </div>
             </div>
 
