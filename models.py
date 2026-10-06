@@ -14,6 +14,7 @@ class Empresa(db.Model):
     endereco = db.Column(db.String(200), default="")
     cidade_uf = db.Column(db.String(100), default="")
     logo_filename = db.Column(db.String(255), nullable=True, default=None)
+    logo_base64 = db.Column(db.Text, nullable=True, default=None)
     mensagem_rodape = db.Column(db.String(255), default="Agradecemos a preferência! Volte sempre.")
     
     # Credenciais de Acesso

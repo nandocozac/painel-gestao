@@ -1,4 +1,5 @@
 import os
+import base64
 import csv
 import re
 import time
@@ -88,7 +89,8 @@ def migrar_banco_multiempresa():
                 'fiscal_regime_tributario': 'INTEGER DEFAULT 1',
                 'fiscal_certificado_filename': 'VARCHAR(255)',
                 'fiscal_certificado_senha': 'VARCHAR(255) DEFAULT ""',
-                'fiscal_token_focus': 'VARCHAR(100) DEFAULT ""'
+                'fiscal_token_focus': 'VARCHAR(100) DEFAULT ""',
+                'logo_base64': 'TEXT'
             }
             for col, col_type in novas_colunas_empresas.items():
                 if col not in colunas_empresas:
@@ -172,7 +174,8 @@ def migrar_banco_multiempresa():
                 'fiscal_regime_tributario': 'INTEGER DEFAULT 1',
                 'fiscal_certificado_filename': 'VARCHAR(255)',
                 'fiscal_certificado_senha': "VARCHAR(255) DEFAULT ''",
-                'fiscal_token_focus': "VARCHAR(100) DEFAULT ''"
+                'fiscal_token_focus': "VARCHAR(100) DEFAULT ''",
+                'logo_base64': 'TEXT'
             }
             for col, col_type in pg_colunas_empresas.items():
                 try:
@@ -249,6 +252,7 @@ def migrar_banco_multiempresa():
                 endereco="",
                 cidade_uf="",
                 logo_filename=None,
+                logo_base64=None,
                 mensagem_rodape="Agradecemos a preferência! Volte sempre.",
                 email="nandocozac@gmail.com",
                 senha_hash=generate_password_hash("Matheus10#"),
@@ -294,6 +298,35 @@ def migrar_banco_multiempresa():
                     os_item.etapa_andamento = 'ENTREGUE' if os_item.status == 'CONCLUIDA' else 'RECEBIDO'
             if os_sem_rastreio:
                 db.session.commit()
+
+            # 7. Sincronização persistente de logotipos (evita perda em containers/redeploy efêmeros)
+            empresas_todas = Empresa.query.all()
+            for emp in empresas_todas:
+                # Caso A: tem arquivo no disco mas ainda não tem base64 no banco -> migra para banco
+                if emp.logo_filename and not emp.logo_base64:
+                    caminho_logo = os.path.join(app.root_path, 'static', emp.logo_filename)
+                    if os.path.exists(caminho_logo):
+                        try:
+                            ext = emp.logo_filename.rsplit('.', 1)[-1].lower() if '.' in emp.logo_filename else 'png'
+                            mime = 'image/svg+xml' if ext == 'svg' else f'image/{ext if ext != "jpg" else "jpeg"}'
+                            with open(caminho_logo, 'rb') as f_img:
+                                b64 = base64.b64encode(f_img.read()).decode('utf-8')
+                                emp.logo_base64 = f"data:{mime};base64,{b64}"
+                        except Exception as e:
+                            print(f"Erro ao converter logo para base64: {e}")
+                # Caso B: tem base64 no banco mas arquivo no disco sumiu (novo deploy/disco efêmero) -> restaura arquivo no disco
+                elif emp.logo_base64 and emp.logo_filename:
+                    caminho_logo = os.path.join(app.root_path, 'static', emp.logo_filename)
+                    if not os.path.exists(caminho_logo):
+                        try:
+                            os.makedirs(os.path.dirname(caminho_logo), exist_ok=True)
+                            if ',' in emp.logo_base64:
+                                _, b64_str = emp.logo_base64.split(',', 1)
+                                with open(caminho_logo, 'wb') as f_out:
+                                    f_out.write(base64.b64decode(b64_str))
+                        except Exception as e:
+                            print(f"Erro ao restaurar logo no disco a partir do base64: {e}")
+            db.session.commit()
         except Exception:
             db.session.rollback()
 
@@ -567,6 +600,7 @@ def cadastro():
             tipo_negocio=tipo_negocio,
             status_assinatura="PENDENTE",
             logo_filename=None,
+            logo_base64=None,
             mensagem_rodape="Agradecemos a preferência! Volte sempre."
         )
         db.session.add(nova_empresa)
@@ -665,6 +699,7 @@ def admin_nova_empresa():
         status_assinatura=status,
         data_validade=hoje + timedelta(days=dias_validade) if status == 'ATIVO' else None,
         logo_filename=None,
+        logo_base64=None,
         mensagem_rodape="Agradecemos a preferência! Volte sempre."
     )
     db.session.add(nova_emp)
@@ -2079,9 +2114,15 @@ def configuracoes_empresa():
             if file and file.filename != '':
                 ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
                 if ext in ['png', 'jpg', 'jpeg', 'webp', 'svg']:
+                    file_bytes = file.read()
+                    mime = 'image/svg+xml' if ext == 'svg' else f'image/{ext if ext != "jpg" else "jpeg"}'
+                    b64_str = base64.b64encode(file_bytes).decode('utf-8')
+                    empresa.logo_base64 = f"data:{mime};base64,{b64_str}"
+
                     nome_arquivo = f"logo_{empresa.id}_{int(time.time())}.{ext}"
                     caminho_salvar = os.path.join(app.config['UPLOAD_FOLDER'], nome_arquivo)
-                    file.save(caminho_salvar)
+                    with open(caminho_salvar, 'wb') as f_save:
+                        f_save.write(file_bytes)
                     empresa.logo_filename = f"uploads/{nome_arquivo}"
                 else:
                     flash('Formato de logo inválido! Envie imagem PNG, JPG, WEBP ou SVG.', 'error')
@@ -2097,7 +2138,15 @@ def configuracoes_empresa():
 @login_required
 def remover_logo_empresa():
     empresa = g.empresa
+    if empresa.logo_filename:
+        caminho_logo = os.path.join(app.root_path, 'static', empresa.logo_filename)
+        if os.path.exists(caminho_logo):
+            try:
+                os.remove(caminho_logo)
+            except Exception:
+                pass
     empresa.logo_filename = None
+    empresa.logo_base64 = None
     db.session.commit()
     flash('Logotipo removido com sucesso. O sistema exibirá o nome da empresa.', 'info')
     return redirect(url_for('configuracoes_empresa'))

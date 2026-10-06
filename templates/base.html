@@ -88,8 +88,8 @@
                 <!-- Logotipo / Identidade Visual da Empresa -->
                 <div class="flex items-center gap-3 shrink-0">
                     <a href="{{ url_for('dashboard') }}" class="flex items-center gap-2.5 group">
-                        {% if empresa.logo_filename and empresa.logo_filename != 'logo.png' %}
-                        <img src="{{ url_for('static', filename=empresa.logo_filename) }}" alt="{{ empresa.nome_empresa }}"
+                        {% if empresa.logo_base64 or (empresa.logo_filename and empresa.logo_filename != 'logo.png') %}
+                        <img src="{{ empresa.logo_base64 or url_for('static', filename=empresa.logo_filename) }}" alt="{{ empresa.nome_empresa }}"
                             class="h-9 w-auto max-w-[130px] object-contain rounded-lg ring-1 ring-white/10"
                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
                         <span class="hidden items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 text-white font-mono text-sm font-extrabold shadow-sm ring-1 ring-white/20">

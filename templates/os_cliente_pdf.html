@@ -37,8 +37,8 @@
 
         <!-- Cabeçalho com Logótipo Oficial -->
         <div class="flex justify-between items-start border-b border-slate-200 pb-5">
-                {% if empresa.logo_filename and empresa.logo_filename != 'logo.png' %}
-                <img src="{{ url_for('static', filename=empresa.logo_filename) }}" alt="{{ empresa.nome_empresa }}"
+                {% if empresa.logo_base64 or (empresa.logo_filename and empresa.logo_filename != 'logo.png') %}
+                <img src="{{ empresa.logo_base64 or url_for('static', filename=empresa.logo_filename) }}" alt="{{ empresa.nome_empresa }}"
                     class="h-16 w-auto max-w-[160px] object-contain" onerror="this.style.display='none';">
                 {% endif %}
                 <div>
