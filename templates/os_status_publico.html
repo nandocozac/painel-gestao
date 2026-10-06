@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acompanhamento de Atendimento #{{ "%04d"|format(os.id) }} - {{ empresa.nome_empresa }}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulseSlow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.05); }
+        }
+        .pulse-slow {
+            animation: pulseSlow 2.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col font-sans antialiased">
+
+    <!-- Topo Institucional -->
+    <header class="bg-slate-900 text-white shadow-md border-b border-slate-800">
+        <div class="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                {% if empresa.logo_filename and empresa.logo_filename != 'logo.png' %}
+                <img src="{{ url_for('static', filename=empresa.logo_filename) }}" alt="{{ empresa.nome_empresa }}"
+                    class="h-10 w-auto max-w-[140px] object-contain rounded"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                <span class="hidden items-center justify-center w-10 h-10 rounded-xl bg-blue-600 text-white font-mono text-base font-extrabold shadow-sm">
+                    {{ empresa.nome_empresa[:2]|upper }}
+                </span>
+                {% else %}
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-blue-600 text-white font-mono text-base font-extrabold shadow-sm">
+                    {{ empresa.nome_empresa[:2]|upper }}
+                </span>
+                {% endif %}
+                <div>
+                    <h1 class="font-black text-base tracking-tight leading-tight">{{ empresa.nome_empresa }}</h1>
+                    <p class="text-xs text-slate-400">Rastreamento Online em Tempo Real</p>
+                </div>
+            </div>
+
+            {% if empresa.whatsapp or empresa.telefone %}
+            {% set fone_clean = (empresa.whatsapp or empresa.telefone)|fone_whatsapp %}
+            <a href="https://wa.me/{{ fone_clean }}?text=Ol%C3%A1%2C%20gostaria%20de%20informa%C3%A7%C3%B5es%20sobre%20o%20atendimento%20%23{{ '%04d'|format(os.id) }}"
+                target="_blank"
+                class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-xs transition">
+                <span>WhatsApp</span>
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Conteúdo Central -->
+    <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-6 space-y-6">
+
+        <!-- Card de Identificação da OS -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">
+                        {% if empresa.tipo_negocio == 'OFICINA' %}Ordem de Serviço{% else %}Pedido / Venda{% endif %}
+                    </span>
+                    <h2 class="text-xl font-black text-slate-800 tracking-tight">#{{ "%04d"|format(os.id) }}</h2>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block">Data de Entrada</span>
+                    <span class="text-xs font-bold text-slate-700">{{ os.data_abertura|data_br }}</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                    <span class="text-slate-400 block font-medium">Cliente</span>
+                    <span class="font-bold text-slate-800 text-sm">{{ os.cliente.nome }}</span>
+                </div>
+
+                {% if empresa.tipo_negocio == 'OFICINA' and os.veiculo %}
+                <div>
+                    <span class="text-slate-400 block font-medium">Veículo / Equipamento</span>
+                    <span class="font-bold text-slate-800 text-sm">{{ os.veiculo.modelo }} <span class="text-blue-600 font-mono">({{ os.veiculo.placa }})</span></span>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if os.descricao_problema %}
+            <div class="pt-2 border-t border-slate-100">
+                <span class="text-slate-400 block text-[11px] font-medium uppercase">Relato Inicial / Solicitação:</span>
+                <p class="text-xs text-slate-700 italic mt-0.5">{{ os.descricao_problema }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Banner de Status Atual -->
+        {% set etapa = os.etapa_andamento or 'RECEBIDO' %}
+        <div class="rounded-2xl p-5 shadow-sm border 
+            {% if etapa == 'PRONTO' %}bg-emerald-600 text-white border-emerald-500
+            {% elif etapa == 'ENTREGUE' %}bg-slate-800 text-white border-slate-700
+            {% elif etapa == 'EM_EXECUCAO' %}bg-blue-600 text-white border-blue-500
+            {% elif etapa == 'DIAGNOSTICO' %}bg-amber-500 text-white border-amber-400
+            {% else %}bg-indigo-600 text-white border-indigo-500{% endif %}">
+            
+            <div class="flex items-center gap-3">
+                <div class="text-3xl pulse-slow">
+                    {% if etapa == 'PRONTO' %}🎉
+                    {% elif etapa == 'ENTREGUE' %}✅
+                    {% elif etapa == 'EM_EXECUCAO' %}⚙️
+                    {% elif etapa == 'DIAGNOSTICO' %}🔍
+                    {% else %}📥{% endif %}
+                </div>
+                <div>
+                    <p class="text-xs uppercase font-extrabold tracking-wider opacity-80">Status Atual do Atendimento</p>
+                    <h3 class="text-lg font-black tracking-tight">
+                        {% if etapa == 'PRONTO' %}Pronto para Retirada / Entrega!
+                        {% elif etapa == 'ENTREGUE' %}Atendimento Concluído & Entregue
+                        {% elif etapa == 'EM_EXECUCAO' %}Serviço em Execução
+                        {% elif etapa == 'DIAGNOSTICO' %}Diagnóstico / Orçamento Técnico
+                        {% else %}Item Recebido na Oficina / Loja{% endif %}
+                    </h3>
+                    <p class="text-xs mt-1 opacity-90">
+                        {% if etapa == 'PRONTO' %}Seu atendimento foi concluído com sucesso e já está disponível para retirada.
+                        {% elif etapa == 'ENTREGUE' %}Obrigado pela preferência e confiança em nosso trabalho!
+                        {% elif etapa == 'EM_EXECUCAO' %}Nossos profissionais estão realizando os procedimentos técnicos aprovados.
+                        {% elif etapa == 'DIAGNOSTICO' %}Estamos inspecionando e formulando o laudo de diagnóstico.
+                        {% else %}Aguardando início dos trabalhos técnicos.{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Linha do Tempo / Stepper Interativo -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs">
+            <h4 class="text-xs font-black uppercase text-slate-400 tracking-wider mb-5">Etapas do Atendimento</h4>
+
+            {% set etapas_ordem = [
+                ('RECEBIDO', 'Recebido', 'Entrada e cadastro inicial', '📥'),
+                ('DIAGNOSTICO', 'Diagnóstico', 'Avaliação técnica e laudo', '🔍'),
+                ('EM_EXECUCAO', 'Execução', 'Mão de obra e aplicação de peças', '⚙️'),
+                ('PRONTO', 'Pronto', 'Finalizado e revisado', '🎉'),
+                ('ENTREGUE', 'Entregue', 'Veículo ou produto entregue', '✅')
+            ] %}
+
+            {% set mapa_pos = {'RECEBIDO': 0, 'DIAGNOSTICO': 1, 'EM_EXECUCAO': 2, 'PRONTO': 3, 'ENTREGUE': 4} %}
+            {% set pos_atual = mapa_pos.get(etapa, 0) %}
+
+            <div class="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                {% for chave, titulo, desc, icone in etapas_ordem %}
+                {% set pos = loop.index0 %}
+                {% set concluida = pos <= pos_atual %}
+                {% set ativa = pos == pos_atual %}
+
+                <div class="relative flex items-start gap-4">
+                    <!-- Ponto de Conexão -->
+                    <div class="absolute -left-6 mt-0.5 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs
+                        {% if ativa %}bg-blue-600 text-white ring-4 ring-blue-100 shadow-sm
+                        {% elif concluida %}bg-emerald-500 text-white
+                        {% else %}bg-slate-200 text-slate-400{% endif %}">
+                        {% if concluida and not ativa %}✓{% else %}{{ loop.index }}{% endif %}
+                    </div>
+
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <span class="font-extrabold text-sm {% if ativa %}text-blue-700{% elif concluida %}text-slate-800{% else %}text-slate-400{% endif %}">
+                                {{ titulo }}
+                            </span>
+                            {% if ativa %}
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                Etapa Atual
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ desc }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Resumo de Serviços e Peças Aplicadas (Público: Sem Preço de Custo) -->
+        {% if os.itens %}
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
+            <h4 class="text-xs font-black uppercase text-slate-400 tracking-wider">Itens e Serviços Realizados</h4>
+
+            <div class="divide-y divide-slate-100 text-xs">
+                {% for it in os.itens %}
+                <div class="py-2.5 flex items-center justify-between">
+                    <div>
+                        <span class="font-bold text-slate-800 block">{{ it.descricao }}</span>
+                        <span class="text-slate-400 text-[11px]">
+                            {% if it.tipo == 'PECA' %}Peça / Material{% else %}Mão de Obra / Serviço{% endif %}
+                            &bull; {{ it.quantidade|round(2) }} un x R$ {{ it.valor_unitario|moeda }}
+                        </span>
+                    </div>
+                    <div class="font-bold text-slate-800 text-right">
+                        R$ {{ it.subtotal|moeda }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="pt-3 border-t border-slate-200 flex items-center justify-between">
+                <span class="font-black text-slate-800 text-sm">Valor Total do Atendimento</span>
+                <span class="font-black text-blue-700 text-base">R$ {{ os.valor_total|moeda }}</span>
+            </div>
+            
+            {% if os.forma_pagamento %}
+            <div class="text-xs text-slate-500 text-right">
+                Forma de Pagamento: <strong class="text-slate-700">{{ os.forma_pagamento }}</strong>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Assinatura Digital do Cliente (se houver) -->
+        {% if os.assinatura_cliente_data %}
+        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs text-center">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Assinatura Digital Registrada</span>
+            <div class="inline-block bg-slate-50 border border-slate-200 rounded-xl p-2 max-w-xs">
+                <img src="{{ os.assinatura_cliente_data }}" alt="Assinatura do Cliente" class="h-16 mx-auto object-contain">
+            </div>
+            {% if os.assinatura_data_hora %}
+            <p class="text-[11px] text-slate-400 mt-1 font-mono">Assinado digitalmente em: {{ os.assinatura_data_hora.strftime('%d/%m/%Y às %H:%M') }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Dados de Contato e Localização da Empresa -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3 text-xs text-slate-600 text-center">
+            <h5 class="font-bold text-slate-800 uppercase tracking-wider">{{ empresa.nome_empresa }}</h5>
+            {% if empresa.endereco %}
+            <p>{{ empresa.endereco }} {% if empresa.cidade_uf %} - {{ empresa.cidade_uf }}{% endif %}</p>
+            {% endif %}
+            {% if empresa.telefone or empresa.whatsapp %}
+            <p>Telefone / Atendimento: <strong>{{ empresa.whatsapp or empresa.telefone }}</strong></p>
+            {% endif %}
+            {% if empresa.mensagem_rodape %}
+            <p class="text-slate-400 italic pt-2 border-t border-slate-100">{{ empresa.mensagem_rodape }}</p>
+            {% endif %}
+        </div>
+
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="py-4 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
+        Acompanhamento oficial fornecido por {{ empresa.nome_empresa }}.
+    </footer>
+
+</body>
+</html>

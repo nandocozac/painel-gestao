@@ -59,6 +59,9 @@
                     <a href="{{ url_for('lista_os') }}" class="text-slate-300 hover:text-white transition">
                         {% if empresa.tipo_negocio == 'OFICINA' %}Ordens de Serviço{% else %}Vendas & Pedidos{% endif %}
                     </a>
+                    <a href="{{ url_for('lista_produtos') }}" class="text-slate-300 hover:text-white transition">
+                        Estoque
+                    </a>
                     <a href="{{ url_for('lista_clientes') }}" class="text-slate-300 hover:text-white transition">
                         Clientes
                     </a>
@@ -121,6 +124,7 @@
                     <a href="{{ url_for('admin_empresas') }}" class="text-indigo-400 font-bold">Master</a>
                     {% endif %}
                     <a href="{{ url_for('lista_os') }}" class="text-slate-300 hover:text-white">{% if empresa.tipo_negocio == 'OFICINA' %}OSs{% else %}Pedidos{% endif %}</a>
+                    <a href="{{ url_for('lista_produtos') }}" class="text-slate-300 hover:text-white">Estoque</a>
                     <a href="{{ url_for('relatorio_financeiro') }}" class="text-slate-300 hover:text-white">Caixa</a>
                     <a href="{{ url_for('configuracoes_empresa') }}" class="text-slate-300 hover:text-white">Empresa</a>
                     <a href="{{ url_for('nova_os') }}"

@@ -3,15 +3,17 @@ import csv
 import re
 import time
 import shutil
-from io import StringIO
-from datetime import date, timedelta
+import uuid
+import zipfile
+from io import StringIO, BytesIO
+from datetime import date, datetime, timedelta
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file, session, g
+from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file, session, g, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import text, event
 from sqlalchemy.engine import Engine
 from database import db
-from models import Empresa, Cliente, Veiculo, OrdemServico, Transacao, ItemOS, NotaFiscal
+from models import Empresa, Cliente, Veiculo, OrdemServico, Transacao, ItemOS, NotaFiscal, Produto
 
 # Diretórios e caminhos absolutos para compatibilidade total local e em produção (Hostinger / LiteSpeed)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -101,9 +103,10 @@ def migrar_banco_multiempresa():
                     db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN empresa_id INTEGER REFERENCES empresas(id)"))
             db.session.commit()
 
-            # 3. Garantir colunas fiscais na tabela itens_os
+            # 3. Garantir colunas fiscais e de produtos na tabela itens_os
             colunas_itens = [row[1] for row in db.session.execute(text("PRAGMA table_info(itens_os)")).fetchall()]
             novas_colunas_itens = {
+                'produto_id': 'INTEGER REFERENCES produtos(id)',
                 'ncm': 'VARCHAR(10) DEFAULT ""',
                 'cfop': 'VARCHAR(10) DEFAULT ""',
                 'codigo_servico_municipal': 'VARCHAR(20) DEFAULT ""',
@@ -114,7 +117,20 @@ def migrar_banco_multiempresa():
                     db.session.execute(text(f"ALTER TABLE itens_os ADD COLUMN {col} {col_type}"))
             db.session.commit()
 
-            # 4. Garantir colunas de CPF/CNPJ e endereço na tabela clientes (SQLite)
+            # 4. Garantir colunas de rastreio e assinatura na tabela ordens_servico (SQLite)
+            colunas_os = [row[1] for row in db.session.execute(text("PRAGMA table_info(ordens_servico)")).fetchall()]
+            novas_colunas_os = {
+                'etapa_andamento': 'VARCHAR(30) DEFAULT "RECEBIDO"',
+                'codigo_rastreio': 'VARCHAR(32)',
+                'assinatura_cliente_data': 'TEXT',
+                'assinatura_data_hora': 'TIMESTAMP'
+            }
+            for col, col_type in novas_colunas_os.items():
+                if col not in colunas_os:
+                    db.session.execute(text(f"ALTER TABLE ordens_servico ADD COLUMN {col} {col_type}"))
+            db.session.commit()
+
+            # 5. Garantir colunas de CPF/CNPJ e endereço na tabela clientes (SQLite)
             colunas_clientes = [row[1] for row in db.session.execute(text("PRAGMA table_info(clientes)")).fetchall()]
             novas_colunas_clientes = {
                 'cpf_cnpj': 'VARCHAR(20) DEFAULT ""',
@@ -174,6 +190,7 @@ def migrar_banco_multiempresa():
                     db.session.rollback()
 
             pg_colunas_itens = {
+                'produto_id': "INTEGER REFERENCES produtos(id)",
                 'ncm': "VARCHAR(10) DEFAULT ''",
                 'cfop': "VARCHAR(10) DEFAULT ''",
                 'codigo_servico_municipal': "VARCHAR(20) DEFAULT ''",
@@ -182,6 +199,19 @@ def migrar_banco_multiempresa():
             for col, col_type in pg_colunas_itens.items():
                 try:
                     db.session.execute(text(f"ALTER TABLE itens_os ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+
+            pg_colunas_os = {
+                'etapa_andamento': "VARCHAR(30) DEFAULT 'RECEBIDO'",
+                'codigo_rastreio': "VARCHAR(32)",
+                'assinatura_cliente_data': "TEXT",
+                'assinatura_data_hora': "TIMESTAMP"
+            }
+            for col, col_type in pg_colunas_os.items():
+                try:
+                    db.session.execute(text(f"ALTER TABLE ordens_servico ADD COLUMN IF NOT EXISTS {col} {col_type}"))
                     db.session.commit()
                 except Exception:
                     db.session.rollback()
@@ -255,6 +285,15 @@ def migrar_banco_multiempresa():
             # 5. Garantir que nenhuma empresa tenha 'logo.png' como padrão (sem imagem prévia até o cliente fazer upload)
             db.session.execute(text("UPDATE empresas SET logo_filename = NULL WHERE logo_filename = 'logo.png'"))
             db.session.commit()
+
+            # 6. Gerar código de rastreio para ordens de serviço existentes que ainda não tenham
+            os_sem_rastreio = OrdemServico.query.filter((OrdemServico.codigo_rastreio == None) | (OrdemServico.codigo_rastreio == '')).all()
+            for os_item in os_sem_rastreio:
+                os_item.codigo_rastreio = uuid.uuid4().hex[:12]
+                if not os_item.etapa_andamento:
+                    os_item.etapa_andamento = 'ENTREGUE' if os_item.status == 'CONCLUIDA' else 'RECEBIDO'
+            if os_sem_rastreio:
+                db.session.commit()
         except Exception:
             db.session.rollback()
 
@@ -436,6 +475,8 @@ def msg_whatsapp_os_filter(os_obj):
     if os_obj.retorno_previsto:
         linhas.append(f"📅 *Próxima Revisão Preventiva Sugerida:* {os_obj.retorno_previsto.strftime('%d/%m/%Y')}")
     linhas.append("🛡️ *Garantia:* 90 dias sobre serviços e materiais aplicados.")
+    if os_obj.codigo_rastreio:
+        linhas.append(f"📲 *Acompanhe seu atendimento online:* https://nandocozac.shop/status/{os_obj.codigo_rastreio}")
     if empresa and empresa.endereco:
         loc = empresa.endereco
         if empresa.cidade_uf:
@@ -985,6 +1026,8 @@ def nova_os():
             veiculo_id=veiculo.id if veiculo else None,
             descricao_problema=problema,
             status='ABERTA',
+            etapa_andamento='RECEBIDO',
+            codigo_rastreio=uuid.uuid4().hex[:12],
             data_abertura=date.today()
         )
         db.session.add(os_nova)
@@ -1029,9 +1072,10 @@ def concluir_os(os_id):
         peca_nomes = request.form.getlist('peca_nome[]')
         peca_qtds = request.form.getlist('peca_qtd[]')
         peca_valores = request.form.getlist('peca_valor[]')
+        peca_prod_ids = request.form.getlist('peca_prod_id[]')
 
         total_pecas = 0.0
-        for nome, qtd_str, val_str in zip(peca_nomes, peca_qtds, peca_valores):
+        for i, (nome, qtd_str, val_str) in enumerate(zip(peca_nomes, peca_qtds, peca_valores)):
             nome_clean = nome.strip()
             qtd = converter_valor(qtd_str) or 1.0
             val_unit = converter_valor(val_str)
@@ -1045,6 +1089,21 @@ def concluir_os(os_id):
                     valor_unitario=val_unit,
                     subtotal=sub
                 )
+                # Vínculo com produto do catálogo e baixa no estoque
+                if i < len(peca_prod_ids) and peca_prod_ids[i]:
+                    try:
+                        p_id = int(peca_prod_ids[i])
+                        prod = Produto.query.filter_by(id=p_id, empresa_id=g.empresa.id).first()
+                        if prod:
+                            item.produto_id = prod.id
+                            prod.estoque_atual = round(prod.estoque_atual - qtd, 2)
+                            if not item.ncm and prod.ncm:
+                                item.ncm = prod.ncm
+                            if not item.cfop and prod.cfop:
+                                item.cfop = prod.cfop
+                    except (ValueError, TypeError):
+                        pass
+
                 db.session.add(item)
                 total_pecas += sub
 
@@ -1052,9 +1111,10 @@ def concluir_os(os_id):
         serv_nomes = request.form.getlist('servico_nome[]')
         serv_qtds = request.form.getlist('servico_qtd[]')
         serv_valores = request.form.getlist('servico_valor[]')
+        serv_prod_ids = request.form.getlist('servico_prod_id[]')
 
         total_servicos = 0.0
-        for nome, qtd_str, val_str in zip(serv_nomes, serv_qtds, serv_valores):
+        for i, (nome, qtd_str, val_str) in enumerate(zip(serv_nomes, serv_qtds, serv_valores)):
             nome_clean = nome.strip()
             qtd = converter_valor(qtd_str) or 1.0
             val_unit = converter_valor(val_str)
@@ -1068,6 +1128,19 @@ def concluir_os(os_id):
                     valor_unitario=val_unit,
                     subtotal=sub
                 )
+                if i < len(serv_prod_ids) and serv_prod_ids[i]:
+                    try:
+                        s_id = int(serv_prod_ids[i])
+                        serv_prod = Produto.query.filter_by(id=s_id, empresa_id=g.empresa.id).first()
+                        if serv_prod:
+                            item.produto_id = serv_prod.id
+                            if not item.codigo_servico_municipal and serv_prod.codigo_servico_municipal:
+                                item.codigo_servico_municipal = serv_prod.codigo_servico_municipal
+                            if not item.aliquota_iss and serv_prod.aliquota_iss:
+                                item.aliquota_iss = serv_prod.aliquota_iss
+                    except (ValueError, TypeError):
+                        pass
+
                 db.session.add(item)
                 total_servicos += sub
 
@@ -1084,6 +1157,8 @@ def concluir_os(os_id):
         os.servico_executado = request.form.get('servico_executado', '').strip()
         os.forma_pagamento = request.form.get('forma_pagamento', 'Dinheiro').strip()
         os.status = 'CONCLUIDA'
+        if os.etapa_andamento in ['RECEBIDO', 'DIAGNOSTICO', 'EM_EXECUCAO']:
+            os.etapa_andamento = 'PRONTO'
         os.data_conclusao = date.today()
 
         # Configuração flexível da data de retorno preventivo
@@ -1137,10 +1212,17 @@ def reabrir_os(os_id):
         if transacao:
             db.session.delete(transacao)
 
-        # 2. Exclui os itens lançados para poder cadastrar a lista correta
+        # 2. Devolve estoque dos itens vinculados a produtos
+        for it in os.itens:
+            if it.produto_id:
+                prod = Produto.query.filter_by(id=it.produto_id, empresa_id=g.empresa.id).first()
+                if prod:
+                    prod.estoque_atual = round(prod.estoque_atual + (it.quantidade or 1.0), 2)
+
+        # 3. Exclui os itens lançados para poder cadastrar a lista correta
         ItemOS.query.filter_by(os_id=os.id).delete()
 
-        # 3. Retorna a OS para o estado ABERTA
+        # 4. Retorna a OS para o estado ABERTA
         os.status = 'ABERTA'
         os.valor_pecas = 0.0
         os.valor_mao_obra = 0.0
@@ -1150,7 +1232,7 @@ def reabrir_os(os_id):
         os.retorno_previsto = None
 
         db.session.commit()
-        flash(f"A OS #{os.id:04d} foi reaberta para edição e o caixa foi estornado.", "success")
+        flash(f"A OS #{os.id:04d} foi reaberta para edição, itens de estoque devolvidos e o caixa estornado.", "success")
 
     return redirect(url_for('ver_os', os_id=os.id))
 
@@ -1186,6 +1268,242 @@ def alterar_retorno_os(os_id):
 
     next_url = request.form.get('next') or request.referrer or url_for('ver_os', os_id=os.id)
     return redirect(next_url)
+
+
+# --- ETAPA DE ANDAMENTO E RASTREAMENTO PÚBLICO EM TEMPO REAL ---
+
+@app.route('/os/<int:os_id>/etapa', methods=['POST'])
+@login_required
+def alterar_etapa_os(os_id):
+    os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+    nova_etapa = request.form.get('etapa', '').strip().upper()
+    etapas_validas = ['RECEBIDO', 'DIAGNOSTICO', 'EM_EXECUCAO', 'PRONTO', 'ENTREGUE']
+    
+    if nova_etapa in etapas_validas:
+        os_obj.etapa_andamento = nova_etapa
+        db.session.commit()
+        flash(f"Etapa da OS #{os_obj.id:04d} atualizada para: {nova_etapa}", "success")
+    else:
+        flash("Etapa inválida.", "error")
+
+    next_url = request.form.get('next') or request.referrer or url_for('ver_os', os_id=os_obj.id)
+    return redirect(next_url)
+
+
+@app.route('/status/<string:codigo_rastreio>')
+def rastreio_publico_os(codigo_rastreio):
+    """Página pública mobile-friendly para o cliente acompanhar o andamento em tempo real"""
+    if not codigo_rastreio or len(codigo_rastreio) < 6:
+        return render_template('404.html'), 404
+
+    os_obj = OrdemServico.query.filter_by(codigo_rastreio=codigo_rastreio).first_or_404()
+    empresa = os_obj.empresa
+    return render_template('os_status_publico.html', os=os_obj, empresa=empresa)
+
+
+# --- ASSINATURA DIGITAL DO CLIENTE NA TELA ---
+
+@app.route('/os/<int:os_id>/salvar-assinatura', methods=['POST'])
+@login_required
+def salvar_assinatura_os(os_id):
+    os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+    
+    if request.is_json:
+        data = request.get_json() or {}
+        assinatura_base64 = data.get('assinatura_base64', '').strip()
+    else:
+        assinatura_base64 = request.form.get('assinatura_base64', '').strip()
+    
+    if assinatura_base64 and assinatura_base64.startswith('data:image'):
+        os_obj.assinatura_cliente_data = assinatura_base64
+        os_obj.assinatura_data_hora = datetime.now()
+        db.session.commit()
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'sucesso': True, 'mensagem': 'Assinatura registrada com sucesso!'})
+        flash("Assinatura digital do cliente coletada e salva com sucesso!", "success")
+    else:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'sucesso': False, 'mensagem': 'Nenhum desenho de assinatura foi enviado.'}), 400
+        flash("Nenhum desenho de assinatura foi enviado.", "warning")
+
+    return redirect(url_for('ver_os', os_id=os_obj.id))
+
+
+# --- IMPRESSÃO DE CUPOM TÉRMICO (BOBINA 80MM / 58MM) ---
+
+@app.route('/os/<int:os_id>/cupom')
+@login_required
+def cupom_termico_os(os_id):
+    os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+    empresa = g.empresa
+    return render_template('os_cupom.html', os=os_obj, empresa=empresa)
+
+
+# --- CATÁLOGO DE PRODUTOS, PEÇAS & ESTOQUE ---
+
+@app.route('/produtos')
+@login_required
+def lista_produtos():
+    busca = request.args.get('busca', '').strip()
+    tipo_filtro = request.args.get('tipo', '').strip().upper()
+    alerta_estoque = request.args.get('alerta', '').strip()
+
+    query = Produto.query.filter_by(empresa_id=g.empresa.id, ativo=True)
+    if busca:
+        query = query.filter(
+            (Produto.nome.ilike(f'%{busca}%')) |
+            (Produto.codigo.ilike(f'%{busca}%'))
+        )
+    if tipo_filtro in ['PECA', 'SERVICO']:
+        query = query.filter_by(tipo=tipo_filtro)
+    
+    produtos = query.order_by(Produto.nome.asc()).all()
+
+    if alerta_estoque == 'baixo':
+        produtos = [p for p in produtos if p.tipo == 'PECA' and p.estoque_atual <= p.estoque_minimo]
+
+    todos_itens = Produto.query.filter_by(empresa_id=g.empresa.id, ativo=True).all()
+    total_pecas = sum(1 for p in todos_itens if p.tipo == 'PECA')
+    total_servicos = sum(1 for p in todos_itens if p.tipo == 'SERVICO')
+    baixo_estoque_count = sum(1 for p in todos_itens if p.tipo == 'PECA' and p.estoque_atual <= p.estoque_minimo)
+
+    return render_template(
+        'produtos.html',
+        produtos=produtos,
+        busca=busca,
+        tipo_filtro=tipo_filtro,
+        alerta_estoque=alerta_estoque,
+        total_pecas=total_pecas,
+        total_servicos=total_servicos,
+        baixo_estoque_count=baixo_estoque_count
+    )
+
+
+@app.route('/produtos/novo', methods=['POST'])
+@login_required
+def novoProduto():
+    nome = request.form.get('nome', '').strip()
+    if not nome:
+        flash("O nome do item é obrigatório.", "error")
+        return redirect(url_for('lista_produtos'))
+
+    tipo = request.form.get('tipo', 'PECA').strip().upper()
+    codigo = request.form.get('codigo', '').strip()
+    unidade = request.form.get('unidade', 'UN').strip().upper()
+
+    def converter_valor(v):
+        try:
+            return max(0.0, float(str(v or '0').replace('.', '').replace(',', '.').strip()))
+        except (ValueError, TypeError):
+            return 0.0
+
+    preco_custo = converter_valor(request.form.get('preco_custo', '0'))
+    preco_venda = converter_valor(request.form.get('preco_venda', '0'))
+    estoque_atual = converter_valor(request.form.get('estoque_atual', '0')) if tipo == 'PECA' else 0.0
+    estoque_minimo = converter_valor(request.form.get('estoque_minimo', '0')) if tipo == 'PECA' else 0.0
+
+    ncm = re.sub(r'\D', '', request.form.get('ncm', '').strip())
+    cfop = re.sub(r'\D', '', request.form.get('cfop', '').strip())
+    cod_serv = request.form.get('codigo_servico_municipal', '').strip()
+    aliq_iss = converter_valor(request.form.get('aliquota_iss', '0'))
+
+    item = Produto(
+        empresa_id=g.empresa.id,
+        codigo=codigo,
+        nome=nome,
+        tipo=tipo,
+        preco_custo=preco_custo,
+        preco_venda=preco_venda,
+        estoque_atual=estoque_atual,
+        estoque_minimo=estoque_minimo,
+        unidade=unidade,
+        ncm=ncm,
+        cfop=cfop,
+        codigo_servico_municipal=cod_serv,
+        aliquota_iss=aliq_iss,
+        ativo=True
+    )
+    db.session.add(item)
+    db.session.commit()
+    flash(f"'{nome}' cadastrado com sucesso!", "success")
+    return redirect(url_for('lista_produtos'))
+
+
+@app.route('/produtos/<int:produto_id>/editar', methods=['POST'])
+@login_required
+def editar_produto(produto_id):
+    prod = Produto.query.filter_by(id=produto_id, empresa_id=g.empresa.id).first_or_404()
+    nome = request.form.get('nome', '').strip()
+    if not nome:
+        flash("O nome é obrigatório.", "error")
+        return redirect(url_for('lista_produtos'))
+
+    def converter_valor(v):
+        try:
+            return max(0.0, float(str(v or '0').replace('.', '').replace(',', '.').strip()))
+        except (ValueError, TypeError):
+            return 0.0
+
+    prod.nome = nome
+    prod.codigo = request.form.get('codigo', '').strip()
+    prod.tipo = request.form.get('tipo', prod.tipo).strip().upper()
+    prod.unidade = request.form.get('unidade', prod.unidade).strip().upper()
+    prod.preco_custo = converter_valor(request.form.get('preco_custo', prod.preco_custo))
+    prod.preco_venda = converter_valor(request.form.get('preco_venda', prod.preco_venda))
+    if prod.tipo == 'PECA':
+        prod.estoque_atual = converter_valor(request.form.get('estoque_atual', prod.estoque_atual))
+        prod.estoque_minimo = converter_valor(request.form.get('estoque_minimo', prod.estoque_minimo))
+    prod.ncm = re.sub(r'\D', '', request.form.get('ncm', '').strip())
+    prod.cfop = re.sub(r'\D', '', request.form.get('cfop', '').strip())
+    prod.codigo_servico_municipal = request.form.get('codigo_servico_municipal', '').strip()
+    prod.aliquota_iss = converter_valor(request.form.get('aliquota_iss', '0'))
+
+    db.session.commit()
+    flash(f"Item '{prod.nome}' atualizado com sucesso!", "success")
+    return redirect(url_for('lista_produtos'))
+
+
+@app.route('/produtos/<int:produto_id>/excluir', methods=['POST'])
+@login_required
+def excluir_produto(produto_id):
+    prod = Produto.query.filter_by(id=produto_id, empresa_id=g.empresa.id).first_or_404()
+    # Soft-delete para não quebrar integridade em ordens já existentes
+    prod.ativo = False
+    db.session.commit()
+    flash(f"Item '{prod.nome}' removido do catálogo.", "info")
+    return redirect(url_for('lista_produtos'))
+
+
+@app.route('/api/produtos/busca')
+@login_required
+def api_busca_produtos():
+    """Autocomplete rápido para lançamento de peças e serviços na OS"""
+    termo = request.args.get('q', '').strip()
+    tipo = request.args.get('tipo', '').strip().upper()
+
+    query = Produto.query.filter_by(empresa_id=g.empresa.id, ativo=True)
+    if termo:
+        query = query.filter((Produto.nome.ilike(f'%{termo}%')) | (Produto.codigo.ilike(f'%{termo}%')))
+    if tipo in ['PECA', 'SERVICO']:
+        query = query.filter_by(tipo=tipo)
+
+    resultados = query.limit(20).all()
+    dados = []
+    for p in resultados:
+        dados.append({
+            'id': p.id,
+            'nome': p.nome,
+            'codigo': p.codigo or '',
+            'tipo': p.tipo,
+            'preco_venda': float(p.preco_venda or 0.0),
+            'estoque_atual': float(p.estoque_atual or 0.0),
+            'unidade': p.unidade or 'UN',
+            'ncm': p.ncm or '',
+            'cfop': p.cfop or '',
+            'codigo_servico_municipal': p.codigo_servico_municipal or '',
+            'aliquota_iss': float(p.aliquota_iss or 0.0)
+        })
+    return jsonify(dados)
 
 
 # --- FICHA DE CLIENTES E HISTÓRICO ISOLADO ---
@@ -1693,6 +2011,81 @@ def consultar_status_nota(nota_id):
 
     next_url = request.form.get('next') or request.referrer or url_for('ver_os', os_id=nota.ordem_servico_id)
     return redirect(next_url)
+
+
+# --- CENTRAL DA CONTABILIDADE: EXPORTAÇÃO DE XMLs EM LOTE (.ZIP) ---
+
+@app.route('/fiscal/exportar-mes')
+@login_required
+def fiscal_exportar_mes():
+    empresa = g.empresa
+    mes_param = request.args.get('mes', '').strip() # formato 'YYYY-MM'
+    
+    if not mes_param:
+        hoje = date.today()
+        mes_param = f"{hoje.year}-{hoje.month:02d}"
+
+    try:
+        ano, mes = [int(x) for x in mes_param.split('-')]
+        data_ini = date(ano, mes, 1)
+        if mes == 12:
+            data_fim = date(ano + 1, 1, 1) - timedelta(days=1)
+        else:
+            data_fim = date(ano, mes + 1, 1) - timedelta(days=1)
+    except Exception:
+        flash("Formato de mês inválido. Use AAAA-MM.", "error")
+        return redirect(url_for('configuracoes_fiscal'))
+
+    notas = NotaFiscal.query.filter(
+        NotaFiscal.empresa_id == empresa.id,
+        NotaFiscal.data_emissao >= data_ini,
+        NotaFiscal.data_emissao <= data_fim
+    ).order_by(NotaFiscal.data_emissao.asc(), NotaFiscal.id.asc()).all()
+
+    if not notas:
+        flash(f"Nenhuma nota fiscal encontrada no período {data_ini.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}.", "warning")
+        return redirect(url_for('configuracoes_fiscal'))
+
+    import requests
+    zip_buffer = BytesIO()
+    csv_output = StringIO()
+    csv_writer = csv.writer(csv_output, delimiter=';')
+    csv_writer.writerow(['NUMERO', 'SERIE', 'TIPO', 'DATA_EMISSAO', 'VALOR_TOTAL', 'STATUS', 'REFERENCIA', 'CHAVE_ACESSO', 'URL_XML', 'URL_DANFE'])
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for n in notas:
+            csv_writer.writerow([
+                n.numero_nota or '',
+                n.serie_nota or '',
+                n.tipo_nota,
+                n.data_emissao.strftime('%d/%m/%Y') if n.data_emissao else '',
+                f"{float(n.valor_total or 0.0):.2f}".replace('.', ','),
+                n.status,
+                n.referencia_uuid,
+                n.chave_acesso or '',
+                n.url_xml or '',
+                n.url_danfe_pdf or ''
+            ])
+
+            if n.url_xml and n.url_xml.startswith('http'):
+                try:
+                    r = requests.get(n.url_xml, timeout=10)
+                    if r.status_code == 200 and r.content:
+                        xml_name = f"xmls/{n.tipo_nota}_{n.numero_nota or n.referencia_uuid}.xml"
+                        zip_file.writestr(xml_name, r.content)
+                except Exception:
+                    pass
+
+        zip_file.writestr(f"relatorio_fiscal_{mes_param}.csv", csv_output.getvalue().encode('utf-8-sig'))
+
+    zip_buffer.seek(0)
+    nome_download = f"fechamento_fiscal_{empresa.nome_empresa.replace(' ', '_')}_{mes_param}.zip"
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=nome_download
+    )
 
 
 if __name__ == '__main__':

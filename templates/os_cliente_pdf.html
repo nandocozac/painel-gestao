@@ -199,14 +199,24 @@
             <p class="text-[11px] text-slate-500">{{ empresa.mensagem_rodape or ('Agradecemos a preferência! ' ~ empresa.nome_empresa ~ '.') }}</p>
         </div>
 
-        <!-- Assinaturas (Impressão) -->
-        <div class="hidden print:grid grid-cols-2 gap-10 pt-16 mt-8 border-t border-slate-200 text-center text-xs">
+        <!-- Assinaturas (Impressão e PDF) -->
+        <div class="grid grid-cols-2 gap-10 pt-10 mt-8 border-t border-slate-200 text-center text-xs">
             <div>
+                {% if os.assinatura_cliente_data %}
+                <div class="h-16 flex items-center justify-center mb-1">
+                    <img src="{{ os.assinatura_cliente_data }}" alt="Assinatura do Cliente" class="max-h-16 object-contain">
+                </div>
+                {% endif %}
                 <div class="border-t border-slate-400 mx-auto w-3/4 mb-1"></div>
                 <p class="font-semibold text-slate-800">Assinatura do Cliente</p>
+                {% if os.assinatura_data_hora %}
+                <p class="text-[9px] text-slate-500 font-mono">Assinado digitalmente em {{ os.assinatura_data_hora.strftime('%d/%m/%Y às %H:%M') }}</p>
+                {% else %}
                 <p class="text-[10px] text-slate-500">Declaro aprovação e recebimento dos itens listados acima.</p>
+                {% endif %}
             </div>
             <div>
+                <div class="h-16 flex items-center justify-center mb-1"></div>
                 <div class="border-t border-slate-400 mx-auto w-3/4 mb-1"></div>
                 <p class="font-semibold text-slate-800">Responsável Técnico</p>
                 <p class="text-[10px] text-slate-500">Garantia legal de 90 dias sobre peças e serviços aplicados.</p>

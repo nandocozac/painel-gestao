@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cupom OS #{{ "%04d"|format(os.id) }} - {{ empresa.nome_empresa }}</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            line-height: 1.25;
+            color: #000;
+            background-color: #f1f5f9;
+            padding: 10px;
+        }
+
+        .cupom-container {
+            max-width: 80mm;
+            width: 100%;
+            margin: 0 auto;
+            background: #fff;
+            padding: 4mm 3mm;
+            border: 1px dashed #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .right {
+            text-align: right;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .uppercase {
+            text-transform: uppercase;
+        }
+
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 4px 0;
+        }
+
+        .divider-double {
+            border-top: 2px dashed #000;
+            margin: 5px 0;
+        }
+
+        .item-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5px;
+        }
+
+        .item-table th {
+            text-align: left;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 2px;
+        }
+
+        .item-table td {
+            padding: 2px 0;
+            vertical-align: top;
+        }
+
+        .no-print-bar {
+            max-width: 80mm;
+            margin: 0 auto 10px auto;
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-print {
+            flex: 1;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .btn-back {
+            background: #64748b;
+            color: #fff;
+            border: none;
+            padding: 10px 14px;
+            font-size: 13px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .cupom-container {
+                max-width: 100%;
+                width: 100%;
+                border: none;
+                box-shadow: none;
+                padding: 0 2mm;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            @page {
+                size: 80mm auto;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="no-print no-print-bar">
+        <button onclick="window.print()" class="btn-print">🖨️ Imprimir Cupom</button>
+        <a href="{{ url_for('ver_os', os_id=os.id) }}" class="btn-back">Voltar</a>
+    </div>
+
+    <div class="cupom-container">
+        <!-- Cabeçalho da Empresa -->
+        <div class="center">
+            <h2 class="bold uppercase" style="font-size: 14px;">{{ empresa.nome_empresa }}</h2>
+            {% if empresa.cnpj_cpf %}
+            <p>CNPJ/CPF: {{ empresa.cnpj_cpf }}</p>
+            {% endif %}
+            {% if empresa.endereco %}
+            <p>{{ empresa.endereco }}</p>
+            {% endif %}
+            {% if empresa.cidade_uf %}
+            <p>{{ empresa.cidade_uf }}</p>
+            {% endif %}
+            {% if empresa.telefone or empresa.whatsapp %}
+            <p>TEL: {{ empresa.whatsapp or empresa.telefone }}</p>
+            {% endif %}
+        </div>
+
+        <div class="divider"></div>
+        <div class="center bold uppercase">
+            COMPROVANTE DE ATENDIMENTO
+        </div>
+        <div class="divider"></div>
+
+        <!-- Dados do Atendimento -->
+        <table style="width: 100%; font-size: 10.5px;">
+            <tr>
+                <td class="bold">OS Nº: {{ "%04d"|format(os.id) }}</td>
+                <td class="right">{{ os.data_abertura.strftime('%d/%m/%Y') }}</td>
+            </tr>
+            <tr>
+                <td colspan="2">CLIENTE: <span class="bold">{{ os.cliente.nome }}</span></td>
+            </tr>
+            {% if os.cliente.telefone %}
+            <tr>
+                <td colspan="2">FONE: {{ os.cliente.telefone }}</td>
+            </tr>
+            {% endif %}
+            {% if empresa.tipo_negocio == 'OFICINA' and os.veiculo %}
+            <tr>
+                <td colspan="2">VEÍCULO: <span class="bold">{{ os.veiculo.modelo }} ({{ os.veiculo.placa }})</span></td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td colspan="2">STATUS: <span class="bold">{{ os.status }}</span></td>
+            </tr>
+        </table>
+
+        <div class="divider"></div>
+        <div class="bold" style="margin-bottom: 2px;">ITENS / SERVIÇOS:</div>
+
+        <!-- Tabela de Itens -->
+        <table class="item-table">
+            <thead>
+                <tr>
+                    <th style="width: 50%;">DESCRIÇÃO</th>
+                    <th class="right" style="width: 15%;">QTD</th>
+                    <th class="right" style="width: 35%;">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for it in os.itens %}
+                <tr>
+                    <td colspan="3" class="bold">{{ it.descricao }}</td>
+                </tr>
+                <tr>
+                    <td style="color: #444; font-size: 9.5px;">
+                        {{ "PEÇA" if it.tipo == 'PECA' else "SERV" }} (R$ {{ it.valor_unitario|moeda }})
+                    </td>
+                    <td class="right font-mono">{{ it.quantidade|round(2) }}</td>
+                    <td class="right bold">R$ {{ it.subtotal|moeda }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" class="center italic" style="padding: 4px 0;">Nenhum item discriminado</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="divider-double"></div>
+
+        <!-- Totais -->
+        <table style="width: 100%; font-size: 11px;">
+            {% if os.valor_pecas > 0 %}
+            <tr>
+                <td>Subtotal Peças:</td>
+                <td class="right">R$ {{ os.valor_pecas|moeda }}</td>
+            </tr>
+            {% endif %}
+            {% if os.valor_mao_obra > 0 %}
+            <tr>
+                <td>Subtotal Mão de Obra:</td>
+                <td class="right">R$ {{ os.valor_mao_obra|moeda }}</td>
+            </tr>
+            {% endif %}
+            <tr style="font-size: 13px;" class="bold">
+                <td>TOTAL A PAGAR:</td>
+                <td class="right">R$ {{ os.valor_total|moeda }}</td>
+            </tr>
+            {% if os.forma_pagamento %}
+            <tr>
+                <td>Forma Pagto:</td>
+                <td class="right bold">{{ os.forma_pagamento }}</td>
+            </tr>
+            {% endif %}
+        </table>
+
+        <div class="divider"></div>
+
+        <!-- Termos de Garantia e Rastreio -->
+        <div style="font-size: 9.5px; text-align: justify; margin: 4px 0;">
+            * Garantia legal de 90 dias sobre peças e serviços executados, conforme Código de Defesa do Consumidor.
+        </div>
+
+        {% if os.codigo_rastreio %}
+        <div class="divider"></div>
+        <div class="center" style="margin: 4px 0;">
+            <p class="bold" style="font-size: 10px;">ACOMPANHE ONLINE:</p>
+            <p style="font-size: 9.5px; word-break: break-all;">https://nandocozac.shop/status/{{ os.codigo_rastreio }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Assinatura -->
+        <div class="center" style="margin-top: 14px;">
+            {% if os.assinatura_cliente_data %}
+            <img src="{{ os.assinatura_cliente_data }}" alt="Assinatura" style="height: 35px; margin: 0 auto; display: block;">
+            <div style="border-top: 1px solid #000; width: 80%; margin: 2px auto 0 auto;"></div>
+            <p style="font-size: 9px;">Assinado Digitalmente por {{ os.cliente.nome }}</p>
+            {% else %}
+            <div style="border-top: 1px solid #000; width: 85%; margin: 20px auto 3px auto;"></div>
+            <p style="font-size: 9.5px;">{{ os.cliente.nome }}</p>
+            {% endif %}
+        </div>
+
+        <div class="divider"></div>
+        <div class="center" style="font-size: 9.5px; margin-top: 4px;">
+            {{ empresa.mensagem_rodape or "Obrigado pela preferência! Volte sempre." }}
+        </div>
+    </div>
+
+</body>
+</html>

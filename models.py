@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime, timezone
 from database import db
 
@@ -58,6 +59,7 @@ class Empresa(db.Model):
     clientes = db.relationship('Cliente', backref='empresa', lazy=True)
     ordens_servico = db.relationship('OrdemServico', backref='empresa', lazy=True)
     transacoes = db.relationship('Transacao', backref='empresa', lazy=True)
+    produtos = db.relationship('Produto', backref='empresa', lazy=True)
 
 
 class Cliente(db.Model):
@@ -108,6 +110,11 @@ class OrdemServico(db.Model):
     forma_pagamento = db.Column(db.String(30), nullable=True)
     
     status = db.Column(db.String(20), default='ABERTA') # 'ABERTA' ou 'CONCLUIDA'
+    etapa_andamento = db.Column(db.String(30), default='RECEBIDO') # 'RECEBIDO', 'DIAGNOSTICO', 'EM_EXECUCAO', 'PRONTO', 'ENTREGUE'
+    codigo_rastreio = db.Column(db.String(32), unique=True, nullable=True, default=lambda: uuid.uuid4().hex[:12]) # Token seguro para link público do cliente
+    assinatura_cliente_data = db.Column(db.Text, nullable=True) # Rubrica/assinatura na tela em Base64 PNG
+    assinatura_data_hora = db.Column(db.DateTime, nullable=True)
+
     data_abertura = db.Column(db.Date, default=date.today)
     data_conclusao = db.Column(db.Date, nullable=True)
     retorno_previsto = db.Column(db.Date, nullable=True)
@@ -120,6 +127,7 @@ class ItemOS(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     os_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id'), nullable=False)
+    produto_id = db.Column(db.Integer, db.ForeignKey('produtos.id'), nullable=True) # Vínculo opcional com estoque
     tipo = db.Column(db.String(10), nullable=False) # 'PECA' ou 'SERVICO'
     descricao = db.Column(db.String(150), nullable=False)
     quantidade = db.Column(db.Float, default=1.0)
@@ -168,3 +176,45 @@ class NotaFiscal(db.Model):
 
     empresa = db.relationship('Empresa', backref=db.backref('notas_fiscais', lazy=True))
     ordem_servico = db.relationship('OrdemServico', backref=db.backref('notas_fiscais', lazy=True))
+
+
+class Produto(db.Model):
+    __tablename__ = 'produtos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=False)
+    codigo = db.Column(db.String(50), default='') # Código de barras / Ref
+    nome = db.Column(db.String(150), nullable=False)
+    tipo = db.Column(db.String(20), default='PECA') # 'PECA' (produto) ou 'SERVICO'
+    preco_custo = db.Column(db.Float, default=0.0)
+    preco_venda = db.Column(db.Float, default=0.0)
+    estoque_atual = db.Column(db.Float, default=0.0)
+    estoque_minimo = db.Column(db.Float, default=0.0)
+    unidade = db.Column(db.String(10), default='UN') # UN, PC, LT, KG, HR
+    ncm = db.Column(db.String(10), default='')
+    cfop = db.Column(db.String(10), default='')
+    codigo_servico_municipal = db.Column(db.String(20), default='')
+    aliquota_iss = db.Column(db.Float, default=0.0)
+    ativo = db.Column(db.Boolean, default=True)
+    data_criacao = db.Column(db.Date, default=date.today)
+
+    itens_os = db.relationship('ItemOS', backref='produto', lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'empresa_id': self.empresa_id,
+            'codigo': self.codigo or '',
+            'nome': self.nome,
+            'tipo': self.tipo,
+            'preco_custo': float(self.preco_custo or 0.0),
+            'preco_venda': float(self.preco_venda or 0.0),
+            'estoque_atual': float(self.estoque_atual or 0.0),
+            'estoque_minimo': float(self.estoque_minimo or 0.0),
+            'unidade': self.unidade or 'UN',
+            'ncm': self.ncm or '',
+            'cfop': self.cfop or '',
+            'codigo_servico_municipal': self.codigo_servico_municipal or '',
+            'aliquota_iss': float(self.aliquota_iss or 0.0),
+            'ativo': self.ativo
+        }
