@@ -92,11 +92,11 @@
                         <img src="{{ empresa.logo_base64 or url_for('static', filename=empresa.logo_filename) }}" alt="{{ empresa.nome_empresa }}"
                             class="h-9 w-auto max-w-[130px] object-contain rounded-lg ring-1 ring-white/10"
                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
-                        <span class="hidden items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 text-white font-mono text-sm font-extrabold shadow-sm ring-1 ring-white/20">
+                        <span class="hidden items-center justify-center w-9 h-9 rounded-xl bg-blue-600 bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-mono text-sm font-extrabold shadow-sm ring-1 ring-white/20">
                             {{ empresa.nome_empresa[:2]|upper }}
                         </span>
                         {% else %}
-                        <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 text-white font-mono text-sm font-extrabold shadow-sm ring-1 ring-white/20">
+                        <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-600 bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-mono text-sm font-extrabold shadow-sm ring-1 ring-white/20">
                             {{ empresa.nome_empresa[:2]|upper }}
                         </span>
                         {% endif %}
@@ -186,7 +186,7 @@
                 <div class="flex items-center gap-2.5 shrink-0">
                     {% if empresa %}
                     <a href="{{ url_for('nova_os') }}"
-                        class="bg-linear-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-md shadow-blue-600/25 active:scale-95 transition-all inline-flex items-center gap-1.5 hover-lift">
+                        class="bg-blue-600 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-md shadow-blue-600/25 active:scale-95 transition-all inline-flex items-center gap-1.5 hover-lift">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                         </svg>
