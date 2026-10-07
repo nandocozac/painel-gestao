@@ -154,11 +154,14 @@
                     </a>
                     {% else %}
                     <a href="{{ url_for('login') }}"
-                        class="text-xs sm:text-sm font-bold text-slate-300 hover:text-white px-3 py-2 rounded-lg transition">
-                        Entrar no Sistema
+                        class="text-xs sm:text-sm font-display font-bold text-white bg-white/10 hover:bg-white/20 border border-white/25 hover:border-white/40 px-4 py-2.5 rounded-full inline-flex items-center gap-1.5 transition backdrop-blur shadow-xs hover:scale-105 active:scale-95">
+                        <svg class="w-4 h-4 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        <span>Entrar</span>
                     </a>
                     <a href="#proposta"
-                        class="btn-omie-lima text-xs sm:text-sm font-display font-extrabold px-5 py-2.5 rounded-full inline-flex items-center gap-1.5 transition">
+                        class="btn-omie-lima text-xs sm:text-sm font-display font-extrabold px-5 py-2.5 rounded-full inline-flex items-center gap-1.5 transition shadow-md">
                         <span>Solicitar Proposta</span>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
@@ -285,16 +288,25 @@
                                 </select>
                             </div>
 
-                            <button type="submit"
-                                class="w-full btn-omie-lima py-3.5 rounded-2xl font-display font-extrabold text-sm sm:text-base tracking-wide flex items-center justify-center gap-2 mt-4 cursor-pointer">
-                                <span>Solicitar Proposta e Testar 7 Dias Grátis</span>
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                </svg>
-                            </button>
+                            <div class="flex flex-col sm:flex-row items-center gap-2.5 mt-4">
+                                <button type="submit"
+                                    class="w-full sm:flex-1 btn-omie-lima py-3.5 rounded-2xl font-display font-extrabold text-xs sm:text-sm tracking-wide flex items-center justify-center gap-2 cursor-pointer shadow-md">
+                                    <span>Solicitar Proposta e Testar 7 Dias</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                    </svg>
+                                </button>
+                                <a href="{{ url_for('login') }}"
+                                    class="w-full sm:w-auto px-4 py-3.5 rounded-2xl border border-slate-300 hover:border-petroleo-900 bg-slate-50 hover:bg-white text-slate-800 font-display font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition shadow-xs shrink-0">
+                                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                    </svg>
+                                    <span>Entrar</span>
+                                </a>
+                            </div>
 
                             <p class="text-center text-[11px] text-slate-500 pt-1">
-                                🔒 7 Dias de Acesso Total Grátis &bull; Sem fidelidade &bull; Sem cartão no cadastro
+                                🔒 7 Dias de Acesso Total Grátis &bull; Sem fidelidade &bull; Já tem cadastro? Clique em Entrar
                             </p>
                         </form>
                     </div>
