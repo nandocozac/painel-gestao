@@ -52,7 +52,7 @@
             <form method="POST" action="{{ url_for('cadastro') }}" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1">Nome da Empresa / Negócio *</label>
-                    <input type="text" name="nome_empresa" required
+                    <input type="text" name="nome_empresa" required value="{{ request.args.get('nome_empresa', '') }}"
                         class="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                         placeholder="Ex: Minha Empresa / Serviços">
                 </div>
@@ -61,14 +61,14 @@
                     <label class="block text-xs font-semibold text-slate-300 mb-1.5">Ramo de Atividade do Negócio *</label>
                     <div class="grid grid-cols-2 gap-2">
                         <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-700 bg-slate-900/60 cursor-pointer hover:border-blue-500 transition">
-                            <input type="radio" name="tipo_negocio" value="OFICINA" checked class="text-blue-600 focus:ring-blue-500">
+                            <input type="radio" name="tipo_negocio" value="OFICINA" {% if request.args.get('tipo_negocio') != 'LOJA' %}checked{% endif %} class="text-blue-600 focus:ring-blue-500">
                             <div>
                                 <span class="text-xs text-white font-bold block">🚗 Oficina</span>
                                 <span class="text-[10px] text-slate-400 block">Com veículos e placas</span>
                             </div>
                         </label>
                         <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-700 bg-slate-900/60 cursor-pointer hover:border-blue-500 transition">
-                            <input type="radio" name="tipo_negocio" value="LOJA" class="text-blue-600 focus:ring-blue-500">
+                            <input type="radio" name="tipo_negocio" value="LOJA" {% if request.args.get('tipo_negocio') == 'LOJA' %}checked{% endif %} class="text-blue-600 focus:ring-blue-500">
                             <div>
                                 <span class="text-xs text-white font-bold block">🛍️ Loja / Serviços</span>
                                 <span class="text-[10px] text-slate-400 block">Vendas e pedidos diretos</span>
@@ -79,14 +79,14 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1">E-mail Principal (para login) *</label>
-                    <input type="email" name="email" required autocomplete="email"
+                    <input type="email" name="email" required autocomplete="email" value="{{ request.args.get('email', '') }}"
                         class="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                         placeholder="contato@empresa.com">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1">WhatsApp / Telefone de Contato</label>
-                    <input type="text" name="telefone"
+                    <input type="text" name="telefone" value="{{ request.args.get('telefone', '') }}"
                         class="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                         placeholder="(00) 90000-0000">
                 </div>

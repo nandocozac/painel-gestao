@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema ERP Completo de Gestão Empresarial | Painel de Gestão</title>
+    <meta name="description"
+        content="Sistema ERP completo para gestão de Ordens de Serviço, Vendas, Emissão Fiscal NF-e/NFC-e/NFS-e, Financeiro e Estoque na nuvem. Solicite sua proposta e teste grátis!">
+    <link rel="canonical" href="{{ request.base_url }}">
+
+    <!-- Google Fonts: Poppins & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Poppins', 'sans-serif'],
+                    },
+                    colors: {
+                        petroleo: {
+                            950: '#00141a',
+                            900: '#001e27',
+                            800: '#032c38',
+                            700: '#093c4c',
+                            600: '#115266',
+                        },
+                        ciano: {
+                            DEFAULT: '#00e2f4',
+                            hover: '#00c7d7',
+                        },
+                        lima: {
+                            DEFAULT: '#dbfe13',
+                            hover: '#c4e70e',
+                            light: '#f5ffb7',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #1e293b;
+        }
+
+        h1, h2, h3, h4, .font-display {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* Gradiente do Botão Omie Signature */
+        .btn-omie-lima {
+            background: linear-gradient(90deg, #f5ffb7 0%, #dbfe13 100%);
+            color: #111827;
+            border: 1px solid #c8eb00;
+            box-shadow: 0 4px 14px 0 rgba(219, 254, 19, 0.39);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-omie-lima:hover {
+            box-shadow: 0 6px 20px 0 rgba(219, 254, 19, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .btn-omie-outline {
+            border: 2px solid #001e27;
+            color: #001e27;
+            transition: all 0.25s ease;
+        }
+
+        .btn-omie-outline:hover {
+            box-shadow: 0 6px 0 0 rgba(0, 30, 39, 0.25);
+            transform: translateY(-2px);
+        }
+
+        /* Efeito de Vidro e Brilho Suave */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        /* Animações Sutis */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .animate-float {
+            animation: floatSlow 4s ease-in-out infinite;
+        }
+
+        .marquee-track {
+            display: flex;
+            width: max-content;
+            animation: marquee 30s linear infinite;
+        }
+
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 antialiased selection:bg-petroleo-900 selection:text-white">
+
+    <!-- NAVBAR FIXO E ELEGANTE -->
+    <nav class="sticky top-0 z-50 bg-[#001e27]/95 backdrop-blur-md border-b border-petroleo-800 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+
+                <!-- Logo & Marca -->
+                <a href="{{ url_for('index') }}" class="flex items-center gap-3 group">
+                    <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="text-xl font-display font-black tracking-tight text-white block leading-none">PAINEL DE GESTÃO</span>
+                        <span class="text-[10px] font-bold text-ciano uppercase tracking-widest block mt-0.5">SISTEMA ERP NA NUVEM</span>
+                    </div>
+                </a>
+
+                <!-- Links Desktop -->
+                <div class="hidden lg:flex items-center gap-8 text-sm font-semibold text-slate-300">
+                    <a href="#solucoes" class="hover:text-ciano transition">Módulos</a>
+                    <a href="#segmentos" class="hover:text-ciano transition">Segmentos</a>
+                    <a href="#rastreamento" class="hover:text-ciano transition">Rastreamento Cliente</a>
+                    <a href="#precos" class="hover:text-ciano transition">Planos & Preços</a>
+                    <a href="#faq" class="hover:text-ciano transition">Dúvidas</a>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex items-center gap-3">
+                    {% if g.empresa %}
+                    <a href="{{ url_for('dashboard') }}"
+                        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-full transition shadow-md">
+                        <span>Acessar Meu Painel</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('login') }}"
+                        class="text-xs sm:text-sm font-bold text-slate-300 hover:text-white px-3 py-2 rounded-lg transition">
+                        Entrar no Sistema
+                    </a>
+                    <a href="#proposta"
+                        class="btn-omie-lima text-xs sm:text-sm font-display font-extrabold px-5 py-2.5 rounded-full inline-flex items-center gap-1.5 transition">
+                        <span>Solicitar Proposta</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION (ESTILO OMIE - AZUL PETRÓLEO COM ALTA CONVERSÃO) -->
+    <header class="relative bg-gradient-to-b from-[#001e27] via-[#032c38] to-[#083a48] text-white pt-12 pb-24 md:py-20 lg:py-24 overflow-hidden rounded-b-[2.5rem] lg:rounded-b-[4rem] shadow-2xl">
+        <!-- Elementos de Iluminação de Fundo -->
+        <div class="absolute top-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-0 left-1/3 w-[30rem] h-[30rem] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+
+                <!-- Coluna Esquerda: Texto de Impacto -->
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-petroleo-800/80 border border-petroleo-700/80 text-ciano text-xs font-bold tracking-wide uppercase shadow-inner">
+                        <span class="w-2 h-2 rounded-full bg-ciano animate-pulse"></span>
+                        Gestão Descomplicada &bull; 100% na Nuvem
+                    </div>
+
+                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-display font-black tracking-tight text-white leading-[1.15]">
+                        Sistema ERP completo para gestão e crescimento da sua empresa
+                    </h1>
+
+                    <p class="text-base sm:text-lg text-slate-300 leading-relaxed max-w-2xl">
+                        Um sistema de gestão empresarial moderno na nuvem: com <strong>máxima economia</strong>, implementação imediata, <strong>emissão fiscal integrada (NF-e, NFC-e, NFS-e)</strong>, controle financeiro, estoque e acompanhamento de Ordens de Serviço em tempo real.
+                    </p>
+
+                    <!-- Benefícios em Destaque -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs sm:text-sm text-slate-200">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
+                            <span>Ordens de Serviço e Vendas Rápidas</span>
+                        </div>
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
+                            <span>Emissão Fiscal em 1 Clique (Focus NFe)</span>
+                        </div>
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
+                            <span>Acompanhamento do Cliente via WhatsApp</span>
+                        </div>
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
+                            <span>Sem taxa de adesão ou contrato de fidelidade</span>
+                        </div>
+                    </div>
+
+                    <!-- Métricas de Impacto no Hero -->
+                    <div class="pt-6 border-t border-petroleo-700/60 flex flex-wrap items-center gap-8">
+                        <div>
+                            <span class="block text-2xl lg:text-3xl font-display font-black text-ciano">+100.000</span>
+                            <span class="text-xs text-slate-400 font-medium">OS e Vendas Geradas</span>
+                        </div>
+                        <div class="w-px h-10 bg-petroleo-700"></div>
+                        <div>
+                            <span class="block text-2xl lg:text-3xl font-display font-black text-white">99.8%</span>
+                            <span class="text-xs text-slate-400 font-medium">Satisfação dos Clientes</span>
+                        </div>
+                        <div class="w-px h-10 bg-petroleo-700"></div>
+                        <div>
+                            <span class="block text-2xl lg:text-3xl font-display font-black text-lima">R$ 29,90</span>
+                            <span class="text-xs text-slate-400 font-medium">Mensalidade mais justa</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita: FORMULÁRIO DE PROPOSTA (CONVERSÃO MÁXIMA) -->
+                <div id="proposta" class="lg:col-span-5">
+                    <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-white/20 text-slate-900 relative">
+                        <div class="absolute -top-3.5 right-6 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-[11px] px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                            ⚡ Demonstração Imediata
+                        </div>
+
+                        <div class="mb-5">
+                            <h2 class="text-xl sm:text-2xl font-display font-bold text-petroleo-900 tracking-tight">
+                                Solicite uma Proposta
+                            </h2>
+                            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                                Preencha abaixo e veja como transformar a rotina do seu negócio agora mesmo:
+                            </p>
+                        </div>
+
+                        <form method="POST" action="{{ url_for('landing_proposta') }}" class="space-y-3.5">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Nome do Responsável *</label>
+                                <input type="text" name="nome" required placeholder="Seu nome completo"
+                                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Nome da Empresa / Oficina / Loja *</label>
+                                <input type="text" name="nome_empresa" required placeholder="Ex: Auto Center Silva, Loja Central..."
+                                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Seu Melhor E-mail *</label>
+                                <input type="email" name="email" required placeholder="contato@suaempresa.com.br"
+                                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">WhatsApp de Contato *</label>
+                                <input type="text" name="telefone" required placeholder="(00) 90000-0000" id="telefone_input"
+                                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Ramo de Atividade *</label>
+                                <select name="tipo_negocio"
+                                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition font-medium">
+                                    <option value="OFICINA">🚗 Oficina Mecânica / Auto Center / Moto</option>
+                                    <option value="LOJA">🛍️ Loja / Varejo / Comércio de Peças</option>
+                                    <option value="OFICINA">🔧 Assistência Técnica / Eletrônicos</option>
+                                    <option value="LOJA">💼 Prestador de Serviços / Outros</option>
+                                </select>
+                            </div>
+
+                            <button type="submit"
+                                class="w-full btn-omie-lima py-3.5 rounded-2xl font-display font-extrabold text-sm sm:text-base tracking-wide flex items-center justify-center gap-2 mt-4 cursor-pointer">
+                                <span>Solicitar Proposta e Testar Grátis</span>
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            </button>
+
+                            <p class="text-center text-[11px] text-slate-500 pt-1">
+                                🔒 Seus dados estão 100% protegidos. Acesso imediato sem cartão de crédito.
+                            </p>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- FAIXA DE SEGMENTOS E AUTORIDADE (MARQUEE) -->
+    <section class="py-10 bg-white border-b border-slate-200/80 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 text-center mb-6">
+            <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-500">
+                Uma solução sob medida para empresas que não param de crescer:
+            </p>
+        </div>
+
+        <div class="relative w-full overflow-hidden">
+            <div class="marquee-track items-center gap-8 text-slate-700 font-display font-bold text-sm sm:text-base">
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">🚗 Oficinas Mecânicas</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">⚙️ Auto Centers & Pneus</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">🛍️ Lojas de Autopeças</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">🔧 Assistências Técnicas</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">🏍️ Motopeças & Oficinas de Moto</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">📦 Comércios em Geral</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">💼 Prestadores de Serviços</span>
+                <!-- Loop Duplicado para Marquee Contínuo -->
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">🚗 Oficinas Mecânicas</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">⚙️ Auto Centers & Pneus</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">🛍️ Lojas de Autopeças</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">🔧 Assistências Técnicas</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">🏍️ Motopeças & Oficinas de Moto</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">📦 Comércios em Geral</span>
+                <span class="flex items-center gap-2 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200">💼 Prestadores de Serviços</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6 MÓDULOS ESTRATÉGICOS (INSPIRADO NO GRID OMIE) -->
+    <section id="solucoes" class="py-20 lg:py-28 bg-[#f8fafc]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            <div class="text-center max-w-3xl mx-auto space-y-3 mb-16">
+                <span class="text-xs font-extrabold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                    GESTÃO INTEGRADA DE PONTA A PONTA
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-display font-black text-petroleo-900 tracking-tight">
+                    Soluções estratégicas para sua empresa decolar
+                </h2>
+                <p class="text-slate-600 text-base sm:text-lg">
+                    Tudo o que você precisa para gerenciar sua empresa reunido em uma única plataforma rápida, prática e sem burocracia.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+                <!-- Módulo 1: Ordens de Serviço & Balcão -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-6 shadow-sm">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-display font-bold text-slate-900">Ordens de Serviço & Vendas</h3>
+                        <p class="mt-3 text-sm text-slate-600 leading-relaxed">
+                            Abertura ágil de OS com peças e serviços, checklist de entrada, cupom térmico para balcão e PDF formal para enviar ao cliente.
+                        </p>
+                    </div>
+                    <ul class="mt-6 pt-6 border-t border-slate-100 space-y-2 text-xs font-semibold text-slate-700">
+                        <li class="flex items-center gap-2"><span class="text-blue-500 font-bold">•</span> Numeração sequencial isolada (#0001, #0002)</li>
+                        <li class="flex items-center gap-2"><span class="text-blue-500 font-bold">•</span> Impressão térmica e A4 com 1 clique</li>
+                    </ul>
+                </div>
+
+                <!-- Módulo 2: Emissão Fiscal Integrada -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 shadow-sm">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-display font-bold text-slate-900">Emissão Fiscal NF-e / NFC-e / NFS-e</h3>
+                        <p class="mt-3 text-sm text-slate-600 leading-relaxed">
+                            Livre-se da burocracia. Transmissão automática com a Focus NFe. Emita nota de produto, consumidor e serviço direto da OS sem redigitar nada.
+                        </p>
+                    </div>
+                    <ul class="mt-6 pt-6 border-t border-slate-100 space-y-2 text-xs font-semibold text-slate-700">
+                        <li class="flex items-center gap-2"><span class="text-emerald-500 font-bold">•</span> Homologação e Produção Nacional</li>
+                        <li class="flex items-center gap-2"><span class="text-emerald-500 font-bold">•</span> Importação automática de XML de compras</li>
+                    </ul>
+                </div>
+
+                <!-- Módulo 3: Finanças & Fluxo de Caixa -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-6 shadow-sm">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-display font-bold text-slate-900">Finanças & Caixa em Tempo Real</h3>
+                        <p class="mt-3 text-sm text-slate-600 leading-relaxed">
+                            Controle total sobre receitas, despesas, contas a pagar e a receber. Saiba exatamente quanto faturou no dia, na semana e no mês.
+                        </p>
+                    </div>
+                    <ul class="mt-6 pt-6 border-t border-slate-100 space-y-2 text-xs font-semibold text-slate-700">
+                        <li class="flex items-center gap-2"><span class="text-amber-500 font-bold">•</span> Lançamento automático ao concluir OS</li>
+                        <li class="flex items-center gap-2"><span class="text-amber-500 font-bold">•</span> Pagamentos via PIX Mercado Pago nativo</li>
+                    </ul>
+                </div>
+
+                <!-- Módulo 4: Estoque & Peças -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-6 shadow-sm">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-display font-bold text-slate-900">Estoque & Controle de Produtos</h3>
+                        <p class="mt-3 text-sm text-slate-600 leading-relaxed">
+                            Controle rigoroso de entradas e saídas. Baixa automática imediata ao aplicar peças na OS ou registrar uma venda no balcão.
+                        </p>
+                    </div>
+                    <ul class="mt-6 pt-6 border-t border-slate-100 space-y-2 text-xs font-semibold text-slate-700">
+                        <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">•</span> Alerta de estoque mínimo para reposição</li>
+                        <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">•</span> Cadastro rápido com NCM e tributação</li>
+                    </ul>
+                </div>
+
+                <!-- Módulo 5: Rastreamento do Cliente (Diferencial) -->
+                <div class="bg-white rounded-3xl p-8 border-2 border-ciano shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-ciano text-petroleo-900 font-extrabold text-[10px] px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+                        DIFERENCIAL
+                    </div>
+                    <div>
+                        <div class="w-14 h-14 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center mb-6 shadow-sm">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-display font-bold text-slate-900">Rastreamento Online do Cliente</h3>
+                        <p class="mt-3 text-sm text-slate-600 leading-relaxed">
+                            Envie um link público para o cliente acompanhar o status do serviço no celular: "Recebido", "Diagnóstico", "Em Execução" e "Pronto".
+                        </p>
+                    </div>
+                    <ul class="mt-6 pt-6 border-t border-slate-100 space-y-2 text-xs font-semibold text-slate-700">
+                        <li class="flex items-center gap-2"><span class="text-cyan-500 font-bold">•</span> Reduz 80% das ligações perguntando status</li>
+                        <li class="flex items-center gap-2"><span class="text-cyan-500 font-bold">•</span> Envio automático com 1 clique no WhatsApp</li>
+                    </ul>
+                </div>
+
+                <!-- Módulo 6: CRM & Retorno Preventivo -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-6 shadow-sm">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-display font-bold text-slate-900">CRM & Fidelização de Clientes</h3>
+                        <p class="mt-3 text-sm text-slate-600 leading-relaxed">
+                            Histórico completo de cada cliente, dados do veículo/equipamento, laudo técnico, assinatura digital na tela e agendamento de retorno preventivo.
+                        </p>
+                    </div>
+                    <ul class="mt-6 pt-6 border-t border-slate-100 space-y-2 text-xs font-semibold text-slate-700">
+                        <li class="flex items-center gap-2"><span class="text-rose-500 font-bold">•</span> Lembrete de revisão preventiva agendada</li>
+                        <li class="flex items-center gap-2"><span class="text-rose-500 font-bold">•</span> Assinatura do cliente direto na tela touch</li>
+                    </ul>
+                </div>
+
+            </div>
+
+            <!-- CTA Central -->
+            <div class="mt-14 text-center">
+                <a href="#proposta" class="btn-omie-outline inline-flex items-center justify-center rounded-full px-8 py-3.5 text-base font-display font-bold">
+                    Quero Conhecer Todos os Recursos →
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SEGMENTOS ESPECÍFICOS (TABS INTERATIVAS) -->
+    <section id="segmentos" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            <div class="text-center max-w-3xl mx-auto space-y-3 mb-12">
+                <span class="text-xs font-extrabold text-slate-500 uppercase tracking-widest">
+                    FEITO SOB MEDIDA PARA SEU NEGÓCIO
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-display font-black text-petroleo-900 tracking-tight">
+                    Uma solução adaptada ao seu segmento
+                </h2>
+                <p class="text-slate-600 text-base">
+                    O sistema se adapta automaticamente ao seu tipo de negócio, exibindo os campos e termos corretos:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <!-- Segmento 1: Oficinas & Auto Centers -->
+                <div class="group rounded-3xl p-6 bg-gradient-to-b from-slate-900 to-petroleo-900 text-white shadow-xl hover:-translate-y-2 transition-all duration-300">
+                    <span class="text-4xl block mb-4">🚗</span>
+                    <h3 class="text-lg font-display font-bold text-white group-hover:text-ciano transition">Oficinas Mecânicas</h3>
+                    <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+                        Campos específicos para placa, modelo, km atual, mecânico responsável e histórico veicular completo.
+                    </p>
+                    <div class="mt-6 pt-4 border-t border-slate-700/80">
+                        <span class="text-xs font-semibold text-ciano flex items-center gap-1">Modo Oficina Ativo ✓</span>
+                    </div>
+                </div>
+
+                <!-- Segmento 2: Lojas & Varejo -->
+                <div class="group rounded-3xl p-6 bg-gradient-to-b from-slate-900 to-petroleo-900 text-white shadow-xl hover:-translate-y-2 transition-all duration-300">
+                    <span class="text-4xl block mb-4">🛍️</span>
+                    <h3 class="text-lg font-display font-bold text-white group-hover:text-ciano transition">Lojas & Varejo</h3>
+                    <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+                        Interface limpa sem campos veiculares, tratando o atendimento como "Venda / Pedido" e emissão de cupom.
+                    </p>
+                    <div class="mt-6 pt-4 border-t border-slate-700/80">
+                        <span class="text-xs font-semibold text-ciano flex items-center gap-1">Modo Loja & Balcão ✓</span>
+                    </div>
+                </div>
+
+                <!-- Segmento 3: Assistência Técnica -->
+                <div class="group rounded-3xl p-6 bg-gradient-to-b from-slate-900 to-petroleo-900 text-white shadow-xl hover:-translate-y-2 transition-all duration-300">
+                    <span class="text-4xl block mb-4">🔧</span>
+                    <h3 class="text-lg font-display font-bold text-white group-hover:text-ciano transition">Assistência Técnica</h3>
+                    <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+                        Controle de recebimento de equipamentos, laudo técnico, orçamento para aprovação e comprovante de retirada.
+                    </p>
+                    <div class="mt-6 pt-4 border-t border-slate-700/80">
+                        <span class="text-xs font-semibold text-ciano flex items-center gap-1">Gestão de Reparos ✓</span>
+                    </div>
+                </div>
+
+                <!-- Segmento 4: Prestação de Serviços -->
+                <div class="group rounded-3xl p-6 bg-gradient-to-b from-slate-900 to-petroleo-900 text-white shadow-xl hover:-translate-y-2 transition-all duration-300">
+                    <span class="text-4xl block mb-4">💼</span>
+                    <h3 class="text-lg font-display font-bold text-white group-hover:text-ciano transition">Prestadores de Serviços</h3>
+                    <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+                        Emissão de recibos, faturamento de mão de obra, emissão de NFS-e municipal e organização financeira simples.
+                    </p>
+                    <div class="mt-6 pt-4 border-t border-slate-700/80">
+                        <span class="text-xs font-semibold text-ciano flex items-center gap-1">NFS-e Integrada ✓</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SEÇÃO DE DESTAQUE: RASTREAMENTO DO CLIENTE PELO WHATSAPP -->
+    <section id="rastreamento" class="py-20 lg:py-28 bg-[#001e27] text-white relative overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(#115266_1px,transparent_1px)] [background-size:24px_24px] opacity-25"></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+
+                <div class="lg:col-span-6 space-y-6">
+                    <span class="text-xs font-extrabold text-ciano uppercase tracking-widest bg-petroleo-800 px-3 py-1 rounded-full border border-petroleo-700">
+                        EXPERIÊNCIA PREMIUM PARA O SEU CLIENTE
+                    </span>
+
+                    <h2 class="text-3xl sm:text-4xl font-display font-black text-white tracking-tight leading-tight">
+                        Seu cliente informado em tempo real pelo WhatsApp
+                    </h2>
+
+                    <p class="text-base sm:text-lg text-slate-300 leading-relaxed">
+                        Chega de parar o trabalho para atender telefone perguntando se o serviço está pronto! Com o <strong>Painel de Gestão</strong>, você gera um link de acompanhamento exclusivo em cada atendimento:
+                    </p>
+
+                    <div class="space-y-4 pt-2">
+                        <div class="flex items-start gap-3.5 bg-petroleo-800/60 p-4 rounded-2xl border border-petroleo-700/60">
+                            <span class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center shrink-0">1</span>
+                            <div>
+                                <h4 class="font-bold text-white text-sm">Envio Automático no WhatsApp</h4>
+                                <p class="text-xs text-slate-400 mt-0.5">Mensagem formatada com todos os dados da OS e o link seguro para o cliente clicar.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3.5 bg-petroleo-800/60 p-4 rounded-2xl border border-petroleo-700/60">
+                            <span class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 font-bold flex items-center justify-center shrink-0">2</span>
+                            <div>
+                                <h4 class="font-bold text-white text-sm">Linha do Tempo Visual e Interativa</h4>
+                                <p class="text-xs text-slate-400 mt-0.5">O cliente visualiza as etapas: Recebido &rarr; Diagnóstico &rarr; Em Execução &rarr; Pronto &rarr; Entregue.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3.5 bg-petroleo-800/60 p-4 rounded-2xl border border-petroleo-700/60">
+                            <span class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 font-bold flex items-center justify-center shrink-0">3</span>
+                            <div>
+                                <h4 class="font-bold text-white text-sm">Assinatura Digital na Tela</h4>
+                                <p class="text-xs text-slate-400 mt-0.5">O cliente assina a retirada com o dedo na tela do celular ou tablet. Zero papel gasto.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        <a href="#proposta" class="btn-omie-lima inline-flex items-center gap-2 font-display font-extrabold text-sm px-6 py-3 rounded-full">
+                            <span>Quero Oferecer essa Experiência</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Demonstração Visual da Tela do Smartphone -->
+                <div class="lg:col-span-6 flex justify-center">
+                    <div class="w-full max-w-sm bg-slate-900 p-4 rounded-[2.5rem] border-4 border-slate-700 shadow-2xl relative">
+                        <!-- Speaker notch -->
+                        <div class="w-32 h-4 bg-slate-800 mx-auto rounded-full mb-3"></div>
+
+                        <!-- Tela do Celular -->
+                        <div class="bg-white rounded-2xl p-4 text-slate-800 space-y-3.5 shadow-inner">
+                            <div class="flex items-center justify-between border-b pb-2.5">
+                                <span class="font-display font-bold text-xs text-petroleo-900">OFICINA & ATENDIMENTO</span>
+                                <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">ONLINE</span>
+                            </div>
+
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase block">Ordem de Serviço</span>
+                                <span class="text-lg font-mono font-black text-blue-600">#0001</span>
+                                <span class="text-xs font-semibold text-slate-800 block mt-1">Toyota Corolla (ABC-1234)</span>
+                            </div>
+
+                            <!-- Etapas -->
+                            <div class="space-y-2 py-1">
+                                <div class="flex items-center gap-2 text-xs font-bold text-emerald-600">
+                                    <span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
+                                    <span>Veículo Recebido</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs font-bold text-emerald-600">
+                                    <span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
+                                    <span>Diagnóstico & Orçamento Aprovado</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs font-bold text-blue-600 animate-pulse">
+                                    <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">⚙️</span>
+                                    <span>Em Execução Mecânica</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs font-medium text-slate-400">
+                                    <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px]">○</span>
+                                    <span>Pronto para Retirada</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 text-center">
+                                <span class="text-xs font-bold text-emerald-800 block">WhatsApp Integrado</span>
+                                <span class="text-[10px] text-emerald-600">Clique para falar com o atendente</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- TABELA DE PLANOS & PREÇOS (TRANSPARÊNCIA TOTAL) -->
+    <section id="precos" class="py-20 lg:py-28 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            <div class="text-center max-w-3xl mx-auto space-y-3 mb-16">
+                <span class="text-xs font-extrabold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                    PREÇO JUSTO E TRANSPARENTE
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-display font-black text-petroleo-900 tracking-tight">
+                    Escolha o plano ideal para a sua empresa
+                </h2>
+                <p class="text-slate-600 text-base sm:text-lg">
+                    Sem surpresas no fim do mês. Sem limites escondidos. Máxima economia para o seu negócio.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+
+                <!-- PLANO 1: GESTÃO PADRÃO -->
+                <div class="rounded-3xl p-8 bg-slate-50 border border-slate-200 flex flex-col justify-between hover:shadow-xl transition-all">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-display font-bold text-petroleo-900">Plano Gestão Essencial</h3>
+                            <span class="text-xs font-bold bg-slate-200 text-slate-700 px-3 py-1 rounded-full">Oficinas & Lojas</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Toda a gestão operacional e financeira do seu negócio:</p>
+
+                        <div class="my-6">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-xs text-slate-500 font-bold">R$</span>
+                                <span class="text-4xl font-display font-black text-petroleo-900">29,90</span>
+                                <span class="text-xs text-slate-500 font-medium">/ mês</span>
+                            </div>
+                            <span class="text-[11px] text-slate-500 mt-1 block">ou R$ 249,90/ano (2 meses grátis)</span>
+                        </div>
+
+                        <ul class="space-y-3 text-xs sm:text-sm text-slate-700 pt-4 border-t border-slate-200">
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-emerald-500 font-bold">✓</span> Ordens de Serviço & Vendas ilimitadas
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-emerald-500 font-bold">✓</span> Controle de Clientes & Veículos/Itens
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-emerald-500 font-bold">✓</span> Fluxo de Caixa e Relatórios Financeiros
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-emerald-500 font-bold">✓</span> Controle de Estoque & Peças
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-emerald-500 font-bold">✓</span> Rastreamento do Cliente via WhatsApp
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-emerald-500 font-bold">✓</span> Cupom Térmico e Impressão de PDF
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="pt-8">
+                        <a href="{{ url_for('cadastro') }}"
+                            class="w-full btn-omie-outline py-3 rounded-2xl font-display font-bold text-center block transition">
+                            Começar Teste do Plano Essencial
+                        </a>
+                    </div>
+                </div>
+
+                <!-- PLANO 2: GESTÃO + FISCAL (DESTAQUE) -->
+                <div class="rounded-3xl p-8 bg-gradient-to-b from-petroleo-900 to-slate-900 text-white flex flex-col justify-between shadow-2xl relative border-2 border-ciano hover:scale-[1.02] transition-all">
+                    <div class="absolute -top-3.5 right-6 bg-gradient-to-r from-ciano to-emerald-400 text-petroleo-950 font-display font-extrabold text-[11px] px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                        MAIS ESCOLHIDO ⭐
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-display font-bold text-white">Plano Gestão + Fiscal Total</h3>
+                            <span class="text-xs font-bold bg-petroleo-800 text-ciano px-3 py-1 rounded-full">Completo</span>
+                        </div>
+                        <p class="text-xs text-slate-300">Todas as ferramentas de gestão + Emissão Fiscal Automática:</p>
+
+                        <div class="my-6">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-xs text-slate-400 font-bold">R$</span>
+                                <span class="text-4xl font-display font-black text-ciano">79,90</span>
+                                <span class="text-xs text-slate-400 font-medium">/ mês</span>
+                            </div>
+                            <span class="text-[11px] text-slate-400 mt-1 block">ou R$ 699,90/ano (economia de R$ 258)</span>
+                        </div>
+
+                        <ul class="space-y-3 text-xs sm:text-sm text-slate-200 pt-4 border-t border-petroleo-800">
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-ciano font-bold">✓</span> <strong>Tudo incluído no Plano Essencial</strong>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-ciano font-bold">✓</span> <strong>Emissão de NF-e</strong> (Nota de Produto)
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-ciano font-bold">✓</span> <strong>Emissão de NFC-e</strong> (Cupom Fiscal Consumidor)
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-ciano font-bold">✓</span> <strong>Emissão de NFS-e</strong> (Nota de Serviço Municipal)
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-ciano font-bold">✓</span> Integração Focus NFe com Certificado A1
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <span class="text-ciano font-bold">✓</span> Suporte Prioritário Direto por WhatsApp
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="pt-8">
+                        <a href="{{ url_for('cadastro') }}"
+                            class="w-full btn-omie-lima py-3.5 rounded-2xl font-display font-black text-center block transition">
+                            Começar com Emissão Fiscal Agora
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- DEPOIMENTOS DE CLIENTES -->
+    <section class="py-20 bg-slate-100/80 border-t border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            <div class="text-center max-w-3xl mx-auto space-y-3 mb-16">
+                <span class="text-xs font-extrabold text-blue-600 uppercase tracking-widest">
+                    QUEM USA, RECOMENDA
+                </span>
+                <h2 class="text-3xl font-display font-black text-petroleo-900 tracking-tight">
+                    O que dizem os donos de negócios
+                </h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+                <div class="bg-white rounded-3xl p-7 border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex text-amber-400 mb-4 text-sm">★★★★★</div>
+                        <p class="text-xs sm:text-sm text-slate-700 italic leading-relaxed">
+                            "Antes eu perdia horas no papel e nas planilhas. Com o Painel de Gestão eu abro a OS em 1 minuto e envio o orçamento no WhatsApp com o link de rastreamento. O cliente se sente super seguro!"
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-xs">RC</div>
+                        <div>
+                            <span class="font-bold text-slate-900 text-xs block">Rodrigo Costa</span>
+                            <span class="text-[11px] text-slate-500">Oficina & Auto Center RC - GO</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl p-7 border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex text-amber-400 mb-4 text-sm">★★★★★</div>
+                        <p class="text-xs sm:text-sm text-slate-700 italic leading-relaxed">
+                            "A emissão de nota fiscal integrada foi um divisor de águas. Não preciso mais redigitar os produtos em site de prefeitura ou emissores lentos. O valor da mensalidade se paga no primeiro dia!"
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">MA</div>
+                        <div>
+                            <span class="font-bold text-slate-900 text-xs block">Marcos Aurélio</span>
+                            <span class="text-[11px] text-slate-500">Distribuidora de Peças - SP</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl p-7 border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex text-amber-400 mb-4 text-sm">★★★★★</div>
+                        <p class="text-xs sm:text-sm text-slate-700 italic leading-relaxed">
+                            "O suporte é nota 10 e o sistema roda rápido em qualquer computador ou no celular. Mudou completamente o nível de organização do meu negócio."
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-800 font-bold flex items-center justify-center text-xs">FS</div>
+                        <div>
+                            <span class="font-bold text-slate-900 text-xs block">Felipe Santos</span>
+                            <span class="text-[11px] text-slate-500">Assistência & Serviços - MG</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- FAQ (PERGUNTAS FREQUENTES COM ACCORDION) -->
+    <section id="faq" class="py-20 bg-white">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            <div class="text-center space-y-3 mb-14">
+                <span class="text-xs font-extrabold text-slate-500 uppercase tracking-widest">TIRE SUAS DÚVIDAS</span>
+                <h2 class="text-3xl font-display font-black text-petroleo-900 tracking-tight">Perguntas Frequentes</h2>
+            </div>
+
+            <div class="space-y-3" id="faq-accordion">
+
+                <!-- Q1 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/60">
+                    <button type="button" onclick="toggleFaq(this)" class="w-full p-5 text-left font-display font-bold text-slate-900 flex items-center justify-between gap-4">
+                        <span class="text-sm sm:text-base">Preciso instalar algum programa no computador?</span>
+                        <span class="text-slate-400 font-mono text-xl transition-transform duration-200">+</span>
+                    </button>
+                    <div class="hidden px-5 pb-5 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-200/60 pt-3">
+                        Não! O sistema funciona 100% na nuvem. Você pode acessar direto pelo navegador de qualquer computador, notebook, tablet ou smartphone. Seus dados ficam salvos em servidores seguros com backup diário automático.
+                    </div>
+                </div>
+
+                <!-- Q2 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/60">
+                    <button type="button" onclick="toggleFaq(this)" class="w-full p-5 text-left font-display font-bold text-slate-900 flex items-center justify-between gap-4">
+                        <span class="text-sm sm:text-base">Funciona para oficina mecânica e também para comércio/loja?</span>
+                        <span class="text-slate-400 font-mono text-xl transition-transform duration-200">+</span>
+                    </button>
+                    <div class="hidden px-5 pb-5 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-200/60 pt-3">
+                        Sim! Nas configurações da sua empresa, você escolhe se o seu ramo é Oficina (com placas, veículos, km e mecânico) ou Loja/Comércio (tratando os documentos como Venda/Pedido). O sistema se adapta perfeitamente.
+                    </div>
+                </div>
+
+                <!-- Q3 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/60">
+                    <button type="button" onclick="toggleFaq(this)" class="w-full p-5 text-left font-display font-bold text-slate-900 flex items-center justify-between gap-4">
+                        <span class="text-sm sm:text-base">Como funciona a emissão de notas fiscais?</span>
+                        <span class="text-slate-400 font-mono text-xl transition-transform duration-200">+</span>
+                    </button>
+                    <div class="hidden px-5 pb-5 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-200/60 pt-3">
+                        Nosso sistema possui integração direta com a Focus NFe. Você faz o upload do seu certificado digital modelo A1 e consegue emitir NF-e (Produto), NFC-e (Cupom do consumidor) e NFS-e (Serviço) direto da Ordem de Serviço em apenas 1 clique.
+                    </div>
+                </div>
+
+                <!-- Q4 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/60">
+                    <button type="button" onclick="toggleFaq(this)" class="w-full p-5 text-left font-display font-bold text-slate-900 flex items-center justify-between gap-4">
+                        <span class="text-sm sm:text-base">Tem taxa de adesão ou contrato de fidelidade?</span>
+                        <span class="text-slate-400 font-mono text-xl transition-transform duration-200">+</span>
+                    </button>
+                    <div class="hidden px-5 pb-5 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-200/60 pt-3">
+                        Não há nenhuma taxa de instalação ou carência. Você pode cancelar a qualquer momento sem nenhuma multa.
+                    </div>
+                </div>
+
+                <!-- Q5 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/60">
+                    <button type="button" onclick="toggleFaq(this)" class="w-full p-5 text-left font-display font-bold text-slate-900 flex items-center justify-between gap-4">
+                        <span class="text-sm sm:text-base">Como funciona o acompanhamento online pelo cliente?</span>
+                        <span class="text-slate-400 font-mono text-xl transition-transform duration-200">+</span>
+                    </button>
+                    <div class="hidden px-5 pb-5 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-200/60 pt-3">
+                        Cada Ordem de Serviço gerada ganha um link exclusivo e seguro. Você pode enviar pelo WhatsApp do cliente com 1 toque. O cliente abre a tela no próprio celular e vê em qual etapa o atendimento está (Recebido, Diagnóstico, Em Execução ou Pronto para retirada).
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- BANNER FINAL DE CONVERSÃO -->
+    <section class="py-20 bg-gradient-to-r from-petroleo-950 via-petroleo-900 to-slate-900 text-white text-center relative overflow-hidden">
+        <div class="max-w-4xl mx-auto px-4 relative z-10 space-y-6">
+            <h2 class="text-3xl sm:text-4xl lg:text-5xl font-display font-black tracking-tight text-white">
+                Pronto para transformar a gestão da sua empresa?
+            </h2>
+            <p class="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto">
+                Cadastre sua empresa em menos de 2 minutos e experimente todas as funcionalidades na prática hoje mesmo.
+            </p>
+            <div class="pt-4 flex flex-wrap items-center justify-center gap-4">
+                <a href="#proposta"
+                    class="btn-omie-lima font-display font-extrabold text-sm sm:text-base px-8 py-4 rounded-full shadow-lg">
+                    Solicitar Proposta Agora →
+                </a>
+                <a href="{{ url_for('cadastro') }}"
+                    class="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-display font-bold text-sm sm:text-base px-8 py-4 rounded-full transition">
+                    Criar Conta Direta
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- RODAPÉ INSTITUCIONAL -->
+    <footer class="bg-petroleo-950 text-slate-400 text-xs py-12 border-t border-petroleo-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
+                        PG
+                    </div>
+                    <div>
+                        <span class="font-display font-bold text-white text-sm block">Painel de Gestão ERP</span>
+                        <span class="text-[10px] text-slate-500">Tecnologia Empresarial na Nuvem</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-center gap-6 font-medium text-slate-400">
+                    <a href="#solucoes" class="hover:text-white transition">Módulos</a>
+                    <a href="#segmentos" class="hover:text-white transition">Segmentos</a>
+                    <a href="#precos" class="hover:text-white transition">Planos</a>
+                    <a href="#faq" class="hover:text-white transition">Dúvidas</a>
+                    <a href="{{ url_for('login') }}" class="hover:text-white transition">Área do Cliente</a>
+                </div>
+            </div>
+
+            <div class="pt-8 border-t border-petroleo-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+                <p>&copy; 2026 Painel de Gestão Empresarial. Todos os direitos reservados.</p>
+                <p>Segurança SSL 256-bit &bull; LiteSpeed Server &bull; Backups Automáticos</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- SCRIPT DE INTERATIVIDADE -->
+    <script>
+        function toggleFaq(btn) {
+            const content = btn.nextElementSibling;
+            const icon = btn.querySelector('span:last-child');
+            const isOpen = !content.classList.contains('hidden');
+
+            // Fecha todos os outros itens
+            document.querySelectorAll('#faq-accordion > div').forEach(item => {
+                item.querySelector('div:last-child').classList.add('hidden');
+                item.querySelector('button span:last-child').textContent = '+';
+            });
+
+            // Alterna o atual
+            if (!isOpen) {
+                content.classList.remove('hidden');
+                icon.textContent = '−';
+            }
+        }
+    </script>
+
+</body>
+
+</html>

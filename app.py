@@ -1031,9 +1031,32 @@ def admin_restaurar_banco():
     return redirect(url_for('admin_empresas'))
 
 
-# --- DASHBOARD ISOLADO POR EMPRESA ---
+# --- PÁGINA INICIAL / LANDING PAGE DE ALTA CONVERSÃO ---
 
 @app.route('/')
+def index():
+    if getattr(g, 'empresa', None):
+        return redirect(url_for('dashboard'))
+    return render_template('landing.html')
+
+
+@app.route('/solicite-proposta', methods=['GET', 'POST'])
+@app.route('/proposta', methods=['GET', 'POST'])
+def landing_proposta():
+    if request.method == 'POST':
+        nome = request.form.get('nome', '').strip()
+        nome_empresa = request.form.get('nome_empresa', '').strip()
+        email = request.form.get('email', '').strip()
+        telefone = request.form.get('telefone', '').strip()
+        tipo_negocio = request.form.get('tipo_negocio', 'OFICINA').strip()
+        # Redireciona com preenchimento automático para o cadastro da empresa
+        return redirect(url_for('cadastro', nome_empresa=nome_empresa, email=email, telefone=telefone, tipo_negocio=tipo_negocio))
+    return render_template('landing.html')
+
+
+# --- DASHBOARD ISOLADO POR EMPRESA ---
+
+@app.route('/dashboard')
 @login_required
 def dashboard():
     hoje = date.today()

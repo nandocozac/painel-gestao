@@ -89,13 +89,18 @@
                 </div>
             </form>
 
-            <div class="border-t border-slate-700/60 pt-4 text-center">
+            <div class="border-t border-slate-700/60 pt-4 text-center space-y-2">
                 <p class="text-xs text-slate-400">
                     Ainda não tem conta para sua empresa?
                     <a href="{{ url_for('cadastro') }}" class="text-blue-400 hover:text-blue-300 font-semibold underline underline-offset-2 ml-1">
                         Criar Conta
                     </a>
                 </p>
+                <div>
+                    <a href="{{ url_for('index') }}" class="text-xs text-slate-400 hover:text-slate-200 transition inline-flex items-center gap-1">
+                        &larr; Voltar à Página Inicial
+                    </a>
+                </div>
             </div>
         </div>
 

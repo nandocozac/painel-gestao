@@ -90,7 +90,8 @@ def run_checks():
     # 5. Teste de Acesso a Rotas Públicas Principais
     print("\n[5/5] Testando Rotas Principais (Smoke Test)...")
     rotas = [
-        ('/', 302),
+        ('/', 200),
+        ('/proposta', 200),
         ('/login', 200),
         ('/cadastro', 200),
     ]
