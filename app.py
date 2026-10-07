@@ -1417,8 +1417,15 @@ def concluir_os(os_id):
         return redirect(url_for('ver_os', os_id=os.id))
 
     def converter_valor(v):
+        if not v:
+            return 0.0
         try:
-            return max(0.0, float(str(v or '0').replace('.', '').replace(',', '.').strip()))
+            s = str(v).strip().replace('R$', '').replace(' ', '')
+            if ',' in s and '.' in s:
+                s = s.replace('.', '').replace(',', '.')
+            elif ',' in s:
+                s = s.replace(',', '.')
+            return max(0.0, float(s))
         except (ValueError, TypeError):
             return 0.0
 
@@ -1431,7 +1438,7 @@ def concluir_os(os_id):
 
         total_pecas = 0.0
         for i, (nome, qtd_str, val_str) in enumerate(zip(peca_nomes, peca_qtds, peca_valores)):
-            nome_clean = nome.strip()
+            nome_clean = (nome or '').strip()
             qtd = converter_valor(qtd_str) or 1.0
             val_unit = converter_valor(val_str)
             sub = round(qtd * val_unit, 2)
@@ -1444,14 +1451,13 @@ def concluir_os(os_id):
                     valor_unitario=val_unit,
                     subtotal=sub
                 )
-                # Vínculo com produto do catálogo e baixa no estoque
                 if i < len(peca_prod_ids) and peca_prod_ids[i]:
                     try:
                         p_id = int(peca_prod_ids[i])
                         prod = Produto.query.filter_by(id=p_id, empresa_id=g.empresa.id).first()
                         if prod:
                             item.produto_id = prod.id
-                            prod.estoque_atual = round(prod.estoque_atual - qtd, 2)
+                            prod.estoque_atual = round((prod.estoque_atual or 0.0) - qtd, 2)
                             if not item.ncm and prod.ncm:
                                 item.ncm = prod.ncm
                             if not item.cfop and prod.cfop:
@@ -1470,7 +1476,7 @@ def concluir_os(os_id):
 
         total_servicos = 0.0
         for i, (nome, qtd_str, val_str) in enumerate(zip(serv_nomes, serv_qtds, serv_valores)):
-            nome_clean = nome.strip()
+            nome_clean = (nome or '').strip()
             qtd = converter_valor(qtd_str) or 1.0
             val_unit = converter_valor(val_str)
             sub = round(qtd * val_unit, 2)
@@ -1505,26 +1511,26 @@ def concluir_os(os_id):
         if total_servicos == 0:
             total_servicos = converter_valor(request.form.get('valor_mao_obra', '0'))
 
-        os.valor_pecas = round(total_pecas, 2)
-        os.valor_mao_obra = round(total_servicos, 2)
-        os.valor_total = round(total_pecas + total_servicos, 2)
+        os.valor_pecas = round(float(total_pecas or 0.0), 2)
+        os.valor_mao_obra = round(float(total_servicos or 0.0), 2)
+        os.valor_total = round(os.valor_pecas + os.valor_mao_obra, 2)
 
-        os.servico_executado = request.form.get('servico_executado', '').strip()
+        os.servico_executado = (request.form.get('servico_executado') or '').strip()
         os.status = 'CONCLUIDA'
         if os.etapa_andamento in ['RECEBIDO', 'DIAGNOSTICO', 'EM_EXECUCAO']:
             os.etapa_andamento = 'PRONTO'
         os.data_conclusao = date.today()
 
         # Processamento das Formas de Pagamento (Forma Única ou Múltiplas / Divididas)
-        tipo_pagamento = request.form.get('tipo_pagamento', 'UNICO').strip().upper()
+        tipo_pagamento = (request.form.get('tipo_pagamento') or 'UNICO').strip().upper()
         formas_lista = request.form.getlist('pagamento_forma[]')
         valores_lista = request.form.getlist('pagamento_valor[]')
 
         pagamentos_estruturados = []
         if tipo_pagamento == 'MULTIPLO' and formas_lista:
             for f_nome, v_str in zip(formas_lista, valores_lista):
-                f_limpa = f_nome.strip()
-                v_num = converter_valor_monetario(v_str)
+                f_limpa = (f_nome or '').strip()
+                v_num = converter_valor(v_str)
                 if f_limpa and v_num > 0:
                     pagamentos_estruturados.append({
                         'forma': f_limpa,
@@ -1536,14 +1542,14 @@ def concluir_os(os_id):
             partes_txt = [f"{p['forma']}: R$ {p['valor']:.2f}".replace('.', ',') for p in pagamentos_estruturados]
             os.forma_pagamento = "Múltiplas (" + " | ".join(partes_txt) + ")"
         else:
-            forma_unica = request.form.get('forma_pagamento', 'Dinheiro').strip()
+            forma_unica = (request.form.get('forma_pagamento') or 'Dinheiro').strip()
             os.forma_pagamento = forma_unica
             os.detalhes_pagamento = json.dumps([{'forma': forma_unica, 'valor': os.valor_total}], ensure_ascii=False)
             pagamentos_estruturados = [{'forma': forma_unica, 'valor': os.valor_total}]
 
         # Configuração flexível da data de retorno preventivo
-        opcao_retorno = request.form.get('opcao_retorno', '90').strip()
-        data_retorno_manual = request.form.get('data_retorno_manual', '').strip()
+        opcao_retorno = (request.form.get('opcao_retorno') or '90').strip()
+        data_retorno_manual = (request.form.get('data_retorno_manual') or '').strip()
 
         if data_retorno_manual:
             try:
@@ -1560,22 +1566,27 @@ def concluir_os(os_id):
                 os.retorno_previsto = date.today() + timedelta(days=90)
 
         # Processamento e Cálculo das Comissões (Vendedor e Mecânico / Mão de Obra)
-        vendedor_id_form = request.form.get('vendedor_id')
-        mecanico_id_form = request.form.get('mecanico_id')
+        vendedor_id_form = (request.form.get('vendedor_id') or '').strip()
+        mecanico_id_form = (request.form.get('mecanico_id') or '').strip()
 
-        vendedor_id = int(vendedor_id_form) if (vendedor_id_form and vendedor_id_form.strip().isdigit()) else os.vendedor_id
-        mecanico_id = int(mecanico_id_form) if (mecanico_id_form and mecanico_id_form.strip().isdigit()) else os.mecanico_id
+        vendedor_id = int(vendedor_id_form) if vendedor_id_form.isdigit() else None
+        mecanico_id = int(mecanico_id_form) if mecanico_id_form.isdigit() else None
 
-        porc_vendedor_input = request.form.get('porcentagem_comissao_vendedor', '').strip()
-        porc_mecanico_input = request.form.get('porcentagem_comissao_mecanico', '').strip()
+        porc_vendedor_input = (request.form.get('porcentagem_comissao_vendedor') or '').strip()
+        porc_mecanico_input = (request.form.get('porcentagem_comissao_mecanico') or '').strip()
 
         if vendedor_id:
             vend = Colaborador.query.filter_by(id=vendedor_id, empresa_id=g.empresa.id).first()
             if vend:
                 os.vendedor_id = vend.id
-                os.porcentagem_comissao_vendedor = converter_valor_monetario(porc_vendedor_input) if porc_vendedor_input != '' else (os.porcentagem_comissao_vendedor or vend.porcentagem_padrao)
-                base_vendedor = os.valor_pecas if vend.tipo_base == 'PECAS' else os.valor_total
-                os.valor_comissao_vendedor = round(base_vendedor * (os.porcentagem_comissao_vendedor / 100.0), 2)
+                pv = converter_valor(porc_vendedor_input) if porc_vendedor_input != '' else (os.porcentagem_comissao_vendedor or getattr(vend, 'porcentagem_padrao', 0.0) or 0.0)
+                os.porcentagem_comissao_vendedor = float(pv or 0.0)
+                base_vendedor = os.valor_pecas if getattr(vend, 'tipo_base', 'TOTAL') == 'PECAS' else os.valor_total
+                os.valor_comissao_vendedor = round(float(base_vendedor or 0.0) * (os.porcentagem_comissao_vendedor / 100.0), 2)
+            else:
+                os.vendedor_id = None
+                os.porcentagem_comissao_vendedor = 0.0
+                os.valor_comissao_vendedor = 0.0
         else:
             os.vendedor_id = None
             os.porcentagem_comissao_vendedor = 0.0
@@ -1585,34 +1596,51 @@ def concluir_os(os_id):
             mec = Colaborador.query.filter_by(id=mecanico_id, empresa_id=g.empresa.id).first()
             if mec:
                 os.mecanico_id = mec.id
-                os.porcentagem_comissao_mecanico = converter_valor_monetario(porc_mecanico_input) if porc_mecanico_input != '' else (os.porcentagem_comissao_mecanico or mec.porcentagem_padrao)
-                os.valor_comissao_mecanico = round(os.valor_mao_obra * (os.porcentagem_comissao_mecanico / 100.0), 2)
+                pm = converter_valor(porc_mecanico_input) if porc_mecanico_input != '' else (os.porcentagem_comissao_mecanico or getattr(mec, 'porcentagem_padrao', 0.0) or 0.0)
+                os.porcentagem_comissao_mecanico = float(pm or 0.0)
+                os.valor_comissao_mecanico = round(float(os.valor_mao_obra or 0.0) * (os.porcentagem_comissao_mecanico / 100.0), 2)
+            else:
+                os.mecanico_id = None
+                os.porcentagem_comissao_mecanico = 0.0
+                os.valor_comissao_mecanico = 0.0
         else:
             os.mecanico_id = None
             os.porcentagem_comissao_mecanico = 0.0
             os.valor_comissao_mecanico = 0.0
 
         # Entrada no Livro Caixa com isolamento de empresa para cada parcela de pagamento
-        if os.valor_total > 0:
+        nome_cliente = os.cliente.nome if (os.cliente and os.cliente.nome) else "Cliente"
+        if os.valor_total and os.valor_total > 0:
             for p in pagamentos_estruturados:
-                if p['valor'] > 0:
-                    desc_caixa = f"Recebimento OS #{os.numero_exibicao} ({p['forma']}) - {os.cliente.nome}"
+                v_parcela = float(p.get('valor') or 0.0)
+                f_parcela = str(p.get('forma') or 'Dinheiro')[:30]
+                if v_parcela > 0:
+                    desc_caixa = f"Recebimento OS #{os.numero_exibicao} ({f_parcela}) - {nome_cliente}"[:200]
                     caixa = Transacao(
                         empresa_id=g.empresa.id,
                         tipo='RECEITA',
                         descricao=desc_caixa,
-                        valor=p['valor'],
-                        forma_pagamento=p['forma'],
+                        valor=v_parcela,
+                        forma_pagamento=f_parcela,
                         data_movimento=date.today(),
                         os_id=os.id
                     )
                     db.session.add(caixa)
 
         db.session.commit()
+        flash(f"OS #{os.numero_exibicao:04d} concluída com sucesso e lançada no Caixa!", "success")
 
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        raise
+        import traceback
+        erro_detalhado = traceback.format_exc()
+        app.logger.error(f"Erro ao concluir OS #{os_id}: {erro_detalhado}")
+        try:
+            with open(os.path.join(INSTANCE_DIR, 'error_concluir.log'), 'a', encoding='utf-8') as f_log:
+                f_log.write(f"\n--- {datetime.now()} ---\nOS: {os_id}\n{erro_detalhado}\n")
+        except Exception:
+            pass
+        flash(f"Atenção ao concluir OS: {str(e)}", "danger")
 
     return redirect(url_for('ver_os', os_id=os.id))
 
@@ -1623,14 +1651,14 @@ def atualizar_pagamento_os(os_id):
     """Permite ao dono ajustar ou alterar as formas de pagamento em uma OS concluída"""
     os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
 
-    tipo_pagamento = request.form.get('tipo_pagamento', 'UNICO').strip().upper()
+    tipo_pagamento = (request.form.get('tipo_pagamento') or 'UNICO').strip().upper()
     formas_lista = request.form.getlist('pagamento_forma[]')
     valores_lista = request.form.getlist('pagamento_valor[]')
 
     pagamentos_estruturados = []
     if tipo_pagamento == 'MULTIPLO' and formas_lista:
         for f_nome, v_str in zip(formas_lista, valores_lista):
-            f_limpa = f_nome.strip()
+            f_limpa = (f_nome or '').strip()
             v_num = converter_valor_monetario(v_str)
             if f_limpa and v_num > 0:
                 pagamentos_estruturados.append({
@@ -1643,23 +1671,26 @@ def atualizar_pagamento_os(os_id):
         partes_txt = [f"{p['forma']}: R$ {p['valor']:.2f}".replace('.', ',') for p in pagamentos_estruturados]
         os_obj.forma_pagamento = "Múltiplas (" + " | ".join(partes_txt) + ")"
     else:
-        forma_unica = request.form.get('forma_pagamento', 'Dinheiro').strip()
+        forma_unica = (request.form.get('forma_pagamento') or 'Dinheiro').strip()
         os_obj.forma_pagamento = forma_unica
         os_obj.detalhes_pagamento = json.dumps([{'forma': forma_unica, 'valor': os_obj.valor_total}], ensure_ascii=False)
         pagamentos_estruturados = [{'forma': forma_unica, 'valor': os_obj.valor_total}]
 
     # Atualiza as transações vinculadas a esta OS no Livro Caixa
     Transacao.query.filter_by(os_id=os_obj.id, empresa_id=g.empresa.id).delete()
-    if os_obj.valor_total > 0:
+    nome_cli = os_obj.cliente.nome if (os_obj.cliente and os_obj.cliente.nome) else "Cliente"
+    if os_obj.valor_total and os_obj.valor_total > 0:
         for p in pagamentos_estruturados:
-            if p['valor'] > 0:
-                desc_caixa = f"Recebimento OS #{os_obj.numero_exibicao} ({p['forma']}) - {os_obj.cliente.nome}"
+            v_parc = float(p.get('valor') or 0.0)
+            f_parc = str(p.get('forma') or 'Dinheiro')[:30]
+            if v_parc > 0:
+                desc_caixa = f"Recebimento OS #{os_obj.numero_exibicao} ({f_parc}) - {nome_cli}"[:200]
                 caixa = Transacao(
                     empresa_id=g.empresa.id,
                     tipo='RECEITA',
                     descricao=desc_caixa,
-                    valor=p['valor'],
-                    forma_pagamento=p['forma'],
+                    valor=v_parc,
+                    forma_pagamento=f_parc,
                     data_movimento=os_obj.data_conclusao or date.today(),
                     os_id=os_obj.id
                 )
@@ -3150,6 +3181,20 @@ def fiscal_exportar_mes():
         as_attachment=True,
         download_name=nome_download
     )
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    import traceback
+    tb = traceback.format_exc()
+    app.logger.error(f"500 Internal Server Error: {tb}")
+    try:
+        with open(os.path.join(INSTANCE_DIR, 'error_500.log'), 'a', encoding='utf-8') as f:
+            f.write(f"\n--- {datetime.now()} ---\nURL: {request.url}\n{tb}\n")
+    except Exception:
+        pass
+    flash("Ocorreu uma instabilidade temporária no servidor. A ação foi registrada e o sistema continua disponível.", "warning")
+    return redirect(url_for('dashboard'))
 
 
 if __name__ == '__main__':
