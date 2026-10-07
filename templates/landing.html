@@ -714,11 +714,16 @@
                         </ul>
                     </div>
 
-                    <div class="pt-8">
-                        <a href="{{ url_for('cadastro') }}"
+                    <div class="pt-8 space-y-2.5">
+                        <a href="{{ url_for('cadastro', plano='trial') }}"
                             class="w-full btn-omie-outline py-3 rounded-2xl font-display font-bold text-center block transition">
                             Começar 7 Dias Grátis no Plano Essencial
                         </a>
+                        <div class="flex items-center justify-center gap-3 text-xs text-slate-500 pt-1">
+                            <a href="{{ url_for('cadastro', plano='mensal') }}" class="hover:text-blue-600 underline">Assinar Mensal</a>
+                            <span>&bull;</span>
+                            <a href="{{ url_for('cadastro', plano='anual') }}" class="hover:text-indigo-600 font-semibold underline">Assinar Anual (2 meses off)</a>
+                        </div>
                     </div>
                 </div>
 
@@ -766,11 +771,16 @@
                         </ul>
                     </div>
 
-                    <div class="pt-8">
-                        <a href="{{ url_for('cadastro') }}"
+                    <div class="pt-8 space-y-2.5">
+                        <a href="{{ url_for('cadastro', plano='trial') }}"
                             class="w-full btn-omie-lima py-3.5 rounded-2xl font-display font-black text-center block transition">
                             Começar 7 Dias Grátis no Plano Fiscal
                         </a>
+                        <div class="flex items-center justify-center gap-3 text-xs text-slate-400 pt-1">
+                            <a href="{{ url_for('cadastro', plano='mensal') }}" class="hover:text-ciano underline">Assinar Mensal</a>
+                            <span>&bull;</span>
+                            <a href="{{ url_for('cadastro', plano='anual') }}" class="hover:text-ciano font-semibold underline">Assinar Anual (Desconto Máximo)</a>
+                        </div>
                     </div>
                 </div>
 

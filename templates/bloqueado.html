@@ -132,6 +132,27 @@
                 </div>
             </div>
 
+            {% if empresa.status_assinatura == 'PENDENTE' and 'Teste Grátis' not in (empresa.observacoes_admin or '') %}
+            <!-- OPÇÃO DE TESTE GRÁTIS CASO NÃO TENHA UTILIZADO -->
+            <div class="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+                <div>
+                    <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Prefere testar 7 dias grátis primeiro?
+                    </span>
+                    <span class="text-[11px] text-slate-300 block mt-0.5">
+                        Acesso total a todas as ferramentas por 7 dias sem cobrança agora.
+                    </span>
+                </div>
+                <form method="POST" action="{{ url_for('assinatura_ativar_trial') }}" class="shrink-0 w-full sm:w-auto">
+                    <button type="submit"
+                        class="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-emerald-500/20">
+                        Ativar 7 Dias Grátis Agora
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
             <div class="pt-2 border-t border-slate-700/60">
                 <a href="{{ url_for('logout') }}"
                     class="inline-block text-xs text-slate-400 hover:text-rose-400 font-medium transition">
@@ -169,6 +190,16 @@
                 inputMp.value = plano.toUpperCase();
             }
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const plano = (urlParams.get('plano') || '').toUpperCase();
+            if (plano === 'ANUAL') {
+                selecionarPlano('Anual', '249,90');
+            } else {
+                selecionarPlano('Mensal', '29,90');
+            }
+        });
     </script>
 
 </body>

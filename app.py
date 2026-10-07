@@ -584,58 +584,112 @@ def cadastro():
     if getattr(g, 'empresa', None):
         return redirect(url_for('dashboard'))
 
+    master_empresa = Empresa.query.filter_by(is_admin=True).first()
+    valor_mensal = (master_empresa.valor_mensalidade or 29.90) if master_empresa else 29.90
+    valor_anual = (master_empresa.valor_anual or 249.90) if master_empresa else 249.90
+
     if request.method == 'POST':
         nome_empresa = request.form.get('nome_empresa', '').strip()
         email = request.form.get('email', '').strip().lower()
         telefone = request.form.get('telefone', '').strip()
         senha = request.form.get('senha', '').strip()
         confirmar_senha = request.form.get('confirmar_senha', '').strip()
+        opcao_plano = request.form.get('opcao_plano', 'TRIAL').strip().upper()
+
+        if opcao_plano not in ['TRIAL', 'MENSAL', 'ANUAL']:
+            opcao_plano = 'TRIAL'
 
         if not nome_empresa or not email or not senha:
             flash("Preencha todos os campos obrigatórios.", "error")
-            return render_template('cadastro.html')
+            return render_template('cadastro.html', valor_mensal=valor_mensal, valor_anual=valor_anual)
 
         if senha != confirmar_senha:
             flash("As senhas não coincidem.", "error")
-            return render_template('cadastro.html')
+            return render_template('cadastro.html', valor_mensal=valor_mensal, valor_anual=valor_anual)
 
         if len(senha) < 6:
             flash("A senha deve conter no mínimo 6 caracteres.", "error")
-            return render_template('cadastro.html')
+            return render_template('cadastro.html', valor_mensal=valor_mensal, valor_anual=valor_anual)
 
         if Empresa.query.filter_by(email=email).first():
             flash("Este e-mail já está cadastrado. Faça login ou use outro e-mail.", "error")
-            return render_template('cadastro.html')
+            return render_template('cadastro.html', valor_mensal=valor_mensal, valor_anual=valor_anual)
 
         tipo_negocio = request.form.get('tipo_negocio', 'OFICINA').strip().upper()
         if tipo_negocio not in ['OFICINA', 'LOJA']:
             tipo_negocio = 'OFICINA'
 
-        # Nova empresa cadastrada recebe 7 DIAS GRÁTIS de teste completo sem bloqueio!
-        data_expiracao_teste = date.today() + timedelta(days=7)
-        nova_empresa = Empresa(
-            nome_empresa=nome_empresa,
-            email=email,
-            telefone=telefone,
-            whatsapp=telefone,
-            senha_hash=generate_password_hash(senha),
-            is_admin=False,
-            tipo_negocio=tipo_negocio,
-            status_assinatura="ATIVO",
-            data_validade=data_expiracao_teste,
-            observacoes_admin="Período de Teste Grátis (7 dias)",
-            logo_filename=None,
-            logo_base64=None,
-            mensagem_rodape="Agradecemos a preferência! Volte sempre."
-        )
-        db.session.add(nova_empresa)
-        db.session.commit()
+        if opcao_plano == 'TRIAL':
+            data_expiracao_teste = date.today() + timedelta(days=7)
+            nova_empresa = Empresa(
+                nome_empresa=nome_empresa,
+                email=email,
+                telefone=telefone,
+                whatsapp=telefone,
+                senha_hash=generate_password_hash(senha),
+                is_admin=False,
+                tipo_negocio=tipo_negocio,
+                status_assinatura="ATIVO",
+                data_validade=data_expiracao_teste,
+                observacoes_admin="Período de Teste Grátis (7 dias)",
+                logo_filename=None,
+                logo_base64=None,
+                mensagem_rodape="Agradecemos a preferência! Volte sempre."
+            )
+            db.session.add(nova_empresa)
+            db.session.commit()
 
-        session['empresa_id'] = nova_empresa.id
-        flash(f"🎉 Bem-vindo! Sua empresa '{nova_empresa.nome_empresa}' foi cadastrada com sucesso. Seu teste grátis de 7 dias com acesso total está ativo até {data_expiracao_teste.strftime('%d/%m/%Y')}!", "success")
-        return redirect(url_for('dashboard'))
+            session['empresa_id'] = nova_empresa.id
+            flash(f"🎉 Bem-vindo! Sua empresa '{nova_empresa.nome_empresa}' foi cadastrada com sucesso. Seu teste grátis de 7 dias com acesso total está ativo até {data_expiracao_teste.strftime('%d/%m/%Y')}!", "success")
+            return redirect(url_for('dashboard'))
 
-    return render_template('cadastro.html')
+        else:
+            # Cliente optou por assinar diretamente no plano MENSAL ou ANUAL
+            nova_empresa = Empresa(
+                nome_empresa=nome_empresa,
+                email=email,
+                telefone=telefone,
+                whatsapp=telefone,
+                senha_hash=generate_password_hash(senha),
+                is_admin=False,
+                tipo_negocio=tipo_negocio,
+                status_assinatura="PENDENTE",
+                data_validade=None,
+                observacoes_admin=f"Plano selecionado no cadastro: {opcao_plano}",
+                logo_filename=None,
+                logo_base64=None,
+                mensagem_rodape="Agradecemos a preferência! Volte sempre."
+            )
+            db.session.add(nova_empresa)
+            db.session.commit()
+
+            session['empresa_id'] = nova_empresa.id
+            nome_amigavel = "Mensal" if opcao_plano == 'MENSAL' else "Anual"
+            flash(f"🎉 Conta criada com sucesso! Conclua o pagamento do seu Plano {nome_amigavel} abaixo para liberação imediata via Mercado Pago.", "success")
+            return redirect(url_for('assinatura_bloqueada', plano=opcao_plano))
+
+    return render_template('cadastro.html', valor_mensal=valor_mensal, valor_anual=valor_anual)
+
+
+@app.route('/assinatura/ativar-trial', methods=['POST'])
+def assinatura_ativar_trial():
+    """Permite que uma empresa com cadastro pendente ative seus 7 dias grátis caso prefira testar antes de pagar"""
+    if not getattr(g, 'empresa', None):
+        return redirect(url_for('login'))
+
+    if 'Teste Grátis' in (g.empresa.observacoes_admin or ''):
+        flash("Seu período de teste grátis de 7 dias já foi utilizado anteriormente.", "warning")
+        return redirect(url_for('assinatura_bloqueada'))
+
+    hoje = date.today()
+    g.empresa.status_assinatura = "ATIVO"
+    g.empresa.data_validade = hoje + timedelta(days=7)
+    obs = g.empresa.observacoes_admin or ""
+    g.empresa.observacoes_admin = (obs + " | Período de Teste Grátis (7 dias)").strip(' |')
+    db.session.commit()
+
+    flash(f"🎉 Teste grátis de 7 dias ativado com sucesso! Aproveite todos os recursos do painel até {g.empresa.data_validade.strftime('%d/%m/%Y')}.", "success")
+    return redirect(url_for('dashboard'))
 
 
 @app.route('/logout')
