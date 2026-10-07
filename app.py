@@ -429,7 +429,7 @@ def add_no_cache_headers(response):
 
 @app.context_processor
 def inject_empresa():
-    return dict(empresa=getattr(g, 'empresa', None))
+    return dict(empresa=getattr(g, 'empresa', None), hoje=date.today())
 
 
 def login_required(view_func):
@@ -611,7 +611,8 @@ def cadastro():
         if tipo_negocio not in ['OFICINA', 'LOJA']:
             tipo_negocio = 'OFICINA'
 
-        # Nova empresa cadastrada fica PENDENTE aguardando aprovação/pagamento do Pix
+        # Nova empresa cadastrada recebe 7 DIAS GRÁTIS de teste completo sem bloqueio!
+        data_expiracao_teste = date.today() + timedelta(days=7)
         nova_empresa = Empresa(
             nome_empresa=nome_empresa,
             email=email,
@@ -620,7 +621,9 @@ def cadastro():
             senha_hash=generate_password_hash(senha),
             is_admin=False,
             tipo_negocio=tipo_negocio,
-            status_assinatura="PENDENTE",
+            status_assinatura="ATIVO",
+            data_validade=data_expiracao_teste,
+            observacoes_admin="Período de Teste Grátis (7 dias)",
             logo_filename=None,
             logo_base64=None,
             mensagem_rodape="Agradecemos a preferência! Volte sempre."
@@ -629,8 +632,8 @@ def cadastro():
         db.session.commit()
 
         session['empresa_id'] = nova_empresa.id
-        flash(f"Conta da empresa '{nova_empresa.nome_empresa}' criada com sucesso! Siga as instruções abaixo para ativar seu acesso.", "info")
-        return redirect(url_for('assinatura_bloqueada'))
+        flash(f"🎉 Bem-vindo! Sua empresa '{nova_empresa.nome_empresa}' foi cadastrada com sucesso. Seu teste grátis de 7 dias com acesso total está ativo até {data_expiracao_teste.strftime('%d/%m/%Y')}!", "success")
+        return redirect(url_for('dashboard'))
 
     return render_template('cadastro.html')
 
@@ -642,8 +645,9 @@ def logout():
     return redirect(url_for('login'))
 
 
-# --- TELA DE BLOQUEIO POR FALTA DE PAGAMENTO ---
+# --- TELA DE BLOQUEIO POR FALTA DE PAGAMENTO / PLANOS ---
 
+@app.route('/assinatura/planos')
 @app.route('/assinatura/bloqueada')
 def assinatura_bloqueada():
     if not getattr(g, 'empresa', None):
@@ -655,11 +659,12 @@ def assinatura_bloqueada():
 
     hoje = date.today()
     esta_bloqueada = (g.empresa.status_assinatura != 'ATIVO') or (g.empresa.data_validade and g.empresa.data_validade < hoje)
-    if not esta_bloqueada:
+    quer_upgrade = (request.args.get('upgrade', '') == '1') or (request.path == '/assinatura/planos')
+    if not esta_bloqueada and not quer_upgrade:
         return redirect(url_for('dashboard'))
 
     master_empresa = Empresa.query.filter_by(is_admin=True).first()
-    return render_template('bloqueado.html', empresa=g.empresa, master_empresa=master_empresa)
+    return render_template('bloqueado.html', empresa=g.empresa, master_empresa=master_empresa, quer_upgrade=quer_upgrade)
 
 
 @app.route('/assinatura/checkout-mercadopago', methods=['POST'])

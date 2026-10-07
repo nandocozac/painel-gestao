@@ -227,6 +227,25 @@
     <!-- Conteúdo Principal -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7">
 
+        <!-- Banner de Período de Teste Grátis (7 Dias) -->
+        {% if empresa and not empresa.is_admin and empresa.data_validade and hoje %}
+            {% set dias_restantes = (empresa.data_validade - hoje).days %}
+            {% if dias_restantes >= 0 and dias_restantes <= 7 and 'Teste Grátis' in (empresa.observacoes_admin or '') %}
+            <div class="mb-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white border border-slate-700/80 p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-md no-print text-xs">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                    <span>
+                        <strong>Período de Teste Grátis Ativo:</strong> Você possui <strong>{{ dias_restantes }} dia(s) restante(s)</strong> de acesso completo liberado.
+                    </span>
+                </div>
+                <a href="{{ url_for('assinatura_bloqueada', upgrade=1) }}" class="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold px-3.5 py-1.5 rounded-xl transition shadow-xs text-xs inline-flex items-center gap-1.5 shrink-0">
+                    <span>Garantir Assinatura com Desconto</span>
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </a>
+            </div>
+            {% endif %}
+        {% endif %}
+
         <!-- Notificações e Flash Messages Modernizadas (Dismissible Toast) -->
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
