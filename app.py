@@ -1,6 +1,7 @@
 import os
 import base64
 import csv
+import json
 import re
 import time
 import shutil
@@ -91,6 +92,9 @@ def migrar_banco_multiempresa():
                 'fiscal_certificado_filename': 'VARCHAR(255)',
                 'fiscal_certificado_senha': 'VARCHAR(255) DEFAULT ""',
                 'fiscal_token_focus': 'VARCHAR(100) DEFAULT ""',
+                'subtitulo': 'VARCHAR(200) DEFAULT "Serviços Especializados e Atendimento Profissional"',
+                'cnpj_cpf': 'VARCHAR(30) DEFAULT ""',
+                'whatsapp': 'VARCHAR(30) DEFAULT ""',
                 'logo_base64': 'TEXT',
                 'mercadopago_access_token': 'VARCHAR(255) DEFAULT ""',
                 'mercadopago_public_key': 'VARCHAR(255) DEFAULT ""'
@@ -122,10 +126,17 @@ def migrar_banco_multiempresa():
                     db.session.execute(text(f"ALTER TABLE itens_os ADD COLUMN {col} {col_type}"))
             db.session.commit()
 
-            # 4. Garantir colunas de rastreio e assinatura na tabela ordens_servico (SQLite)
+            # 4. Garantir colunas de rastreio, assinatura, colaboradores e pagamentos na tabela ordens_servico (SQLite)
             colunas_os = [row[1] for row in db.session.execute(text("PRAGMA table_info(ordens_servico)")).fetchall()]
             novas_colunas_os = {
                 'numero_sequencial': 'INTEGER',
+                'vendedor_id': 'INTEGER REFERENCES colaboradores(id)',
+                'mecanico_id': 'INTEGER REFERENCES colaboradores(id)',
+                'porcentagem_comissao_vendedor': 'FLOAT DEFAULT 0.0',
+                'valor_comissao_vendedor': 'FLOAT DEFAULT 0.0',
+                'porcentagem_comissao_mecanico': 'FLOAT DEFAULT 0.0',
+                'valor_comissao_mecanico': 'FLOAT DEFAULT 0.0',
+                'detalhes_pagamento': 'TEXT',
                 'etapa_andamento': 'VARCHAR(30) DEFAULT "RECEBIDO"',
                 'codigo_rastreio': 'VARCHAR(32)',
                 'assinatura_cliente_data': 'TEXT',
@@ -135,6 +146,32 @@ def migrar_banco_multiempresa():
                 if col not in colunas_os:
                     db.session.execute(text(f"ALTER TABLE ordens_servico ADD COLUMN {col} {col_type}"))
             db.session.commit()
+
+            # 4.1 Garantir coluna os_id na tabela transacoes (SQLite)
+            colunas_transacoes = [row[1] for row in db.session.execute(text("PRAGMA table_info(transacoes)")).fetchall()]
+            if 'os_id' not in colunas_transacoes:
+                db.session.execute(text("ALTER TABLE transacoes ADD COLUMN os_id INTEGER REFERENCES ordens_servico(id)"))
+                db.session.commit()
+
+            # 4.2 Garantir existência da tabela colaboradores (SQLite)
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS colaboradores (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        empresa_id INTEGER NOT NULL REFERENCES empresas(id),
+                        nome VARCHAR(120) NOT NULL,
+                        funcao VARCHAR(30) NOT NULL DEFAULT 'VENDEDOR',
+                        telefone VARCHAR(30),
+                        chave_pix VARCHAR(100),
+                        porcentagem_padrao FLOAT DEFAULT 0.0,
+                        tipo_base VARCHAR(20) DEFAULT 'TOTAL',
+                        ativo BOOLEAN DEFAULT 1,
+                        data_cadastro DATE
+                    )
+                """))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
             # 5. Garantir colunas de CPF/CNPJ e endereço na tabela clientes (SQLite)
             colunas_clientes = [row[1] for row in db.session.execute(text("PRAGMA table_info(clientes)")).fetchall()]
@@ -179,6 +216,9 @@ def migrar_banco_multiempresa():
                 'fiscal_certificado_filename': 'VARCHAR(255)',
                 'fiscal_certificado_senha': "VARCHAR(255) DEFAULT ''",
                 'fiscal_token_focus': "VARCHAR(100) DEFAULT ''",
+                'subtitulo': "VARCHAR(200) DEFAULT 'Serviços Especializados e Atendimento Profissional'",
+                'cnpj_cpf': "VARCHAR(30) DEFAULT ''",
+                'whatsapp': "VARCHAR(30) DEFAULT ''",
                 'logo_base64': 'TEXT',
                 'mercadopago_access_token': "VARCHAR(255) DEFAULT ''",
                 'mercadopago_public_key': "VARCHAR(255) DEFAULT ''"
@@ -214,6 +254,13 @@ def migrar_banco_multiempresa():
 
             pg_colunas_os = {
                 'numero_sequencial': "INTEGER",
+                'vendedor_id': "INTEGER REFERENCES colaboradores(id)",
+                'mecanico_id': "INTEGER REFERENCES colaboradores(id)",
+                'porcentagem_comissao_vendedor': "FLOAT DEFAULT 0.0",
+                'valor_comissao_vendedor': "FLOAT DEFAULT 0.0",
+                'porcentagem_comissao_mecanico': "FLOAT DEFAULT 0.0",
+                'valor_comissao_mecanico': "FLOAT DEFAULT 0.0",
+                'detalhes_pagamento': "TEXT",
                 'etapa_andamento': "VARCHAR(30) DEFAULT 'RECEBIDO'",
                 'codigo_rastreio': "VARCHAR(32)",
                 'assinatura_cliente_data': "TEXT",
@@ -225,6 +272,12 @@ def migrar_banco_multiempresa():
                     db.session.commit()
                 except Exception:
                     db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE transacoes ADD COLUMN IF NOT EXISTS os_id INTEGER REFERENCES ordens_servico(id)"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
             pg_colunas_clientes = {
                 'cpf_cnpj': "VARCHAR(20) DEFAULT ''",
@@ -1457,11 +1510,36 @@ def concluir_os(os_id):
         os.valor_total = round(total_pecas + total_servicos, 2)
 
         os.servico_executado = request.form.get('servico_executado', '').strip()
-        os.forma_pagamento = request.form.get('forma_pagamento', 'Dinheiro').strip()
         os.status = 'CONCLUIDA'
         if os.etapa_andamento in ['RECEBIDO', 'DIAGNOSTICO', 'EM_EXECUCAO']:
             os.etapa_andamento = 'PRONTO'
         os.data_conclusao = date.today()
+
+        # Processamento das Formas de Pagamento (Forma Única ou Múltiplas / Divididas)
+        tipo_pagamento = request.form.get('tipo_pagamento', 'UNICO').strip().upper()
+        formas_lista = request.form.getlist('pagamento_forma[]')
+        valores_lista = request.form.getlist('pagamento_valor[]')
+
+        pagamentos_estruturados = []
+        if tipo_pagamento == 'MULTIPLO' and formas_lista:
+            for f_nome, v_str in zip(formas_lista, valores_lista):
+                f_limpa = f_nome.strip()
+                v_num = converter_valor_monetario(v_str)
+                if f_limpa and v_num > 0:
+                    pagamentos_estruturados.append({
+                        'forma': f_limpa,
+                        'valor': round(v_num, 2)
+                    })
+
+        if pagamentos_estruturados:
+            os.detalhes_pagamento = json.dumps(pagamentos_estruturados, ensure_ascii=False)
+            partes_txt = [f"{p['forma']}: R$ {p['valor']:.2f}".replace('.', ',') for p in pagamentos_estruturados]
+            os.forma_pagamento = "Múltiplas (" + " | ".join(partes_txt) + ")"
+        else:
+            forma_unica = request.form.get('forma_pagamento', 'Dinheiro').strip()
+            os.forma_pagamento = forma_unica
+            os.detalhes_pagamento = json.dumps([{'forma': forma_unica, 'valor': os.valor_total}], ensure_ascii=False)
+            pagamentos_estruturados = [{'forma': forma_unica, 'valor': os.valor_total}]
 
         # Configuração flexível da data de retorno preventivo
         opcao_retorno = request.form.get('opcao_retorno', '90').strip()
@@ -1514,18 +1592,21 @@ def concluir_os(os_id):
             os.porcentagem_comissao_mecanico = 0.0
             os.valor_comissao_mecanico = 0.0
 
-        # Entrada no Livro Caixa com isolamento de empresa
+        # Entrada no Livro Caixa com isolamento de empresa para cada parcela de pagamento
         if os.valor_total > 0:
-            caixa = Transacao(
-                empresa_id=g.empresa.id,
-                tipo='RECEITA',
-                descricao=f"Recebimento OS #{os.id} - {os.cliente.nome}",
-                valor=os.valor_total,
-                forma_pagamento=os.forma_pagamento,
-                data_movimento=date.today(),
-                os_id=os.id
-            )
-            db.session.add(caixa)
+            for p in pagamentos_estruturados:
+                if p['valor'] > 0:
+                    desc_caixa = f"Recebimento OS #{os.numero_exibicao} ({p['forma']}) - {os.cliente.nome}"
+                    caixa = Transacao(
+                        empresa_id=g.empresa.id,
+                        tipo='RECEITA',
+                        descricao=desc_caixa,
+                        valor=p['valor'],
+                        forma_pagamento=p['forma'],
+                        data_movimento=date.today(),
+                        os_id=os.id
+                    )
+                    db.session.add(caixa)
 
         db.session.commit()
 
@@ -1534,6 +1615,59 @@ def concluir_os(os_id):
         raise
 
     return redirect(url_for('ver_os', os_id=os.id))
+
+
+@app.route('/os/<int:os_id>/atualizar-pagamento', methods=['POST'])
+@login_required
+def atualizar_pagamento_os(os_id):
+    """Permite ao dono ajustar ou alterar as formas de pagamento em uma OS concluída"""
+    os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+
+    tipo_pagamento = request.form.get('tipo_pagamento', 'UNICO').strip().upper()
+    formas_lista = request.form.getlist('pagamento_forma[]')
+    valores_lista = request.form.getlist('pagamento_valor[]')
+
+    pagamentos_estruturados = []
+    if tipo_pagamento == 'MULTIPLO' and formas_lista:
+        for f_nome, v_str in zip(formas_lista, valores_lista):
+            f_limpa = f_nome.strip()
+            v_num = converter_valor_monetario(v_str)
+            if f_limpa and v_num > 0:
+                pagamentos_estruturados.append({
+                    'forma': f_limpa,
+                    'valor': round(v_num, 2)
+                })
+
+    if pagamentos_estruturados:
+        os_obj.detalhes_pagamento = json.dumps(pagamentos_estruturados, ensure_ascii=False)
+        partes_txt = [f"{p['forma']}: R$ {p['valor']:.2f}".replace('.', ',') for p in pagamentos_estruturados]
+        os_obj.forma_pagamento = "Múltiplas (" + " | ".join(partes_txt) + ")"
+    else:
+        forma_unica = request.form.get('forma_pagamento', 'Dinheiro').strip()
+        os_obj.forma_pagamento = forma_unica
+        os_obj.detalhes_pagamento = json.dumps([{'forma': forma_unica, 'valor': os_obj.valor_total}], ensure_ascii=False)
+        pagamentos_estruturados = [{'forma': forma_unica, 'valor': os_obj.valor_total}]
+
+    # Atualiza as transações vinculadas a esta OS no Livro Caixa
+    Transacao.query.filter_by(os_id=os_obj.id, empresa_id=g.empresa.id).delete()
+    if os_obj.valor_total > 0:
+        for p in pagamentos_estruturados:
+            if p['valor'] > 0:
+                desc_caixa = f"Recebimento OS #{os_obj.numero_exibicao} ({p['forma']}) - {os_obj.cliente.nome}"
+                caixa = Transacao(
+                    empresa_id=g.empresa.id,
+                    tipo='RECEITA',
+                    descricao=desc_caixa,
+                    valor=p['valor'],
+                    forma_pagamento=p['forma'],
+                    data_movimento=os_obj.data_conclusao or date.today(),
+                    os_id=os_obj.id
+                )
+                db.session.add(caixa)
+
+    db.session.commit()
+    flash(f"Formas de pagamento da OS #{os_obj.numero_exibicao:04d} atualizadas com sucesso no Caixa!", "success")
+    return redirect(url_for('ver_os', os_id=os_obj.id))
 
 
 @app.route('/os/<int:os_id>/atualizar-comissao', methods=['POST'])

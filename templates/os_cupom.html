@@ -237,7 +237,17 @@
                 <td>TOTAL A PAGAR:</td>
                 <td class="right">R$ {{ os.valor_total|moeda }}</td>
             </tr>
-            {% if os.forma_pagamento %}
+            {% if os.lista_pagamentos|length > 1 %}
+            <tr>
+                <td colspan="2" class="bold" style="padding-top: 4px; border-top: 1px dashed #000;">PAGAMENTOS DETALHADOS:</td>
+            </tr>
+            {% for p in os.lista_pagamentos %}
+            <tr style="font-size: 10.5px;">
+                <td style="padding-left: 6px;">&bull; {{ p.forma }}:</td>
+                <td class="right font-mono bold">R$ {{ "%.2f"|format(p.valor)|replace('.', ',') }}</td>
+            </tr>
+            {% endfor %}
+            {% elif os.forma_pagamento %}
             <tr>
                 <td>Forma Pagto:</td>
                 <td class="right bold">{{ os.forma_pagamento }}</td>

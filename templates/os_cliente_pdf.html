@@ -188,7 +188,22 @@
         <!-- Fechamento de Totais da OS -->
         <div class="border-t border-slate-200 pt-4 flex justify-between items-end">
             <div class="text-xs text-slate-500">
-                Forma de Pagamento: <strong class="text-slate-800 uppercase font-mono">{{ os.forma_pagamento or 'A Combinar' }}</strong>
+                <span class="font-bold text-slate-600 block">Forma de Pagamento:</span>
+                {% if os.lista_pagamentos|length > 1 %}
+                <div class="mt-1 space-y-1">
+                    <span class="text-slate-800 uppercase font-mono font-bold block text-xs">Múltiplas Formas</span>
+                    <div class="flex flex-col gap-1">
+                        {% for p in os.lista_pagamentos %}
+                        <span class="inline-flex items-center gap-1.5 text-[11px] text-slate-700 font-medium">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            {{ p.forma }}: <strong class="font-mono text-slate-900 font-bold">R$ {{ "%.2f"|format(p.valor)|replace('.', ',') }}</strong>
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <strong class="text-slate-800 uppercase font-mono">{{ os.forma_pagamento or 'A Combinar' }}</strong>
+                {% endif %}
             </div>
             <div class="w-full sm:w-72 space-y-1.5 text-sm">
                 <div class="flex justify-between text-slate-600">

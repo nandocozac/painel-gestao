@@ -392,8 +392,22 @@
         {% if os.status == 'CONCLUIDA' %}
         <div class="border-t border-slate-200 pt-4 flex justify-between items-end">
             <div class="text-xs text-slate-500">
-                Forma de Pagamento: <strong class="text-slate-800 uppercase font-mono">{{ os.forma_pagamento or 'Não
-                    Informado' }}</strong>
+                <span class="font-bold text-slate-600 block">Forma de Pagamento:</span>
+                {% if os.lista_pagamentos|length > 1 %}
+                <div class="mt-1 space-y-1">
+                    <span class="text-slate-800 uppercase font-mono font-bold block text-xs">Múltiplas Formas</span>
+                    <div class="flex flex-col gap-1">
+                        {% for p in os.lista_pagamentos %}
+                        <span class="inline-flex items-center gap-1.5 text-[11px] text-slate-700 font-medium">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            {{ p.forma }}: <strong class="font-mono text-slate-900 font-bold">R$ {{ "%.2f"|format(p.valor)|replace('.', ',') }}</strong>
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <strong class="text-slate-800 uppercase font-mono">{{ os.forma_pagamento or 'Não Informado' }}</strong>
+                {% endif %}
             </div>
             <div class="w-full sm:w-72 space-y-1.5 text-sm">
                 <div class="flex justify-between text-slate-600">
@@ -654,16 +668,82 @@
                         class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"></textarea>
                 </div>
                 <div class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Forma de Pagamento *</label>
-                        <select name="forma_pagamento"
-                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="Pix">Pix</option>
-                            <option value="Cartão de Crédito">Cartão de Crédito</option>
-                            <option value="Cartão de Débito">Cartão de Débito</option>
-                            <option value="Dinheiro">Dinheiro</option>
-                            <option value="Boleto / Faturado">Boleto / Faturado</option>
-                        </select>
+                    <!-- FORMA DE PAGAMENTO (ÚNICA OU MÚLTIPLAS/MISTO) -->
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/90 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                <span>💳</span>
+                                Forma de Pagamento *
+                            </label>
+                            <!-- Switch Toggle Único / Múltiplas -->
+                            <div class="inline-flex p-0.5 bg-slate-200 rounded-lg text-[10px] font-bold">
+                                <button type="button" id="btn-modo-unico" onclick="alternarModoPagamento('UNICO')"
+                                    class="px-2 py-0.5 rounded-md bg-white text-slate-800 shadow-xs transition">
+                                    Única
+                                </button>
+                                <button type="button" id="btn-modo-multiplo" onclick="alternarModoPagamento('MULTIPLO')"
+                                    class="px-2 py-0.5 rounded-md text-slate-600 hover:text-slate-900 transition">
+                                    Múltiplas (Dividir)
+                                </button>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="tipo_pagamento" id="input_tipo_pagamento" value="UNICO">
+
+                        <!-- MODO 1: FORMA ÚNICA -->
+                        <div id="container-pagamento-unico">
+                            <select name="forma_pagamento" id="select_forma_unica"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 font-semibold">
+                                <option value="Pix">Pix</option>
+                                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                <option value="Cartão de Débito">Cartão de Débito</option>
+                                <option value="Dinheiro">Dinheiro</option>
+                                <option value="Boleto / Faturado">Boleto / Faturado</option>
+                            </select>
+                        </div>
+
+                        <!-- MODO 2: MÚLTIPLAS FORMAS (DIVIDIR / MISTO) -->
+                        <div id="container-pagamento-multiplo" class="hidden space-y-2">
+                            <div class="text-[11px] text-slate-600 bg-blue-50/80 border border-blue-100 rounded-lg p-2 flex items-center justify-between">
+                                <span>Distribua os valores por forma:</span>
+                                <span class="font-bold text-blue-700" id="badge-total-a-pagar">Total: R$ 0,00</span>
+                            </div>
+
+                            <div id="lista-linhas-pagamento" class="space-y-1.5">
+                                <!-- Linha inicial 1 -->
+                                <div class="grid grid-cols-12 gap-1.5 items-center linha-pagamento">
+                                    <div class="col-span-6">
+                                        <select name="pagamento_forma[]" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="Dinheiro">Dinheiro</option>
+                                            <option value="Pix">Pix</option>
+                                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                            <option value="Cartão de Débito">Cartão de Débito</option>
+                                            <option value="Boleto / Faturado">Boleto / Faturado</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-span-5 relative">
+                                        <span class="absolute left-2 top-1.5 text-[10px] text-slate-400 font-bold">R$</span>
+                                        <input type="text" name="pagamento_valor[]" placeholder="0,00" oninput="calcularTotalPagamentos()"
+                                            class="input-pagamento-valor w-full border border-slate-300 rounded-lg pl-7 pr-2 py-1.5 text-xs font-mono font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    </div>
+                                    <div class="col-span-1 text-center">
+                                        <button type="button" onclick="removerLinhaPagamento(this)" class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-1">
+                                <button type="button" onclick="adicionarLinhaPagamento()"
+                                    class="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition">
+                                    <span>+</span> Adicionar Forma
+                                </button>
+                                <div class="text-right">
+                                    <span id="badge-saldo-pagamento" class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                                        Restante: R$ 0,00
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -805,12 +885,342 @@
             </form>
         </div>
     </div>
+
+    <!-- PAINEL DE PAGAMENTOS DESTA OS (QUANDO JÁ CONCLUÍDA) -->
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm no-print space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="p-2 bg-blue-50 text-blue-600 rounded-lg text-lg">💳</span>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Formas de Pagamento Recebidas</h3>
+                    <p class="text-[11px] text-slate-500">Entradas financeiras lançadas no Caixa para esta OS</p>
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('modal-editar-pagamento').classList.remove('hidden')"
+                class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition flex items-center gap-1.5">
+                <span>✏️</span> Ajustar Formas de Pagamento
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {% for p in os.lista_pagamentos %}
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">{{ '💵' if p.forma == 'Dinheiro' else ('📱' if p.forma == 'Pix' else ('📄' if p.forma.startswith('Boleto') else '💳')) }}</span>
+                    <div>
+                        <span class="text-xs font-bold text-slate-800 block">{{ p.forma }}</span>
+                        <span class="text-[10px] text-slate-400">Recebido</span>
+                    </div>
+                </div>
+                <strong class="font-mono text-sm text-emerald-600 font-bold">R$ {{ "%.2f"|format(p.valor)|replace('.', ',') }}</strong>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- MODAL PARA AJUSTAR PAGAMENTO EM OS JÁ CONCLUIDA -->
+    <div id="modal-editar-pagamento" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">Ajustar Pagamento da OS #{{ "%04d"|format(os.numero_exibicao) }}</h3>
+                    <p class="text-xs text-slate-500">Total Geral: <strong class="text-emerald-600 font-mono">R$ {{ os.valor_total|moeda }}</strong></p>
+                </div>
+                <button type="button" onclick="document.getElementById('modal-editar-pagamento').classList.add('hidden')"
+                    class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <form method="POST" action="{{ url_for('atualizar_pagamento_os', os_id=os.id) }}" class="space-y-4">
+                <input type="hidden" name="tipo_pagamento" id="modal_tipo_pagamento" value="{{ 'MULTIPLO' if os.lista_pagamentos|length > 1 else 'UNICO' }}">
+
+                <div class="flex justify-end">
+                    <div class="inline-flex p-0.5 bg-slate-100 rounded-lg text-xs font-bold border border-slate-200">
+                        <button type="button" id="modal-btn-unico" onclick="alternarModoPagamentoModal('UNICO')"
+                            class="px-2.5 py-1 rounded-md {% if os.lista_pagamentos|length <= 1 %}bg-white text-slate-800 shadow-xs{% else %}text-slate-600{% endif %}">
+                            Forma Única
+                        </button>
+                        <button type="button" id="modal-btn-multiplo" onclick="alternarModoPagamentoModal('MULTIPLO')"
+                            class="px-2.5 py-1 rounded-md {% if os.lista_pagamentos|length > 1 %}bg-white text-slate-800 shadow-xs{% else %}text-slate-600{% endif %}">
+                            Múltiplas (Dividir)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Painel Único no Modal -->
+                <div id="modal-container-unico" class="{% if os.lista_pagamentos|length > 1 %}hidden{% endif %} space-y-2">
+                    <label class="block text-xs font-semibold text-slate-700">Forma de Pagamento</label>
+                    <select name="forma_pagamento" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
+                        <option value="Pix" {% if os.forma_pagamento == 'Pix' %}selected{% endif %}>Pix</option>
+                        <option value="Cartão de Crédito" {% if os.forma_pagamento == 'Cartão de Crédito' %}selected{% endif %}>Cartão de Crédito</option>
+                        <option value="Cartão de Débito" {% if os.forma_pagamento == 'Cartão de Débito' %}selected{% endif %}>Cartão de Débito</option>
+                        <option value="Dinheiro" {% if os.forma_pagamento == 'Dinheiro' %}selected{% endif %}>Dinheiro</option>
+                        <option value="Boleto / Faturado" {% if os.forma_pagamento == 'Boleto / Faturado' %}selected{% endif %}>Boleto / Faturado</option>
+                    </select>
+                </div>
+
+                <!-- Painel Múltiplo no Modal -->
+                <div id="modal-container-multiplo" class="{% if os.lista_pagamentos|length <= 1 %}hidden{% endif %} space-y-2.5">
+                    <div id="modal-lista-pagamentos" class="space-y-2">
+                        {% for p in os.lista_pagamentos %}
+                        <div class="grid grid-cols-12 gap-2 items-center linha-pagamento-modal">
+                            <div class="col-span-6">
+                                <select name="pagamento_forma[]" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs bg-white text-slate-800">
+                                    <option value="Dinheiro" {% if p.forma == 'Dinheiro' %}selected{% endif %}>Dinheiro</option>
+                                    <option value="Pix" {% if p.forma == 'Pix' %}selected{% endif %}>Pix</option>
+                                    <option value="Cartão de Crédito" {% if p.forma == 'Cartão de Crédito' %}selected{% endif %}>Cartão de Crédito</option>
+                                    <option value="Cartão de Débito" {% if p.forma == 'Cartão de Débito' %}selected{% endif %}>Cartão de Débito</option>
+                                    <option value="Boleto / Faturado" {% if p.forma == 'Boleto / Faturado' %}selected{% endif %}>Boleto / Faturado</option>
+                                </select>
+                            </div>
+                            <div class="col-span-5 relative">
+                                <span class="absolute left-2 top-1.5 text-[10px] text-slate-400 font-bold">R$</span>
+                                <input type="text" name="pagamento_valor[]" value="{{ '%.2f'|format(p.valor)|replace('.', ',') }}" oninput="calcularTotalPagamentosModal()"
+                                    class="input-pagamento-valor-modal w-full border border-slate-300 rounded-lg pl-7 pr-2 py-1.5 text-xs font-mono font-bold text-slate-800">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" onclick="removerLinhaPagamentoModal(this)" class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <button type="button" onclick="adicionarLinhaPagamentoModal()" class="text-xs font-bold text-blue-600 hover:text-blue-800">
+                            + Adicionar Forma
+                        </button>
+                        <span id="badge-saldo-pagamento-modal" class="text-xs font-bold text-slate-600"></span>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t">
+                    <button type="button" onclick="document.getElementById('modal-editar-pagamento').classList.add('hidden')"
+                        class="px-4 py-2 border rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button>
+                    <button type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold">Salvar Formas no Caixa</button>
+                </div>
+            </form>
+        </div>
+    </div>
     {% endif %}
 
 </div>
 
 <!-- JAVASCRIPT DE CÁLCULO E ADIÇÃO DINÂMICA DE LINHAS -->
 <script>
+    const VALOR_TOTAL_OS_CONCLUIDA = {{ os.valor_total or 0.0 }};
+
+    function alternarModoPagamento(modo) {
+        document.getElementById('input_tipo_pagamento').value = modo;
+        const btnU = document.getElementById('btn-modo-unico');
+        const btnM = document.getElementById('btn-modo-multiplo');
+        const contU = document.getElementById('container-pagamento-unico');
+        const contM = document.getElementById('container-pagamento-multiplo');
+
+        if (modo === 'MULTIPLO') {
+            btnM.classList.add('bg-white', 'text-slate-800', 'shadow-xs');
+            btnM.classList.remove('text-slate-600');
+            btnU.classList.remove('bg-white', 'text-slate-800', 'shadow-xs');
+            btnU.classList.add('text-slate-600');
+            contU.classList.add('hidden');
+            contM.classList.remove('hidden');
+
+            // Se a primeira linha de pagamento estiver vazia, preenche com o total atual
+            const inputs = document.querySelectorAll('#lista-linhas-pagamento .input-pagamento-valor');
+            if (inputs.length === 1 && !inputs[0].value) {
+                let totalGeral = obterTotalGeralAtual();
+                if (totalGeral > 0) {
+                    inputs[0].value = totalGeral.toFixed(2).replace('.', ',');
+                }
+            }
+            calcularTotalPagamentos();
+        } else {
+            btnU.classList.add('bg-white', 'text-slate-800', 'shadow-xs');
+            btnU.classList.remove('text-slate-600');
+            btnM.classList.remove('bg-white', 'text-slate-800', 'shadow-xs');
+            btnM.classList.add('text-slate-600');
+            contU.classList.remove('hidden');
+            contM.classList.add('hidden');
+        }
+    }
+
+    function obterTotalGeralAtual() {
+        let totalPecas = 0;
+        let totalServicos = 0;
+        document.querySelectorAll('#container-pecas .linha-item').forEach(l => {
+            let q = parseMoeda(l.querySelector('input[name="peca_qtd[]"]')?.value) || 1;
+            let v = parseMoeda(l.querySelector('input[name="peca_valor[]"]')?.value);
+            totalPecas += (q * v);
+        });
+        document.querySelectorAll('#container-servicos .linha-item').forEach(l => {
+            let q = parseMoeda(l.querySelector('input[name="servico_qtd[]"]')?.value) || 1;
+            let v = parseMoeda(l.querySelector('input[name="servico_valor[]"]')?.value);
+            totalServicos += (q * v);
+        });
+        return totalPecas + totalServicos;
+    }
+
+    function adicionarLinhaPagamento() {
+        let container = document.getElementById('lista-linhas-pagamento');
+        if (!container) return;
+
+        // Calcula saldo restante para sugerir na nova linha
+        let totalGeral = obterTotalGeralAtual();
+        let somaAtual = 0;
+        container.querySelectorAll('.input-pagamento-valor').forEach(inp => {
+            somaAtual += parseMoeda(inp.value);
+        });
+        let saldoRestante = Math.max(0, totalGeral - somaAtual);
+        let valorSugerido = saldoRestante > 0 ? saldoRestante.toFixed(2).replace('.', ',') : '';
+
+        let div = document.createElement('div');
+        div.className = 'grid grid-cols-12 gap-1.5 items-center linha-pagamento';
+        div.innerHTML = `
+            <div class="col-span-6">
+                <select name="pagamento_forma[]" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="Cartão de Crédito">Cartão de Crédito</option>
+                    <option value="Pix">Pix</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Cartão de Débito">Cartão de Débito</option>
+                    <option value="Boleto / Faturado">Boleto / Faturado</option>
+                </select>
+            </div>
+            <div class="col-span-5 relative">
+                <span class="absolute left-2 top-1.5 text-[10px] text-slate-400 font-bold">R$</span>
+                <input type="text" name="pagamento_valor[]" value="${valorSugerido}" placeholder="0,00" oninput="calcularTotalPagamentos()"
+                    class="input-pagamento-valor w-full border border-slate-300 rounded-lg pl-7 pr-2 py-1.5 text-xs font-mono font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            </div>
+            <div class="col-span-1 text-center">
+                <button type="button" onclick="removerLinhaPagamento(this)" class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+            </div>
+        `;
+        container.appendChild(div);
+        calcularTotalPagamentos();
+    }
+
+    function removerLinhaPagamento(btn) {
+        let container = document.getElementById('lista-linhas-pagamento');
+        let linhas = container.querySelectorAll('.linha-pagamento');
+        if (linhas.length > 1) {
+            btn.closest('.linha-pagamento').remove();
+        } else {
+            let inp = btn.closest('.linha-pagamento').querySelector('.input-pagamento-valor');
+            if (inp) inp.value = '';
+        }
+        calcularTotalPagamentos();
+    }
+
+    function calcularTotalPagamentos() {
+        let totalGeral = obterTotalGeralAtual();
+        let badgeTotal = document.getElementById('badge-total-a-pagar');
+        if (badgeTotal) badgeTotal.innerText = 'Total: ' + formatMoeda(totalGeral);
+
+        let soma = 0;
+        document.querySelectorAll('#lista-linhas-pagamento .input-pagamento-valor').forEach(inp => {
+            soma += parseMoeda(inp.value);
+        });
+
+        let dif = totalGeral - soma;
+        let badgeSaldo = document.getElementById('badge-saldo-pagamento');
+        if (badgeSaldo) {
+            if (Math.abs(dif) < 0.01) {
+                badgeSaldo.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200';
+                badgeSaldo.innerText = '✅ 100% Coberto (' + formatMoeda(soma) + ')';
+            } else if (dif > 0) {
+                badgeSaldo.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200';
+                badgeSaldo.innerText = '⚠️ Falta: ' + formatMoeda(dif);
+            } else {
+                badgeSaldo.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200';
+                badgeSaldo.innerText = 'ℹ️ Excedente / Troco: ' + formatMoeda(Math.abs(dif));
+            }
+        }
+    }
+
+    // Modal de Edição de Pagamento em OS Concluída
+    function alternarModoPagamentoModal(modo) {
+        const inp = document.getElementById('modal_tipo_pagamento');
+        if (inp) inp.value = modo;
+        const btnU = document.getElementById('modal-btn-unico');
+        const btnM = document.getElementById('modal-btn-multiplo');
+        const contU = document.getElementById('modal-container-unico');
+        const contM = document.getElementById('modal-container-multiplo');
+
+        if (modo === 'MULTIPLO') {
+            btnM.classList.add('bg-white', 'text-slate-800', 'shadow-xs');
+            btnM.classList.remove('text-slate-600');
+            btnU.classList.remove('bg-white', 'text-slate-800', 'shadow-xs');
+            btnU.classList.add('text-slate-600');
+            contU.classList.add('hidden');
+            contM.classList.remove('hidden');
+            calcularTotalPagamentosModal();
+        } else {
+            btnU.classList.add('bg-white', 'text-slate-800', 'shadow-xs');
+            btnU.classList.remove('text-slate-600');
+            btnM.classList.remove('bg-white', 'text-slate-800', 'shadow-xs');
+            btnM.classList.add('text-slate-600');
+            contU.classList.remove('hidden');
+            contM.classList.add('hidden');
+        }
+    }
+
+    function adicionarLinhaPagamentoModal() {
+        let container = document.getElementById('modal-lista-pagamentos');
+        if (!container) return;
+        let div = document.createElement('div');
+        div.className = 'grid grid-cols-12 gap-2 items-center linha-pagamento-modal';
+        div.innerHTML = `
+            <div class="col-span-6">
+                <select name="pagamento_forma[]" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs bg-white text-slate-800">
+                    <option value="Cartão de Crédito">Cartão de Crédito</option>
+                    <option value="Pix">Pix</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Cartão de Débito">Cartão de Débito</option>
+                    <option value="Boleto / Faturado">Boleto / Faturado</option>
+                </select>
+            </div>
+            <div class="col-span-5 relative">
+                <span class="absolute left-2 top-1.5 text-[10px] text-slate-400 font-bold">R$</span>
+                <input type="text" name="pagamento_valor[]" placeholder="0,00" oninput="calcularTotalPagamentosModal()"
+                    class="input-pagamento-valor-modal w-full border border-slate-300 rounded-lg pl-7 pr-2 py-1.5 text-xs font-mono font-bold text-slate-800">
+            </div>
+            <div class="col-span-1 text-center">
+                <button type="button" onclick="removerLinhaPagamentoModal(this)" class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+            </div>
+        `;
+        container.appendChild(div);
+        calcularTotalPagamentosModal();
+    }
+
+    function removerLinhaPagamentoModal(btn) {
+        let container = document.getElementById('modal-lista-pagamentos');
+        let linhas = container.querySelectorAll('.linha-pagamento-modal');
+        if (linhas.length > 1) {
+            btn.closest('.linha-pagamento-modal').remove();
+        } else {
+            let inp = btn.closest('.linha-pagamento-modal').querySelector('.input-pagamento-valor-modal');
+            if (inp) inp.value = '';
+        }
+        calcularTotalPagamentosModal();
+    }
+
+    function calcularTotalPagamentosModal() {
+        let totalOS = VALOR_TOTAL_OS_CONCLUIDA;
+        let soma = 0;
+        document.querySelectorAll('#modal-lista-pagamentos .input-pagamento-valor-modal').forEach(inp => {
+            soma += parseMoeda(inp.value);
+        });
+        let dif = totalOS - soma;
+        let badge = document.getElementById('badge-saldo-pagamento-modal');
+        if (badge) {
+            if (Math.abs(dif) < 0.01) {
+                badge.className = 'text-xs font-bold text-emerald-600';
+                badge.innerText = '✅ 100% Coberto (' + formatMoeda(soma) + ')';
+            } else if (dif > 0) {
+                badge.className = 'text-xs font-bold text-amber-600';
+                badge.innerText = '⚠️ Falta: ' + formatMoeda(dif);
+            } else {
+                badge.className = 'text-xs font-bold text-blue-600';
+                badge.innerText = 'ℹ️ Excedente: ' + formatMoeda(Math.abs(dif));
+            }
+        }
+    }
     function parseMoeda(str) {
         if (!str) return 0;
         let limpo = str.toString().replace('.', '').replace(',', '.').trim();
@@ -884,6 +1294,9 @@
             let comissaoMec = (totalServicos * pMec) / 100;
             lblComissaoMec.innerText = formatMoeda(comissaoMec);
         }
+
+        // Atualiza cálculo de múltiplas formas de pagamento
+        calcularTotalPagamentos();
     }
 
     function adicionarLinha(containerId, tipo) {

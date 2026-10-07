@@ -207,7 +207,18 @@
             
             {% if os.forma_pagamento %}
             <div class="text-xs text-slate-500 text-right">
+                {% if os.lista_pagamentos|length > 1 %}
+                <span class="block font-semibold text-slate-600">Pagamento Realizado:</span>
+                <div class="flex flex-col items-end gap-1 mt-1">
+                    {% for p in os.lista_pagamentos %}
+                    <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                        {{ p.forma }}: <strong class="font-mono text-slate-900">R$ {{ "%.2f"|format(p.valor)|replace('.', ',') }}</strong>
+                    </span>
+                    {% endfor %}
+                </div>
+                {% else %}
                 Forma de Pagamento: <strong class="text-slate-700">{{ os.forma_pagamento }}</strong>
+                {% endif %}
             </div>
             {% endif %}
         </div>

@@ -155,8 +155,24 @@ class OrdemServico(db.Model):
     valor_pecas = db.Column(db.Float, default=0.0)
     valor_mao_obra = db.Column(db.Float, default=0.0)
     valor_total = db.Column(db.Float, default=0.0)
-    forma_pagamento = db.Column(db.String(30), nullable=True)
-    
+    forma_pagamento = db.Column(db.String(255), nullable=True) # Resumo legível (ex: "Múltiplas (Dinheiro: R$ 20,00 | Cartão: R$ 30,00 | Pix: R$ 50,00)" ou "Pix")
+    detalhes_pagamento = db.Column(db.Text, nullable=True) # JSON estruturado de múltiplas formas de pagamento
+
+    @property
+    def lista_pagamentos(self):
+        """Retorna a lista estruturada de pagamentos múltiplos ou único"""
+        if self.detalhes_pagamento:
+            try:
+                import json
+                dados = json.loads(self.detalhes_pagamento)
+                if isinstance(dados, list) and len(dados) > 0:
+                    return dados
+            except Exception:
+                pass
+        if self.forma_pagamento:
+            return [{'forma': self.forma_pagamento, 'valor': float(self.valor_total or 0.0)}]
+        return []
+
     status = db.Column(db.String(20), default='ABERTA') # 'ABERTA' ou 'CONCLUIDA'
     etapa_andamento = db.Column(db.String(30), default='RECEBIDO') # 'RECEBIDO', 'DIAGNOSTICO', 'EM_EXECUCAO', 'PRONTO', 'ENTREGUE'
     codigo_rastreio = db.Column(db.String(32), unique=True, nullable=True, default=lambda: uuid.uuid4().hex[:12]) # Token seguro para link público do cliente
