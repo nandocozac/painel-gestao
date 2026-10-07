@@ -146,6 +146,16 @@
                         Caixa
                     </a>
 
+                    <a href="{{ url_for('relatorio_comissoes') }}"
+                        class="px-2.5 py-1.5 rounded-lg transition-all {% if request.endpoint == 'relatorio_comissoes' %}bg-slate-800 text-white shadow-xs border border-slate-700/60{% else %}text-slate-300 hover:text-white hover:bg-slate-800/60{% endif %}">
+                        Comissões
+                    </a>
+
+                    <a href="{{ url_for('lista_colaboradores') }}"
+                        class="px-2.5 py-1.5 rounded-lg transition-all {% if request.endpoint in ['lista_colaboradores', 'editar_colaborador'] %}bg-slate-800 text-white shadow-xs border border-slate-700/60{% else %}text-slate-300 hover:text-white hover:bg-slate-800/60{% endif %}">
+                        Equipe
+                    </a>
+
                     <a href="{{ url_for('retornos_preventivos') }}"
                         class="px-2.5 py-1.5 rounded-lg transition-all {% if request.endpoint == 'retornos_preventivos' %}bg-slate-800 text-white shadow-xs border border-slate-700/60{% else %}text-slate-300 hover:text-white hover:bg-slate-800/60{% endif %}">
                         {% if empresa.tipo_negocio == 'OFICINA' %}Retornos{% else %}Pós-Venda{% endif %}
@@ -216,6 +226,8 @@
             <a href="{{ url_for('lista_produtos') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Estoque</a>
             <a href="{{ url_for('lista_clientes') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Clientes</a>
             <a href="{{ url_for('relatorio_financeiro') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Caixa</a>
+            <a href="{{ url_for('relatorio_comissoes') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Comissões</a>
+            <a href="{{ url_for('lista_colaboradores') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Equipe</a>
             <a href="{{ url_for('configuracoes_empresa') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Empresa</a>
             {% if empresa.is_admin %}
             <a href="{{ url_for('admin_empresas') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-indigo-400 font-bold">Master</a>

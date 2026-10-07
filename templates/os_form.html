@@ -146,6 +146,76 @@
                 <textarea name="problema" rows="4" required
                     placeholder="{% if empresa.tipo_negocio == 'OFICINA' %}Descreva as queixas do cliente ou a revisão solicitada...{% else %}Descreva os itens do pedido, roupas, produtos, quantidades ou serviços contratados...{% endif %}"
                     class="w-full border border-slate-300 rounded-lg p-3 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            <!-- EQUIPE RESPONSÁVEL & COMISSÕES (VENDEDOR E MECÂNICO) -->
+            <div class="bg-slate-50 border border-slate-200/90 rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+                        <span>👥</span>
+                        Equipe Responsável & Comissões
+                    </span>
+                    <a href="{{ url_for('lista_colaboradores') }}" target="_blank"
+                        class="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition">
+                        + Cadastrar Profissional
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <!-- Vendedor / Comercial -->
+                    <div class="bg-white p-3 rounded-lg border border-slate-200/80 space-y-2">
+                        <label class="block text-xs font-semibold text-slate-700">
+                            🛍️ Vendedor / Comercial
+                        </label>
+                        <select name="vendedor_id" id="select_vendedor" onchange="atualizarPorcentagemVendedor(this)"
+                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" data-porc="0.0">-- Nenhum Vendedor --</option>
+                            {% for v in vendedores %}
+                            <option value="{{ v.id }}" data-porc="{{ v.porcentagem_padrao }}">{{ v.nome }} (Padrão: {{ v.porcentagem_padrao }}%)</option>
+                            {% endfor %}
+                            {% for c in colaboradores %}
+                            {% if c.funcao != 'VENDEDOR' %}
+                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}">{{ c.nome }} ({{ c.funcao }})</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div>
+                            <label class="block text-[11px] text-slate-500 mb-0.5">Comissão do Vendedor (%)</label>
+                            <div class="relative">
+                                <input type="number" step="0.1" min="0" max="100" name="porcentagem_comissao_vendedor" id="porc_vendedor" placeholder="0.0"
+                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <span class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 block mt-0.5">Calculada sobre o valor das vendas</span>
+                        </div>
+                    </div>
+
+                    <!-- Mecânico / Executor da Mão de Obra -->
+                    <div class="bg-white p-3 rounded-lg border border-slate-200/80 space-y-2">
+                        <label class="block text-xs font-semibold text-slate-700">
+                            🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico Responsável{% else %}Profissional da Mão de Obra{% endif %}
+                        </label>
+                        <select name="mecanico_id" id="select_mecanico" onchange="atualizarPorcentagemMecanico(this)"
+                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" data-porc="0.0">-- Nenhum Mecânico/Técnico --</option>
+                            {% for m in mecanicos %}
+                            <option value="{{ m.id }}" data-porc="{{ m.porcentagem_padrao }}">{{ m.nome }} (Padrão: {{ m.porcentagem_padrao }}%)</option>
+                            {% endfor %}
+                            {% for c in colaboradores %}
+                            {% if c.funcao not in ['MECANICO', 'TECNICO'] %}
+                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}">{{ c.nome }} ({{ c.funcao }})</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div>
+                            <label class="block text-[11px] text-slate-500 mb-0.5">Comissão da Mão de Obra (%)</label>
+                            <div class="relative">
+                                <input type="number" step="0.1" min="0" max="100" name="porcentagem_comissao_mecanico" id="porc_mecanico" placeholder="0.0"
+                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <span class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 block mt-0.5">Calculada sobre a mão de obra/serviço</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Botões de Ação -->
@@ -298,6 +368,29 @@
         banner.classList.add('hidden');
         campoBusca.value = '';
         campoBusca.focus();
+    }
+
+    // Atualiza porcentagens padrão conforme seleção de vendedor e mecânico
+    function atualizarPorcentagemVendedor(select) {
+        const option = select.options[select.selectedIndex];
+        const porc = option.getAttribute('data-porc');
+        const inputPorc = document.getElementById('porc_vendedor');
+        if (porc && parseFloat(porc) > 0) {
+            inputPorc.value = porc;
+        } else if (!select.value) {
+            inputPorc.value = '';
+        }
+    }
+
+    function atualizarPorcentagemMecanico(select) {
+        const option = select.options[select.selectedIndex];
+        const porc = option.getAttribute('data-porc');
+        const inputPorc = document.getElementById('porc_mecanico');
+        if (porc && parseFloat(porc) > 0) {
+            inputPorc.value = porc;
+        } else if (!select.value) {
+            inputPorc.value = '';
+        }
     }
 
     // Fecha dropdown ao clicar fora

@@ -195,9 +195,9 @@
                 {% endif %}
             </div>
         </div>
-        <!-- Cliente e Veículo / Detalhes -->
+        <!-- Cliente, Veículo e Atendimento / Equipe -->
         <div
-            class="grid grid-cols-1 {% if empresa.tipo_negocio == 'OFICINA' %}md:grid-cols-2{% endif %} gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
+            class="grid grid-cols-1 sm:grid-cols-2 {% if os.vendedor or os.mecanico %}lg:grid-cols-3{% endif %} gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
             <div>
                 <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Dados do Cliente</h2>
                 <p class="text-sm font-bold text-slate-800">{{ os.cliente.nome }}</p>
@@ -211,6 +211,17 @@
                 <p class="text-xs font-mono font-semibold text-slate-600 mt-0.5">Placa: {{ os.veiculo.placa }}</p>
                 {% else %}
                 <p class="text-sm italic text-slate-400">Não informado</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if os.vendedor or os.mecanico %}
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Equipe Responsável</h2>
+                {% if os.vendedor %}
+                <p class="text-xs text-slate-700">Vendedor: <strong class="text-slate-900">{{ os.vendedor.nome }}</strong></p>
+                {% endif %}
+                {% if os.mecanico %}
+                <p class="text-xs text-slate-700 mt-0.5">{% if empresa.tipo_negocio == 'OFICINA' %}Mecânico{% else %}Mão de Obra{% endif %}: <strong class="text-slate-900">{{ os.mecanico.nome }}</strong></p>
                 {% endif %}
             </div>
             {% endif %}
@@ -537,7 +548,103 @@
                 </div>
             </div>
 
-            <!-- 3. OBSERVAÇÕES E FORMA DE PAGAMENTO -->
+            <!-- 3. EQUIPE RESPONSÁVEL & COMISSÕES -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+                        <span>👥</span>
+                        Equipe Responsável & Comissões
+                    </span>
+                    <a href="{{ url_for('lista_colaboradores') }}" target="_blank"
+                        class="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition">
+                        + Cadastrar Profissional
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Vendedor -->
+                    <div class="bg-white p-3 rounded-lg border border-slate-200/80 space-y-2">
+                        <label class="block text-xs font-semibold text-slate-700">
+                            🛍️ Vendedor / Comercial
+                        </label>
+                        <select name="vendedor_id" id="concluir_vendedor_id" onchange="atualizarPorcConclusaoVendedor(this)"
+                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" data-porc="0.0">-- Nenhum Vendedor --</option>
+                            {% for v in vendedores %}
+                            <option value="{{ v.id }}" data-porc="{{ v.porcentagem_padrao }}" {% if os.vendedor_id == v.id %}selected{% endif %}>
+                                {{ v.nome }} (Padrão: {{ v.porcentagem_padrao }}%)
+                            </option>
+                            {% endfor %}
+                            {% for c in colaboradores %}
+                            {% if c.funcao != 'VENDEDOR' %}
+                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}" {% if os.vendedor_id == c.id %}selected{% endif %}>
+                                {{ c.nome }} ({{ c.funcao }})
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex-1">
+                                <label class="block text-[10px] text-slate-500">% Comissão Venda</label>
+                                <div class="relative">
+                                    <input type="number" step="0.1" min="0" max="100" name="porcentagem_comissao_vendedor" id="concluir_porc_vendedor"
+                                        value="{{ os.porcentagem_comissao_vendedor or (os.vendedor.porcentagem_padrao if os.vendedor else '') }}"
+                                        oninput="atualizarTotais()"
+                                        placeholder="0.0"
+                                        class="w-full border border-slate-300 rounded-lg px-2 py-1 text-xs font-mono font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <span class="absolute right-2 top-1 text-xs text-slate-400 font-bold">%</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="block text-[10px] text-slate-500">Comissão Prevista</span>
+                                <span id="lbl-comissao-vendedor-prevista" class="text-xs font-bold font-mono text-emerald-600">R$ 0,00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mecânico / Mão de Obra -->
+                    <div class="bg-white p-3 rounded-lg border border-slate-200/80 space-y-2">
+                        <label class="block text-xs font-semibold text-slate-700">
+                            🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico Responsável{% else %}Profissional da Mão de Obra{% endif %}
+                        </label>
+                        <select name="mecanico_id" id="concluir_mecanico_id" onchange="atualizarPorcConclusaoMecanico(this)"
+                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" data-porc="0.0">-- Nenhum Mecânico/Técnico --</option>
+                            {% for m in mecanicos %}
+                            <option value="{{ m.id }}" data-porc="{{ m.porcentagem_padrao }}" {% if os.mecanico_id == m.id %}selected{% endif %}>
+                                {{ m.nome }} (Padrão: {{ m.porcentagem_padrao }}%)
+                            </option>
+                            {% endfor %}
+                            {% for c in colaboradores %}
+                            {% if c.funcao not in ['MECANICO', 'TECNICO'] %}
+                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}" {% if os.mecanico_id == c.id %}selected{% endif %}>
+                                {{ c.nome }} ({{ c.funcao }})
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex-1">
+                                <label class="block text-[10px] text-slate-500">% Comissão Mão de Obra</label>
+                                <div class="relative">
+                                    <input type="number" step="0.1" min="0" max="100" name="porcentagem_comissao_mecanico" id="concluir_porc_mecanico"
+                                        value="{{ os.porcentagem_comissao_mecanico or (os.mecanico.porcentagem_padrao if os.mecanico else '') }}"
+                                        oninput="atualizarTotais()"
+                                        placeholder="0.0"
+                                        class="w-full border border-slate-300 rounded-lg px-2 py-1 text-xs font-mono font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <span class="absolute right-2 top-1 text-xs text-slate-400 font-bold">%</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="block text-[10px] text-slate-500">Comissão Prevista</span>
+                                <span id="lbl-comissao-mecanico-prevista" class="text-xs font-bold font-mono text-emerald-600">R$ 0,00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. OBSERVAÇÕES E FORMA DE PAGAMENTO -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <div class="sm:col-span-2">
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Parecer Técnico / Observações
@@ -597,6 +704,109 @@
     </div>
     {% endif %}
 
+    <!-- PAINEL DE COMISSÕES DESTA OS (QUANDO JÁ CONCLUÍDA) -->
+    {% if os.status == 'CONCLUIDA' %}
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm no-print space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="p-2 bg-emerald-50 text-emerald-600 rounded-lg text-lg">💰</span>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Comissões da Ordem de Serviço</h3>
+                    <p class="text-[11px] text-slate-500">Valores apurados para o vendedor e mão de obra deste atendimento</p>
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('modal-editar-comissoes').classList.remove('hidden')"
+                class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition flex items-center gap-1.5">
+                <span>✏️</span> Ajustar Comissões
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Vendedor -->
+            <div class="p-3.5 rounded-lg border {% if os.vendedor %}bg-blue-50/50 border-blue-200{% else %}bg-slate-50 border-slate-200{% endif %}">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-slate-600">🛍️ Vendedor / Comercial</span>
+                    {% if os.vendedor %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{{ os.porcentagem_comissao_vendedor or os.vendedor.porcentagem_padrao }}%</span>
+                    {% endif %}
+                </div>
+                {% if os.vendedor %}
+                <p class="text-sm font-bold text-slate-900">{{ os.vendedor.nome }}</p>
+                <p class="text-xs text-slate-500 mt-1">Comissão Gerada: <strong class="text-blue-700 font-mono text-sm">R$ {{ "%.2f"|format(os.valor_comissao_vendedor or 0)|replace('.', ',') }}</strong></p>
+                {% else %}
+                <p class="text-xs text-slate-400 italic">Nenhum vendedor vinculado a esta OS</p>
+                {% endif %}
+            </div>
+
+            <!-- Mecânico / Mão de Obra -->
+            <div class="p-3.5 rounded-lg border {% if os.mecanico %}bg-indigo-50/50 border-indigo-200{% else %}bg-slate-50 border-slate-200{% endif %}">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-slate-600">🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico Responsável{% else %}Mão de Obra / Técnico{% endif %}</span>
+                    {% if os.mecanico %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">{{ os.porcentagem_comissao_mecanico or os.mecanico.porcentagem_padrao }}%</span>
+                    {% endif %}
+                </div>
+                {% if os.mecanico %}
+                <p class="text-sm font-bold text-slate-900">{{ os.mecanico.nome }}</p>
+                <p class="text-xs text-slate-500 mt-1">Comissão Gerada: <strong class="text-indigo-700 font-mono text-sm">R$ {{ "%.2f"|format(os.valor_comissao_mecanico or 0)|replace('.', ',') }}</strong></p>
+                {% else %}
+                <p class="text-xs text-slate-400 italic">Nenhum mecânico/técnico vinculado</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA AJUSTAR COMISSÃO EM OS JÁ CONCLUIDA -->
+    <div id="modal-editar-comissoes" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="text-sm font-bold text-slate-900">Ajustar Comissões da OS #{{ "%04d"|format(os.numero_exibicao) }}</h3>
+                <button type="button" onclick="document.getElementById('modal-editar-comissoes').classList.add('hidden')"
+                    class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <form method="POST" action="{{ url_for('atualizar_comissao_os', os_id=os.id) }}" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Vendedor</label>
+                    <select name="vendedor_id" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
+                        <option value="">-- Nenhum --</option>
+                        {% for v in vendedores %}
+                        <option value="{{ v.id }}" {% if os.vendedor_id == v.id %}selected{% endif %}>{{ v.nome }} ({{ v.porcentagem_padrao }}%)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">% Comissão Vendedor (sobre total/venda)</label>
+                    <input type="number" step="0.1" min="0" max="100" name="porcentagem_comissao_vendedor"
+                        value="{{ os.porcentagem_comissao_vendedor or (os.vendedor.porcentagem_padrao if os.vendedor else '') }}"
+                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-blue-600">
+                </div>
+                <hr class="border-slate-100">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">{% if empresa.tipo_negocio == 'OFICINA' %}Mecânico{% else %}Mão de Obra{% endif %}</label>
+                    <select name="mecanico_id" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
+                        <option value="">-- Nenhum --</option>
+                        {% for m in mecanicos %}
+                        <option value="{{ m.id }}" {% if os.mecanico_id == m.id %}selected{% endif %}>{{ m.nome }} ({{ m.porcentagem_padrao }}%)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">% Comissão Mecânico (sobre mão de obra)</label>
+                    <input type="number" step="0.1" min="0" max="100" name="porcentagem_comissao_mecanico"
+                        value="{{ os.porcentagem_comissao_mecanico or (os.mecanico.porcentagem_padrao if os.mecanico else '') }}"
+                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-indigo-600">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('modal-editar-comissoes').classList.add('hidden')"
+                        class="px-4 py-2 border rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button>
+                    <button type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold">Salvar e Recalcular</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 
 <!-- JAVASCRIPT DE CÁLCULO E ADIÇÃO DINÂMICA DE LINHAS -->
@@ -610,6 +820,26 @@
 
     function formatMoeda(val) {
         return 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function atualizarPorcConclusaoVendedor(select) {
+        const opt = select.options[select.selectedIndex];
+        const porc = opt ? opt.getAttribute('data-porc') : '';
+        const inputPorc = document.getElementById('concluir_porc_vendedor');
+        if (inputPorc && porc !== null && porc !== undefined) {
+            inputPorc.value = porc;
+        }
+        atualizarTotais();
+    }
+
+    function atualizarPorcConclusaoMecanico(select) {
+        const opt = select.options[select.selectedIndex];
+        const porc = opt ? opt.getAttribute('data-porc') : '';
+        const inputPorc = document.getElementById('concluir_porc_mecanico');
+        if (inputPorc && porc !== null && porc !== undefined) {
+            inputPorc.value = porc;
+        }
+        atualizarTotais();
     }
 
     function atualizarTotais() {
@@ -628,9 +858,32 @@
             totalServicos += (qtd * val);
         });
 
-        document.getElementById('lbl-pecas').innerText = formatMoeda(totalPecas);
-        document.getElementById('lbl-servicos').innerText = formatMoeda(totalServicos);
-        document.getElementById('lbl-total').innerText = formatMoeda(totalPecas + totalServicos);
+        let totalGeral = totalPecas + totalServicos;
+
+        const lblP = document.getElementById('lbl-pecas');
+        if (lblP) lblP.innerText = formatMoeda(totalPecas);
+        const lblS = document.getElementById('lbl-servicos');
+        if (lblS) lblS.innerText = formatMoeda(totalServicos);
+        const lblT = document.getElementById('lbl-total');
+        if (lblT) lblT.innerText = formatMoeda(totalGeral);
+
+        // Atualiza estimativa de comissão do vendedor em tempo real
+        const inputPorcVend = document.getElementById('concluir_porc_vendedor');
+        const lblComissaoVend = document.getElementById('lbl-comissao-vendedor-prevista');
+        if (inputPorcVend && lblComissaoVend) {
+            let pVend = parseFloat(inputPorcVend.value) || 0;
+            let comissaoVend = (totalGeral * pVend) / 100;
+            lblComissaoVend.innerText = formatMoeda(comissaoVend);
+        }
+
+        // Atualiza estimativa de comissão do mecânico sobre serviços/mão de obra
+        const inputPorcMec = document.getElementById('concluir_porc_mecanico');
+        const lblComissaoMec = document.getElementById('lbl-comissao-mecanico-prevista');
+        if (inputPorcMec && lblComissaoMec) {
+            let pMec = parseFloat(inputPorcMec.value) || 0;
+            let comissaoMec = (totalServicos * pMec) / 100;
+            lblComissaoMec.innerText = formatMoeda(comissaoMec);
+        }
     }
 
     function adicionarLinha(containerId, tipo) {
@@ -936,6 +1189,10 @@
             }
         }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        atualizarTotais();
+    });
 </script>
 
 <!-- Modal Alterar Data de Retorno da OS Concluída -->

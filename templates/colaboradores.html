@@ -1,0 +1,408 @@
+{% extends 'base.html' %}
+{% block title %}Equipe & Colaboradores | Painel de Gestão{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- CABEÇALHO HERO COM TÍTULO E BOTÃO DE AÇÃO -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-premium flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/60">
+                    Gestão de Pessoas
+                </span>
+                <span class="text-xs text-slate-400 font-medium">
+                    {{ empresa.nome_empresa }}
+                </span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
+                Equipe & Colaboradores
+            </h1>
+            <p class="text-xs text-slate-500 mt-0.5">
+                Cadastre vendedores e profissionais da mão de obra com porcentagens de comissão personalizadas.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-2.5 w-full md:w-auto">
+            <a href="{{ url_for('relatorio_comissoes') }}"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition inline-flex items-center gap-1.5 shadow-2xs">
+                <span>💰</span>
+                <span>Calcular Comissões</span>
+            </a>
+
+            <button type="button" onclick="document.getElementById('modal-novo-colaborador').classList.remove('hidden')"
+                class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md shadow-blue-500/25 transition inline-flex items-center gap-1.5 active:scale-95 shrink-0 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>+ Novo Colaborador</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- CARDS DE ESTATÍSTICAS DA EQUIPE -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-premium flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total na Equipe</span>
+                <span class="text-2xl font-extrabold text-slate-900 mt-1 block">{{ colaboradores|length }}</span>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                👥
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-premium flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Vendedores</span>
+                <span class="text-2xl font-extrabold text-blue-600 mt-1 block">
+                    {{ colaboradores|selectattr('funcao', 'equalto', 'VENDEDOR')|list|length }}
+                </span>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                🛍️
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-premium flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    {% if empresa.tipo_negocio == 'OFICINA' %}Mecânicos{% else %}Mão de Obra / Técnicos{% endif %}
+                </span>
+                <span class="text-2xl font-extrabold text-indigo-600 mt-1 block">
+                    {{ colaboradores|rejectattr('funcao', 'equalto', 'VENDEDOR')|list|length }}
+                </span>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                🔧
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-premium flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Comissões Este Mês</span>
+                <span class="text-2xl font-extrabold text-emerald-600 font-mono mt-1 block">
+                    R$ {{ (comissoes_mes.values()|sum)|moeda }}
+                </span>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                💵
+            </div>
+        </div>
+    </div>
+
+    <!-- LISTAGEM DOS COLABORADORES -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-premium overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                Profissionais Cadastrados ({{ colaboradores|length }})
+            </h2>
+            <span class="text-xs text-slate-400">Cada profissional possui sua própria taxa de comissão</span>
+        </div>
+
+        {% if colaboradores %}
+        <div class="divide-y divide-slate-100 overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200/60 uppercase text-[10px] tracking-wider">
+                        <th class="py-3 px-4">Profissional</th>
+                        <th class="py-3 px-4">Função</th>
+                        <th class="py-3 px-4">Base de Comissão</th>
+                        <th class="py-3 px-4 text-center">% Comissão</th>
+                        <th class="py-3 px-4">Chave Pix</th>
+                        <th class="py-3 px-4 text-right">Comissão Este Mês</th>
+                        <th class="py-3 px-4 text-center">Status</th>
+                        <th class="py-3 px-4 text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    {% for c in colaboradores %}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-3 px-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full {% if c.funcao == 'VENDEDOR' %}bg-blue-100 text-blue-700{% else %}bg-indigo-100 text-indigo-700{% endif %} flex items-center justify-center font-bold text-xs shrink-0">
+                                    {{ c.nome[:2]|upper }}
+                                </div>
+                                <div>
+                                    <span class="font-bold text-slate-900 block">{{ c.nome }}</span>
+                                    {% if c.telefone %}
+                                    <span class="text-[11px] text-slate-400 block">{{ c.telefone }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4">
+                            {% if c.funcao == 'VENDEDOR' %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200/60">
+                                🛍️ Vendedor
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                                🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico{% else %}Técnico Mão de Obra{% endif %}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4">
+                            <span class="text-[11px] text-slate-600 font-medium">
+                                {% if c.tipo_base == 'MAO_DE_OBRA' %}
+                                Sobre Mão de Obra (Serviços)
+                                {% elif c.tipo_base == 'PECAS' %}
+                                Sobre Peças / Produtos
+                                {% else %}
+                                Sobre Valor Total da Venda/OS
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-center font-mono font-bold text-blue-600 text-sm">
+                            {{ c.porcentagem_padrao }}%
+                        </td>
+                        <td class="py-3 px-4">
+                            {% if c.chave_pix %}
+                            <span class="font-mono text-slate-800 text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200/60 select-all" title="Clique para copiar">
+                                {{ c.chave_pix }}
+                            </span>
+                            {% else %}
+                            <span class="text-slate-400 italic text-[11px]">Não informada</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-right font-mono font-extrabold text-emerald-600 text-sm">
+                            R$ {{ comissoes_mes.get(c.id, 0.0)|moeda }}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            {% if c.ativo %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                Ativo
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                Inativo
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <button type="button" onclick="abrirModalEdicao({{ c.id }}, '{{ c.nome }}', '{{ c.funcao }}', '{{ c.telefone or '' }}', '{{ c.chave_pix or '' }}', {{ c.porcentagem_padrao }}, '{{ c.tipo_base }}', {{ 'true' if c.ativo else 'false' }})"
+                                    class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Editar Colaborador">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </button>
+                                <form method="POST" action="{{ url_for('toggle_status_colaborador', colaborador_id=c.id) }}" class="inline" onsubmit="return confirm('Deseja realmente alternar o status deste colaborador?')">
+                                    <button type="submit" class="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" title="{% if c.ativo %}Desativar{% else %}Ativar{% endif %}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-12 px-4">
+            <div class="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 mx-auto flex items-center justify-center text-2xl mb-3">
+                👥
+            </div>
+            <h3 class="text-base font-bold text-slate-800">Nenhum colaborador cadastrado ainda</h3>
+            <p class="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-5">
+                Cadastre seus vendedores e mecânicos para poder vinculá-los às ordens de serviço e calcular comissões diárias, semanais e mensais automaticamente.
+            </p>
+            <button type="button" onclick="document.getElementById('modal-novo-colaborador').classList.remove('hidden')"
+                class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer">
+                + Cadastrar Primeiro Colaborador
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- MODAL: NOVO COLABORADOR -->
+<div id="modal-novo-colaborador" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in duration-150">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Novo Colaborador</h3>
+                <p class="text-xs text-slate-400">Defina o nome, função e comissão</p>
+            </div>
+            <button type="button" onclick="document.getElementById('modal-novo-colaborador').classList.add('hidden')"
+                class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg text-lg leading-none cursor-pointer">
+                &times;
+            </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('novo_colaborador') }}" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Nome Completo *</label>
+                <input type="text" name="nome" required placeholder="Ex: João Silva ou Pedro Mecânico"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Função / Cargo *</label>
+                    <select name="funcao" required id="select-funcao-novo" onchange="atualizarTipoBaseSugerido(this.value, 'tipo_base_novo')"
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                        <option value="VENDEDOR">🛍️ Vendedor</option>
+                        <option value="MECANICO">🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico{% else %}Mão de Obra / Técnico{% endif %}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">% Comissão Padrão *</label>
+                    <div class="relative">
+                        <input type="number" step="0.1" min="0" max="100" name="porcentagem_padrao" required value="5.0"
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-bold text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Base de Cálculo da Comissão *</label>
+                <select name="tipo_base" id="tipo_base_novo"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="TOTAL">Valor Total da Venda / OS (Mais comum para vendedores)</option>
+                    <option value="MAO_DE_OBRA">Valor da Mão de Obra / Serviços (Mais comum para mecânicos)</option>
+                    <option value="PECAS">Apenas Valor das Peças / Produtos</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">WhatsApp / Telefone</label>
+                    <input type="text" name="telefone" placeholder="(00) 90000-0000"
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Chave Pix (Para Pagamento)</label>
+                    <input type="text" name="chave_pix" placeholder="CPF, Celular ou E-mail"
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('modal-novo-colaborador').classList.add('hidden')"
+                    class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700 transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer">
+                    Salvar Colaborador
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR COLABORADOR -->
+<div id="modal-editar-colaborador" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Editar Colaborador</h3>
+                <p class="text-xs text-slate-400">Atualize informações e % de comissão</p>
+            </div>
+            <button type="button" onclick="document.getElementById('modal-editar-colaborador').classList.add('hidden')"
+                class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg text-lg leading-none cursor-pointer">
+                &times;
+            </button>
+        </div>
+
+        <form method="POST" id="form-editar-colaborador" action="" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Nome Completo *</label>
+                <input type="text" name="nome" id="edit-nome" required
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Função / Cargo *</label>
+                    <select name="funcao" id="edit-funcao" required
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                        <option value="VENDEDOR">🛍️ Vendedor</option>
+                        <option value="MECANICO">🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico{% else %}Mão de Obra / Técnico{% endif %}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">% Comissão Padrão *</label>
+                    <div class="relative">
+                        <input type="number" step="0.1" min="0" max="100" name="porcentagem_padrao" id="edit-porcentagem" required
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-bold text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Base de Cálculo da Comissão *</label>
+                <select name="tipo_base" id="edit-tipo-base"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="TOTAL">Valor Total da Venda / OS (Mais comum para vendedores)</option>
+                    <option value="MAO_DE_OBRA">Valor da Mão de Obra / Serviços (Mais comum para mecânicos)</option>
+                    <option value="PECAS">Apenas Valor das Peças / Produtos</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">WhatsApp / Telefone</label>
+                    <input type="text" name="telefone" id="edit-telefone"
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Chave Pix (Para Pagamento)</label>
+                    <input type="text" name="chave_pix" id="edit-chave-pix"
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+                <input type="checkbox" name="ativo" id="edit-ativo" value="1" class="w-4 h-4 text-blue-600 rounded">
+                <label for="edit-ativo" class="text-xs text-slate-700 font-semibold cursor-pointer">Colaborador Ativo</label>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('modal-editar-colaborador').classList.add('hidden')"
+                    class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700 transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function atualizarTipoBaseSugerido(funcao, selectId) {
+        const el = document.getElementById(selectId);
+        if (funcao === 'MECANICO' || funcao === 'TECNICO') {
+            el.value = 'MAO_DE_OBRA';
+        } else {
+            el.value = 'TOTAL';
+        }
+    }
+
+    function abrirModalEdicao(id, nome, funcao, telefone, chavePix, porc, tipoBase, ativo) {
+        const form = document.getElementById('form-editar-colaborador');
+        form.action = `/colaboradores/${id}/editar`;
+
+        document.getElementById('edit-nome').value = nome;
+        document.getElementById('edit-funcao').value = funcao;
+        document.getElementById('edit-telefone').value = telefone;
+        document.getElementById('edit-chave-pix').value = chavePix;
+        document.getElementById('edit-porcentagem').value = porc;
+        document.getElementById('edit-tipo-base').value = tipoBase || (funcao === 'VENDEDOR' ? 'TOTAL' : 'MAO_DE_OBRA');
+        document.getElementById('edit-ativo').checked = ativo;
+
+        document.getElementById('modal-editar-colaborador').classList.remove('hidden');
+    }
+</script>
+{% endblock %}

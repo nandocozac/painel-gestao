@@ -96,6 +96,35 @@ class Veiculo(db.Model):
     ordens_servico = db.relationship('OrdemServico', backref='veiculo', lazy=True)
 
 
+class Colaborador(db.Model):
+    __tablename__ = 'colaboradores'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=False)
+    nome = db.Column(db.String(120), nullable=False)
+    funcao = db.Column(db.String(30), nullable=False, default='VENDEDOR') # 'VENDEDOR' ou 'MECANICO'
+    telefone = db.Column(db.String(30), nullable=True)
+    chave_pix = db.Column(db.String(100), nullable=True) # Para acerto rápido da comissão
+    porcentagem_padrao = db.Column(db.Float, default=0.0) # Porcentagem padrão de comissão (%)
+    tipo_base = db.Column(db.String(20), default='TOTAL') # 'TOTAL' (sobre venda/geral) ou 'MAO_DE_OBRA' (sobre serviços)
+    ativo = db.Column(db.Boolean, default=True)
+    data_cadastro = db.Column(db.Date, default=date.today)
+
+    empresa = db.relationship('Empresa', backref=db.backref('colaboradores', lazy=True))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'funcao': self.funcao,
+            'telefone': self.telefone or '',
+            'chave_pix': self.chave_pix or '',
+            'porcentagem_padrao': float(self.porcentagem_padrao or 0.0),
+            'tipo_base': self.tipo_base or 'TOTAL',
+            'ativo': self.ativo
+        }
+
+
 class OrdemServico(db.Model):
     __tablename__ = 'ordens_servico'
     
@@ -104,6 +133,17 @@ class OrdemServico(db.Model):
     numero_sequencial = db.Column(db.Integer, nullable=True) # Número sequencial isolado por empresa (1, 2, 3...)
     cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=False)
     veiculo_id = db.Column(db.Integer, db.ForeignKey('veiculos.id'), nullable=True)
+
+    # Identificação do Vendedor e do Responsável pela Mão de Obra / Mecânico
+    vendedor_id = db.Column(db.Integer, db.ForeignKey('colaboradores.id'), nullable=True)
+    mecanico_id = db.Column(db.Integer, db.ForeignKey('colaboradores.id'), nullable=True)
+    porcentagem_comissao_vendedor = db.Column(db.Float, default=0.0)
+    valor_comissao_vendedor = db.Column(db.Float, default=0.0)
+    porcentagem_comissao_mecanico = db.Column(db.Float, default=0.0)
+    valor_comissao_mecanico = db.Column(db.Float, default=0.0)
+
+    vendedor = db.relationship('Colaborador', foreign_keys=[vendedor_id], backref=db.backref('ordens_vendedor', lazy=True))
+    mecanico = db.relationship('Colaborador', foreign_keys=[mecanico_id], backref=db.backref('ordens_mecanico', lazy=True))
 
     @property
     def numero_exibicao(self):

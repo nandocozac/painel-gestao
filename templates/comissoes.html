@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+{% block title %}Cálculo & Relatório de Comissões | Painel de Gestão{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- CABEÇALHO HERO COM TÍTULO E AÇÕES -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-premium flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                    Acerto & Produtividade
+                </span>
+                <span class="text-xs text-slate-400 font-medium">
+                    {{ empresa.nome_empresa }}
+                </span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
+                Cálculo & Gestão de Comissões
+            </h1>
+            <p class="text-xs text-slate-500 mt-0.5">
+                Calcule pagamentos por dia, semana ou mês para vendedores e mecânicos com transparência total.
+            </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <a href="{{ url_for('lista_colaboradores') }}"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition inline-flex items-center gap-1.5 shadow-2xs">
+                <span>👥</span>
+                <span>Configurar Equipe & %</span>
+            </a>
+
+            <button type="button" onclick="window.print()"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                <span>Imprimir Relatório</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- CABEÇALHO EXCLUSIVO PARA IMPRESSÃO -->
+    <div class="hidden print:block mb-6 border-b border-slate-300 pb-4">
+        <h1 class="text-2xl font-black text-slate-900">{{ empresa.nome_empresa }}</h1>
+        <h2 class="text-base font-bold text-slate-700">Relatório de Fechamento de Comissões</h2>
+        <p class="text-xs text-slate-500">
+            Período apurado: <strong>{{ data_inicio.strftime('%d/%m/%Y') }} até {{ data_fim.strftime('%d/%m/%Y') }}</strong> | Emitido em: {{ hoje|data_br if hoje else '' }}
+        </p>
+    </div>
+
+    <!-- BARRA DE FILTROS RÁPIDOS POR PERÍODO (DIA, SEMANA, MÊS) -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-premium no-print space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <!-- Botões Rápidos de Período -->
+            <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200/60">
+                <a href="{{ url_for('relatorio_comissoes', periodo='hoje', colaborador_id=colaborador_id_filtro or '', funcao=funcao_filtro or '', status=status_filtro or '') }}"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition {% if periodo == 'hoje' %}bg-white text-blue-600 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                    📅 Hoje (Diário)
+                </a>
+                <a href="{{ url_for('relatorio_comissoes', periodo='semana', colaborador_id=colaborador_id_filtro or '', funcao=funcao_filtro or '', status=status_filtro or '') }}"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition {% if periodo == 'semana' %}bg-white text-blue-600 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                    📅 Esta Semana (7 Dias)
+                </a>
+                <a href="{{ url_for('relatorio_comissoes', periodo='mes', colaborador_id=colaborador_id_filtro or '', funcao=funcao_filtro or '', status=status_filtro or '') }}"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition {% if periodo == 'mes' %}bg-white text-blue-600 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                    📅 Este Mês (Mensal)
+                </a>
+                <button type="button" onclick="document.getElementById('filtro-personalizado-box').classList.toggle('hidden')"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer {% if periodo == 'personalizado' %}bg-white text-blue-600 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                    🔍 Período Personalizado
+                </button>
+            </div>
+
+            <!-- Identificador do Período Ativo -->
+            <div class="text-xs text-slate-500 font-medium">
+                Intervalo: <strong class="text-slate-800 font-bold">{{ data_inicio.strftime('%d/%m/%Y') }}</strong> até <strong class="text-slate-800 font-bold">{{ data_fim.strftime('%d/%m/%Y') }}</strong>
+            </div>
+        </div>
+
+        <!-- Seletor de Datas Personalizado -->
+        <div id="filtro-personalizado-box" class="{% if periodo != 'personalizado' %}hidden{% endif %} pt-3 border-t border-slate-100">
+            <form method="GET" action="{{ url_for('relatorio_comissoes') }}" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <input type="hidden" name="periodo" value="personalizado">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Data Início</label>
+                    <input type="date" name="data_inicio" value="{{ data_inicio.strftime('%Y-%m-%d') }}"
+                        class="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 bg-white">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Data Fim</label>
+                    <input type="date" name="data_fim" value="{{ data_fim.strftime('%Y-%m-%d') }}"
+                        class="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 bg-white">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Filtrar Colaborador</label>
+                    <select name="colaborador_id"
+                        class="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 bg-white">
+                        <option value="">Todos os Colaboradores</option>
+                        {% for c in colaboradores %}
+                        <option value="{{ c.id }}" {% if colaborador_id_filtro == c.id %}selected{% endif %}>{{ c.nome }} ({{ c.funcao }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <button type="submit"
+                        class="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer">
+                        Filtrar Período
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CARDS DE MÉTRICAS PRINCIPAIS (TOTAIS DO PERÍODO) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total de Comissões a Pagar -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-premium flex flex-col justify-between relative overflow-hidden group">
+            <div class="absolute -right-3 -top-3 w-20 h-20 bg-emerald-500/10 rounded-full blur-lg"></div>
+            <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total a Pagar no Período</span>
+                <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                    💵
+                </span>
+            </div>
+            <div class="mt-3">
+                <div class="text-3xl font-extrabold text-emerald-600 font-mono tracking-tight">
+                    R$ {{ total_geral|moeda }}
+                </div>
+                <span class="text-[11px] text-slate-400 mt-0.5 block">Soma de todas as comissões apuradas</span>
+            </div>
+        </div>
+
+        <!-- Comissões de Vendas -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-premium flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Comissões de Vendas</span>
+                <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+                    🛍️
+                </span>
+            </div>
+            <div class="mt-3">
+                <div class="text-2xl font-extrabold text-blue-600 font-mono tracking-tight">
+                    R$ {{ total_vendedores|moeda }}
+                </div>
+                <span class="text-[11px] text-slate-400 mt-0.5 block">Atendimento comercial / Vendedores</span>
+            </div>
+        </div>
+
+        <!-- Comissões de Mão de Obra -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-premium flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Comissões de Mão de Obra</span>
+                <span class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                    🔧
+                </span>
+            </div>
+            <div class="mt-3">
+                <div class="text-2xl font-extrabold text-indigo-600 font-mono tracking-tight">
+                    R$ {{ total_mecanicos|moeda }}
+                </div>
+                <span class="text-[11px] text-slate-400 mt-0.5 block">Serviços executados por mecânicos/técnicos</span>
+            </div>
+        </div>
+
+        <!-- Ordens com Comissão -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-premium flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Atendimentos Apurados</span>
+                <span class="w-8 h-8 rounded-lg bg-slate-50 text-slate-700 flex items-center justify-center font-bold text-sm">
+                    📋
+                </span>
+            </div>
+            <div class="mt-3">
+                <div class="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+                    {{ total_atendimentos }}
+                </div>
+                <span class="text-[11px] text-slate-400 mt-0.5 block">Registros no período selecionado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABELA 1: RESUMO CONSOLIDADO POR COLABORADOR (FECHAMENTO / ACERTO) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-premium overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Fechamento por Profissional (Valores a Pagar)
+                </h2>
+                <p class="text-xs text-slate-400">Resumo consolidado para pagamento direto via Pix ou dinheiro</p>
+            </div>
+            <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                Total Geral: R$ {{ total_geral|moeda }}
+            </span>
+        </div>
+
+        {% if resumo_colaboradores %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200/60 uppercase text-[10px] tracking-wider">
+                        <th class="py-3 px-4">Profissional</th>
+                        <th class="py-3 px-4">Função</th>
+                        <th class="py-3 px-4 text-center">Atendimentos</th>
+                        <th class="py-3 px-4 text-right">Base Total Calculada</th>
+                        <th class="py-3 px-4 text-center">% Padrão</th>
+                        <th class="py-3 px-4 text-right font-bold text-slate-900">Total Comissão a Pagar</th>
+                        <th class="py-3 px-4">Chave Pix para Acerto</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    {% for cid, r in resumo_colaboradores.items() %}
+                    {% if r.qtd_os > 0 or not colaborador_id_filtro %}
+                    <tr class="hover:bg-slate-50/80 transition-colors {% if r.comissao_total > 0 %}bg-emerald-50/20{% endif %}">
+                        <td class="py-3 px-4">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-full {% if r.colaborador.funcao == 'VENDEDOR' %}bg-blue-100 text-blue-700{% else %}bg-indigo-100 text-indigo-700{% endif %} flex items-center justify-center font-bold text-xs shrink-0">
+                                    {{ r.colaborador.nome[:2]|upper }}
+                                </div>
+                                <span class="font-bold text-slate-900">{{ r.colaborador.nome }}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4">
+                            {% if r.colaborador.funcao == 'VENDEDOR' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60">
+                                🛍️ Vendedor
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                                🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico{% else %}Mão de Obra{% endif %}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-center font-bold font-mono">
+                            {{ r.qtd_os }} OS
+                        </td>
+                        <td class="py-3 px-4 text-right font-mono text-slate-600">
+                            R$ {{ r.base_total|moeda }}
+                        </td>
+                        <td class="py-3 px-4 text-center font-mono font-bold text-blue-600">
+                            {{ r.colaborador.porcentagem_padrao }}%
+                        </td>
+                        <td class="py-3 px-4 text-right font-mono font-black text-emerald-600 text-sm">
+                            R$ {{ r.comissao_total|moeda }}
+                        </td>
+                        <td class="py-3 px-4">
+                            {% if r.colaborador.chave_pix %}
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-mono text-slate-800 text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 select-all">
+                                    {{ r.colaborador.chave_pix }}
+                                </span>
+                            </div>
+                            {% else %}
+                            <span class="text-slate-400 italic text-[11px]">Dinheiro / Não cadastrada</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-200 text-xs">
+                        <td class="py-3.5 px-4" colspan="5">TOTAL GERAL DE COMISSÕES A PAGAR NO PERÍODO:</td>
+                        <td class="py-3.5 px-4 text-right font-mono font-black text-emerald-600 text-base">
+                            R$ {{ total_geral|moeda }}
+                        </td>
+                        <td class="py-3.5 px-4"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-slate-400">
+            Nenhum dado encontrado para o período selecionado.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- TABELA 2: EXTRATO DETALHADO ORDEM A ORDEM (AUDITORIA E TRANSPARÊNCIA) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-premium overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Extrato Detalhado de Ordens / Pedidos ({{ extrato_itens|length }})
+                </h2>
+                <p class="text-xs text-slate-400">Discriminação de cada atendimento onde a comissão foi gerada</p>
+            </div>
+            <span class="text-xs text-slate-500 font-mono font-semibold">
+                {{ data_inicio.strftime('%d/%m/%Y') }} a {{ data_fim.strftime('%d/%m/%Y') }}
+            </span>
+        </div>
+
+        {% if extrato_itens %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200/60 uppercase text-[10px] tracking-wider">
+                        <th class="py-3 px-4">Data</th>
+                        <th class="py-3 px-4">OS / Pedido</th>
+                        <th class="py-3 px-4">Cliente</th>
+                        <th class="py-3 px-4">Profissional Beneficiado</th>
+                        <th class="py-3 px-4">Papel na OS</th>
+                        <th class="py-3 px-4 text-right">Base de Cálculo</th>
+                        <th class="py-3 px-4 text-center">% Aplicada</th>
+                        <th class="py-3 px-4 text-right">Comissão (R$)</th>
+                        <th class="py-3 px-4 text-center no-print">Ação</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    {% for item in extrato_itens %}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-3 px-4 whitespace-nowrap text-slate-500">
+                            {{ item.data|data_br }}
+                        </td>
+                        <td class="py-3 px-4 font-mono font-bold text-blue-600">
+                            #{{ "%04d"|format(item.os.numero_exibicao) }}
+                        </td>
+                        <td class="py-3 px-4">
+                            <span class="font-semibold text-slate-900 block">{{ item.os.cliente.nome }}</span>
+                            {% if item.os.veiculo %}
+                            <span class="text-[10px] text-slate-400 block font-mono">{{ item.os.veiculo.placa }} - {{ item.os.veiculo.modelo }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 font-bold text-slate-900">
+                            {{ item.colaborador.nome }}
+                        </td>
+                        <td class="py-3 px-4 text-[11px] text-slate-500">
+                            {{ item.papel }}
+                        </td>
+                        <td class="py-3 px-4 text-right font-mono text-slate-700">
+                            R$ {{ item.base|moeda }}
+                        </td>
+                        <td class="py-3 px-4 text-center font-mono font-bold text-blue-600">
+                            {{ item.porcentagem }}%
+                        </td>
+                        <td class="py-3 px-4 text-right font-mono font-black text-emerald-600">
+                            R$ {{ item.valor_comissao|moeda }}
+                        </td>
+                        <td class="py-3 px-4 text-center no-print">
+                            <a href="{{ url_for('ver_os', os_id=item.os.id) }}"
+                                class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] transition">
+                                Ver OS
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-10 px-4 text-slate-400">
+            Nenhuma comissão registrada para os critérios informados.
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

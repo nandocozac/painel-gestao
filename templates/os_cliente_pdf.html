@@ -88,6 +88,24 @@
             {% endif %}
         </div>
 
+        <!-- Profissionais Responsáveis pelo Atendimento -->
+        {% if os.vendedor or os.mecanico %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-lg border border-slate-100 print:bg-white print:border-slate-300 text-xs">
+            {% if os.vendedor %}
+            <div>
+                <span class="text-slate-400 font-bold uppercase tracking-wider block text-[10px]">Vendedor / Atendimento</span>
+                <strong class="text-slate-800 text-sm">{{ os.vendedor.nome }}</strong>
+            </div>
+            {% endif %}
+            {% if os.mecanico %}
+            <div>
+                <span class="text-slate-400 font-bold uppercase tracking-wider block text-[10px]">{% if empresa.tipo_negocio == 'OFICINA' %}Mecânico Responsável{% else %}Técnico / Mão de Obra{% endif %}</span>
+                <strong class="text-slate-800 text-sm">{{ os.mecanico.nome }}</strong>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- Problema Relatado na Entrada -->
         <div>
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Problema Relatado na Entrada</h2>
