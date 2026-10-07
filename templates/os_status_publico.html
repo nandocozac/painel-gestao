@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acompanhamento de Atendimento #{{ "%04d"|format(os.id) }} - {{ empresa.nome_empresa }}</title>
+    <title>Acompanhamento de Atendimento #{{ "%04d"|format(os.numero_exibicao) }} - {{ empresa.nome_empresa }}</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -44,7 +44,7 @@
 
             {% if empresa.whatsapp or empresa.telefone %}
             {% set fone_clean = (empresa.whatsapp or empresa.telefone)|fone_whatsapp %}
-            <a href="https://wa.me/{{ fone_clean }}?text=Ol%C3%A1%2C%20gostaria%20de%20informa%C3%A7%C3%B5es%20sobre%20o%20atendimento%20%23{{ '%04d'|format(os.id) }}"
+            <a href="https://wa.me/{{ fone_clean }}?text=Ol%C3%A1%2C%20gostaria%20de%20informa%C3%A7%C3%B5es%20sobre%20o%20atendimento%20%23{{ '%04d'|format(os.numero_exibicao) }}"
                 target="_blank"
                 class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-xs transition">
                 <span>WhatsApp</span>
@@ -63,7 +63,7 @@
                     <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">
                         {% if empresa.tipo_negocio == 'OFICINA' %}Ordem de Serviço{% else %}Pedido / Venda{% endif %}
                     </span>
-                    <h2 class="text-xl font-black text-slate-800 tracking-tight">#{{ "%04d"|format(os.id) }}</h2>
+                    <h2 class="text-xl font-black text-slate-800 tracking-tight">#{{ "%04d"|format(os.numero_exibicao) }}</h2>
                 </div>
                 <div class="text-right">
                     <span class="text-xs text-slate-400 block">Data de Entrada</span>

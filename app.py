@@ -125,6 +125,7 @@ def migrar_banco_multiempresa():
             # 4. Garantir colunas de rastreio e assinatura na tabela ordens_servico (SQLite)
             colunas_os = [row[1] for row in db.session.execute(text("PRAGMA table_info(ordens_servico)")).fetchall()]
             novas_colunas_os = {
+                'numero_sequencial': 'INTEGER',
                 'etapa_andamento': 'VARCHAR(30) DEFAULT "RECEBIDO"',
                 'codigo_rastreio': 'VARCHAR(32)',
                 'assinatura_cliente_data': 'TEXT',
@@ -212,6 +213,7 @@ def migrar_banco_multiempresa():
                     db.session.rollback()
 
             pg_colunas_os = {
+                'numero_sequencial': "INTEGER",
                 'etapa_andamento': "VARCHAR(30) DEFAULT 'RECEBIDO'",
                 'codigo_rastreio': "VARCHAR(32)",
                 'assinatura_cliente_data': "TEXT",
@@ -337,6 +339,15 @@ def migrar_banco_multiempresa():
                                     f_out.write(base64.b64decode(b64_str))
                         except Exception as e:
                             print(f"Erro ao restaurar logo no disco a partir do base64: {e}")
+            # 8. Garantir numeração sequencial isolada por empresa (iniciando em 1 para cada empresa)
+            empresas_todas_ids = [e[0] for e in db.session.query(Empresa.id).all()]
+            for eid in empresas_todas_ids:
+                oss_empresa = OrdemServico.query.filter_by(empresa_id=eid).order_by(OrdemServico.id.asc()).all()
+                seq = 1
+                for o in oss_empresa:
+                    if o.numero_sequencial != seq:
+                        o.numero_sequencial = seq
+                    seq += 1
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -1099,12 +1110,18 @@ def lista_os():
         query = query.filter_by(status=status)
 
     if busca:
-        query = query.join(Cliente).outerjoin(Veiculo).filter(
-            (Cliente.nome.ilike(f'%{busca}%')) |
-            (Cliente.telefone.ilike(f'%{busca}%')) |
-            (Veiculo.placa.ilike(f'%{busca}%')) |
-            (Veiculo.modelo.ilike(f'%{busca}%'))
-        )
+        busca_num = busca.lstrip('#').strip()
+        filtro_busca = [
+            Cliente.nome.ilike(f'%{busca}%'),
+            Cliente.telefone.ilike(f'%{busca}%'),
+            Veiculo.placa.ilike(f'%{busca}%'),
+            Veiculo.modelo.ilike(f'%{busca}%')
+        ]
+        if busca_num.isdigit():
+            filtro_busca.append(OrdemServico.numero_sequencial == int(busca_num))
+            filtro_busca.append(OrdemServico.id == int(busca_num))
+
+        query = query.join(Cliente).outerjoin(Veiculo).filter(or_(*filtro_busca))
 
     todas_os = query.order_by(OrdemServico.id.desc()).all()
     return render_template('os_lista.html', todas_os=todas_os, status_atual=status, busca=busca)
@@ -1159,8 +1176,17 @@ def nova_os():
                 db.session.add(veiculo)
                 db.session.flush()
 
+        # Obter próximo número sequencial para a empresa atual (iniciando em 1)
+        ultima_os = OrdemServico.query.filter_by(empresa_id=g.empresa.id).order_by(OrdemServico.id.desc()).first()
+        if ultima_os and ultima_os.numero_sequencial:
+            proximo_seq = ultima_os.numero_sequencial + 1
+        else:
+            qtd_existente = OrdemServico.query.filter_by(empresa_id=g.empresa.id).count()
+            proximo_seq = qtd_existente + 1
+
         os_nova = OrdemServico(
             empresa_id=g.empresa.id,
+            numero_sequencial=proximo_seq,
             cliente_id=cliente.id,
             veiculo_id=veiculo.id if veiculo else None,
             descricao_problema=problema,

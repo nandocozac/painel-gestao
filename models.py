@@ -101,8 +101,13 @@ class OrdemServico(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=True)
+    numero_sequencial = db.Column(db.Integer, nullable=True) # Número sequencial isolado por empresa (1, 2, 3...)
     cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=False)
     veiculo_id = db.Column(db.Integer, db.ForeignKey('veiculos.id'), nullable=True)
+
+    @property
+    def numero_exibicao(self):
+        return self.numero_sequencial if self.numero_sequencial is not None else self.id
     
     descricao_problema = db.Column(db.Text, nullable=False)
     servico_executado = db.Column(db.Text, nullable=True)

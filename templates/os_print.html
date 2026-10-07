@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}OS #{{ "%04d"|format(os.id) }} - {{ os.cliente.nome }}{% endblock %}
+{% block title %}OS #{{ "%04d"|format(os.numero_exibicao) }} - {{ os.cliente.nome }}{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto space-y-6">
@@ -37,9 +37,9 @@
                         {% set fone_limpo = os.cliente.telefone|fone_whatsapp %}
             {% if empresa.tipo_negocio == 'OFICINA' %}
                 {% set veiculo_info = (os.veiculo.modelo ~ " (" ~ os.veiculo.placa ~ ")") if os.veiculo else "veículo" %}
-                {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu " ~ veiculo_info ~ " está pronto na oficina! O total da OS #" ~ ("%04d"|format(os.id)) ~ " com todas as peças e serviços detalhados foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o documento em PDF com todo o descritivo dos serviços e peças aplicadas. Aguardamos você para retirada! - " ~ empresa.nome_empresa %}
+                {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu " ~ veiculo_info ~ " está pronto na oficina! O total da OS #" ~ ("%04d"|format(os.numero_exibicao)) ~ " com todas as peças e serviços detalhados foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o documento em PDF com todo o descritivo dos serviços e peças aplicadas. Aguardamos você para retirada! - " ~ empresa.nome_empresa %}
             {% else %}
-                {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu pedido / atendimento #" ~ ("%04d"|format(os.id)) ~ " na " ~ empresa.nome_empresa ~ " está pronto! O valor total foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o comprovante detalhado em PDF com todos os itens. Agradecemos a preferência! - " ~ empresa.nome_empresa %}
+                {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu pedido / atendimento #" ~ ("%04d"|format(os.numero_exibicao)) ~ " na " ~ empresa.nome_empresa ~ " está pronto! O valor total foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o comprovante detalhado em PDF com todos os itens. Agradecemos a preferência! - " ~ empresa.nome_empresa %}
             {% endif %}
             
             <button type="button" onclick="baixarPdfEAbrirWhatsApp(this)" data-wa-url="https://wa.me/{{ fone_limpo }}?text={{ msg|urlencode }}"
@@ -187,7 +187,7 @@
             </div>
             <div class="text-right">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block">Número da OS</span>
-                <span class="text-2xl font-mono font-black text-blue-600">#{{ "%04d"|format(os.id) }}</span>
+                <span class="text-2xl font-mono font-black text-blue-600">#{{ "%04d"|format(os.numero_exibicao) }}</span>
                 <span class="text-xs text-slate-500 block mt-1">Abertura: {{ os.data_abertura|data_br }}</span>
                 {% if os.data_conclusao %}
                 <span class="text-xs text-emerald-600 font-semibold block">Fechamento: {{ os.data_conclusao|data_br
@@ -869,7 +869,7 @@
             elemento: elemento,
             opt: {
                 margin: [8, 8, 8, 8],
-                filename: 'OS_{{ "%04d"|format(os.id) }}_{{ os.cliente.nome|replace(" ", "_") }}.pdf',
+                filename: 'OS_{{ "%04d"|format(os.numero_exibicao) }}_{{ os.cliente.nome|replace(" ", "_") }}.pdf',
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, logging: false },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -946,7 +946,7 @@
                 <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                Alterar Data de Retorno da OS #{{ "%04d"|format(os.id) }}
+                Alterar Data de Retorno da OS #{{ "%04d"|format(os.numero_exibicao) }}
             </h3>
             <button type="button" onclick="document.getElementById('modal-alterar-retorno').classList.add('hidden')"
                 class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">

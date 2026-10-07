@@ -102,7 +102,7 @@
                 <tbody class="divide-y divide-slate-100">
                     {% for os in historico_os %}
                     <tr class="hover:bg-slate-50/80 transition">
-                        <td class="py-3.5 px-4 font-mono font-bold text-slate-900">#{{ "%04d"|format(os.id) }}</td>
+                        <td class="py-3.5 px-4 font-mono font-bold text-slate-900">#{{ "%04d"|format(os.numero_exibicao) }}</td>
                         <td class="py-3.5 px-4 text-xs text-slate-600">{{ os.data_abertura|data_br }}</td>
                         {% if empresa.tipo_negocio == 'OFICINA' %}
                         <td class="py-3.5 px-4">

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cupom OS #{{ "%04d"|format(os.id) }} - {{ empresa.nome_empresa }}</title>
+    <title>Cupom OS #{{ "%04d"|format(os.numero_exibicao) }} - {{ empresa.nome_empresa }}</title>
     <style>
         * {
             box-sizing: border-box;
@@ -164,7 +164,7 @@
         <!-- Dados do Atendimento -->
         <table style="width: 100%; font-size: 10.5px;">
             <tr>
-                <td class="bold">OS Nº: {{ "%04d"|format(os.id) }}</td>
+                <td class="bold">OS Nº: {{ "%04d"|format(os.numero_exibicao) }}</td>
                 <td class="right">{{ os.data_abertura.strftime('%d/%m/%Y') }}</td>
             </tr>
             <tr>
