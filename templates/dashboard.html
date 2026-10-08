@@ -203,6 +203,11 @@
                                 <span class="bg-slate-100 px-2 py-1 rounded-md text-slate-800">
                                     #{{ "%04d"|format(os.numero_exibicao) }}
                                 </span>
+                                {% if os.status == 'ORCAMENTO' %}
+                                <span class="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 uppercase tracking-wide">
+                                    Orçamento
+                                </span>
+                                {% endif %}
                             </td>
                             <td class="py-3 px-4 text-slate-600 whitespace-nowrap">
                                 {{ os.data_abertura|data_br }}

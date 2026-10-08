@@ -14,12 +14,27 @@
             </a>
             <span class="text-slate-300">|</span>
             <span
-                class="text-xs uppercase font-bold px-2.5 py-1 rounded-full {% if os.status == 'CONCLUIDA' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
-                Status: {{ os.status }}
+                class="text-xs uppercase font-bold px-2.5 py-1 rounded-full {% if os.status == 'CONCLUIDA' %}bg-emerald-100 text-emerald-800{% elif os.status == 'ORCAMENTO' %}bg-indigo-100 text-indigo-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                Status: {% if os.status == 'ORCAMENTO' %}Orçamento{% else %}{{ os.status }}{% endif %}
             </span>
         </div>
 
         <div class="flex items-center gap-2">
+            {% if os.status != 'CONCLUIDA' %}
+            <!-- Botão de Excluir Orçamento / OS em Aberto -->
+            <form method="POST" action="{{ url_for('excluir_os', os_id=os.id) }}"
+                onsubmit="return confirm('ATENÇÃO: Deseja realmente excluir este {% if os.status == 'ORCAMENTO' %}orçamento{% else %}pedido / OS{% endif %} definitivamente? Todos os itens serão descartados e nenhum valor constará no caixa.');"
+                class="inline">
+                <button type="submit"
+                    class="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold px-3.5 py-2 rounded-lg transition border border-rose-200 shadow-xs">
+                    <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Excluir {% if os.status == 'ORCAMENTO' %}Orçamento{% else %}OS{% endif %}</span>
+                </button>
+            </form>
+            {% endif %}
+
             {% if os.status == 'CONCLUIDA' %}
             <!-- Botão de Reabrir OS para Edição -->
             <form method="POST" action="{{ url_for('reabrir_os', os_id=os.id) }}"
@@ -34,12 +49,23 @@
                     Reabrir / Editar OS
                 </button>
             </form>
-                        {% set fone_limpo = os.cliente.telefone|fone_whatsapp %}
-            {% if empresa.tipo_negocio == 'OFICINA' %}
-                {% set veiculo_info = (os.veiculo.modelo ~ " (" ~ os.veiculo.placa ~ ")") if os.veiculo else "veículo" %}
-                {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu " ~ veiculo_info ~ " está pronto na oficina! O total da OS #" ~ ("%04d"|format(os.numero_exibicao)) ~ " com todas as peças e serviços detalhados foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o documento em PDF com todo o descritivo dos serviços e peças aplicadas. Aguardamos você para retirada! - " ~ empresa.nome_empresa %}
+            {% endif %}
+
+            {% set fone_limpo = os.cliente.telefone|fone_whatsapp %}
+            {% if os.status == 'CONCLUIDA' %}
+                {% if empresa.tipo_negocio == 'OFICINA' %}
+                    {% set veiculo_info = (os.veiculo.modelo ~ " (" ~ os.veiculo.placa ~ ")") if os.veiculo else "veículo" %}
+                    {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu " ~ veiculo_info ~ " está pronto na oficina! O total da OS #" ~ ("%04d"|format(os.numero_exibicao)) ~ " com todas as peças e serviços detalhados foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o documento em PDF com todo o descritivo dos serviços e peças aplicadas. Aguardamos você para retirada! - " ~ empresa.nome_empresa %}
+                {% else %}
+                    {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu pedido / atendimento #" ~ ("%04d"|format(os.numero_exibicao)) ~ " na " ~ empresa.nome_empresa ~ " está pronto! O valor total foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o comprovante detalhado em PDF com todos os itens. Agradecemos a preferência! - " ~ empresa.nome_empresa %}
+                {% endif %}
             {% else %}
-                {% set msg = "Olá, " ~ os.cliente.nome ~ "! Seu pedido / atendimento #" ~ ("%04d"|format(os.numero_exibicao)) ~ " na " ~ empresa.nome_empresa ~ " está pronto! O valor total foi de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o comprovante detalhado em PDF com todos os itens. Agradecemos a preferência! - " ~ empresa.nome_empresa %}
+                {% if empresa.tipo_negocio == 'OFICINA' %}
+                    {% set veiculo_info = (os.veiculo.modelo ~ " (" ~ os.veiculo.placa ~ ")") if os.veiculo else "veículo" %}
+                    {% set msg = "Olá, " ~ os.cliente.nome ~ "! Segue a proposta / orçamento da OS #" ~ ("%04d"|format(os.numero_exibicao)) ~ " para o seu " ~ veiculo_info ~ " na " ~ empresa.nome_empresa ~ ". O valor total orçado é de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o descritivo com todas as peças e serviços. Ficamos à disposição! - " ~ empresa.nome_empresa %}
+                {% else %}
+                    {% set msg = "Olá, " ~ os.cliente.nome ~ "! Segue o orçamento #" ~ ("%04d"|format(os.numero_exibicao)) ~ " da " ~ empresa.nome_empresa ~ " no valor total de R$ " ~ (os.valor_total|moeda) ~ ". Segue em anexo o documento detalhado para conferência. Agradecemos a preferência! - " ~ empresa.nome_empresa %}
+                {% endif %}
             {% endif %}
             
             <button type="button" onclick="baixarPdfEAbrirWhatsApp(this)" data-wa-url="https://wa.me/{{ fone_limpo }}?text={{ msg|urlencode }}"
@@ -48,7 +74,7 @@
                     <path
                         d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z" />
                 </svg>
-                <span>Enviar PDF no WhatsApp</span>
+                <span>Enviar {% if os.status == 'ORCAMENTO' %}Orçamento{% else %}PDF{% endif %} no WhatsApp</span>
             </button>
 
             <button type="button" onclick="baixarPdfDireto(this)"
@@ -84,7 +110,6 @@
                     </button>
                 </form>
             </div>
-            {% endif %}
             {% endif %}
 
             <a href="{{ url_for('cupom_termico_os', os_id=os.id) }}" target="_blank"
@@ -186,15 +211,23 @@
                 </div>
             </div>
             <div class="text-right">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block">Número da OS</span>
-                <span class="text-2xl font-mono font-black text-blue-600">#{{ "%04d"|format(os.numero_exibicao) }}</span>
-                <span class="text-xs text-slate-500 block mt-1">Abertura: {{ os.data_abertura|data_br }}</span>
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block">
+                    {% if os.status == 'ORCAMENTO' %}Orçamento / Proposta{% elif empresa.tipo_negocio == 'OFICINA' %}Número da OS{% else %}Número do Pedido{% endif %}
+                </span>
+                <span class="text-2xl font-mono font-black {% if os.status == 'ORCAMENTO' %}text-indigo-600{% else %}text-blue-600{% endif %}">#{{ "%04d"|format(os.numero_exibicao) }}</span>
+                <span class="text-xs text-slate-500 block mt-1">{% if os.status == 'ORCAMENTO' %}Orçado em:{% else %}Abertura:{% endif %} {{ os.data_abertura|data_br }}</span>
                 {% if os.data_conclusao %}
-                <span class="text-xs text-emerald-600 font-semibold block">Fechamento: {{ os.data_conclusao|data_br
-                    }}</span>
+                <span class="text-xs text-emerald-600 font-semibold block">Fechamento: {{ os.data_conclusao|data_br }}</span>
                 {% endif %}
             </div>
         </div>
+
+        {% if os.status != 'CONCLUIDA' %}
+        <!-- Faixa Informativa de Orçamento Não-Fiscal -->
+        <div class="bg-indigo-50/70 border border-indigo-200 rounded-lg p-2.5 text-center text-xs font-bold text-indigo-900 uppercase tracking-wider print:bg-white print:border-dashed print:border-slate-400">
+            📄 DOCUMENTO DE ORÇAMENTO / PROPOSTA COMERCIAL &bull; (SEM VALOR FISCAL • NÃO CONSTITUI VENDA OU LANÇAMENTO NO CAIXA)
+        </div>
+        {% endif %}
         <!-- Cliente, Veículo e Atendimento / Equipe -->
         <div
             class="grid grid-cols-1 sm:grid-cols-2 {% if os.vendedor or os.mecanico %}lg:grid-cols-3{% endif %} gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
@@ -388,7 +421,7 @@
         </div>
         {% endif %}
 
-        <!-- Fechamento de Totais da OS -->
+        <!-- Fechamento de Totais da OS / Orçamento -->
         {% if os.status == 'CONCLUIDA' %}
         <div class="border-t border-slate-200 pt-4 flex justify-between items-end">
             <div class="text-xs text-slate-500">
@@ -442,6 +475,29 @@
                 </div>
             </div>
         </div>
+        {% elif os.itens %}
+        <div class="border-t border-slate-200 pt-4 flex justify-between items-end">
+            <div class="text-xs text-slate-500">
+                <span class="font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded inline-block">
+                    PROPOSTA / ORÇAMENTO ESTIMADO
+                </span>
+                <p class="text-[11px] text-slate-500 mt-1">Valores válidos por 10 dias úteis sujeitos a confirmação de estoque.</p>
+            </div>
+            <div class="w-full sm:w-72 space-y-1.5 text-sm">
+                <div class="flex justify-between text-slate-600">
+                    <span>Total em Peças/Produtos:</span>
+                    <span class="font-mono">R$ {{ os.valor_pecas|moeda }}</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>Total de Serviços/Mão de Obra:</span>
+                    <span class="font-mono">R$ {{ os.valor_mao_obra|moeda }}</span>
+                </div>
+                <div class="flex justify-between border-t border-slate-200 pt-2 font-bold text-base text-slate-900">
+                    <span>Total Estimado Orçado:</span>
+                    <span class="font-mono text-indigo-600">R$ {{ os.valor_total|moeda }}</span>
+                </div>
+            </div>
+        </div>
         {% endif %}
 
         <!-- Assinaturas (Visualização e Impressão) -->
@@ -476,12 +532,15 @@
     </div>
 
     <!-- FORMULÁRIO DE FECHAMENTO COM TABELA DINÂMICA (NO-PRINT) -->
-    {% if os.status == 'ABERTA' %}
+    {% if os.status in ['ABERTA', 'ORCAMENTO'] %}
     <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm no-print space-y-6">
         <div>
-            <h2 class="text-base font-bold text-slate-900">Conclusão do Atendimento e Discriminação Detalhada</h2>
-            <p class="text-xs text-slate-500">Adicione os materiais trocados e a mão de obra aplicada com total clareza
-                para o cliente.</p>
+            <h2 class="text-base font-bold text-slate-900">
+                {% if os.status == 'ORCAMENTO' %}Edição / Aprovação do Orçamento{% else %}Discriminação do Atendimento & Orçamento{% endif %}
+            </h2>
+            <p class="text-xs text-slate-500">
+                Adicione ou altere peças e serviços. Você pode salvar como <strong>Orçamento</strong> (sem lançar no caixa) para imprimir ao cliente, ou <strong>Aprovar</strong> para registrar a venda.
+            </p>
         </div>
 
         <form method="POST" action="{{ url_for('concluir_os', os_id=os.id) }}" class="space-y-6">
@@ -498,29 +557,63 @@
                 </div>
 
                 <div id="container-pecas" class="space-y-2">
-                    <div class="grid grid-cols-12 gap-2 items-center linha-item">
-                        <div class="col-span-6 sm:col-span-7 relative">
-                            <input type="hidden" name="peca_prod_id[]" value="">
-                            <input type="text" name="peca_nome[]" autocomplete="off"
-                                placeholder="Nome da peça ou busque no catálogo..."
-                                oninput="buscarAutocomplete(this, 'PECA')"
-                                class="input-autocomplete w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
-                            <div class="lista-autocomplete hidden absolute z-30 left-0 right-0 top-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1 divide-y divide-slate-100"></div>
+                    {% set pecas_salvas = os.itens|selectattr('tipo', 'equalto', 'PECA')|list if os.itens else [] %}
+                    {% if pecas_salvas %}
+                        {% for item in pecas_salvas %}
+                        <div class="grid grid-cols-12 gap-2 items-center linha-item">
+                            <div class="col-span-6 sm:col-span-7 relative">
+                                <input type="hidden" name="peca_prod_id[]" value="{{ item.produto_id or '' }}">
+                                <input type="text" name="peca_nome[]" autocomplete="off"
+                                    value="{{ item.descricao }}"
+                                    placeholder="Nome da peça ou busque no catálogo..."
+                                    oninput="buscarAutocomplete(this, 'PECA')"
+                                    class="input-autocomplete w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                                <div class="lista-autocomplete hidden absolute z-30 left-0 right-0 top-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1 divide-y divide-slate-100"></div>
+                            </div>
+                            <div class="col-span-2 sm:col-span-2">
+                                <input type="number" step="any" name="peca_qtd[]"
+                                    value="{{ "%0.0f"|format(item.quantidade) if item.quantidade == item.quantidade|int else item.quantidade }}"
+                                    placeholder="Qtd"
+                                    oninput="atualizarTotais()"
+                                    class="w-full border border-slate-300 rounded-lg px-2 py-2 text-xs text-center text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-3 sm:col-span-2">
+                                <input type="text" name="peca_valor[]"
+                                    value="{{ item.valor_unitario|moeda }}"
+                                    placeholder="0,00" oninput="atualizarTotais()"
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" onclick="removerLinha(this)"
+                                    class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+                            </div>
                         </div>
-                        <div class="col-span-2 sm:col-span-2">
-                            <input type="number" step="any" name="peca_qtd[]" value="1" placeholder="Qtd"
-                                oninput="atualizarTotais()"
-                                class="w-full border border-slate-300 rounded-lg px-2 py-2 text-xs text-center text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                        {% endfor %}
+                    {% else %}
+                        <div class="grid grid-cols-12 gap-2 items-center linha-item">
+                            <div class="col-span-6 sm:col-span-7 relative">
+                                <input type="hidden" name="peca_prod_id[]" value="">
+                                <input type="text" name="peca_nome[]" autocomplete="off"
+                                    placeholder="Nome da peça ou busque no catálogo..."
+                                    oninput="buscarAutocomplete(this, 'PECA')"
+                                    class="input-autocomplete w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                                <div class="lista-autocomplete hidden absolute z-30 left-0 right-0 top-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1 divide-y divide-slate-100"></div>
+                            </div>
+                            <div class="col-span-2 sm:col-span-2">
+                                <input type="number" step="any" name="peca_qtd[]" value="1" placeholder="Qtd"
+                                    oninput="atualizarTotais()"
+                                    class="w-full border border-slate-300 rounded-lg px-2 py-2 text-xs text-center text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-3 sm:col-span-2">
+                                <input type="text" name="peca_valor[]" placeholder="0,00" oninput="atualizarTotais()"
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" onclick="removerLinha(this)"
+                                    class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+                            </div>
                         </div>
-                        <div class="col-span-3 sm:col-span-2">
-                            <input type="text" name="peca_valor[]" placeholder="0,00" oninput="atualizarTotais()"
-                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div class="col-span-1 text-center">
-                            <button type="button" onclick="removerLinha(this)"
-                                class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
-                        </div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -536,29 +629,63 @@
                 </div>
 
                 <div id="container-servicos" class="space-y-2">
-                    <div class="grid grid-cols-12 gap-2 items-center linha-item">
-                        <div class="col-span-6 sm:col-span-7 relative">
-                            <input type="hidden" name="servico_prod_id[]" value="">
-                            <input type="text" name="servico_nome[]" autocomplete="off"
-                                placeholder="Descrição do serviço ou busque no catálogo..."
-                                oninput="buscarAutocomplete(this, 'SERVICO')"
-                                class="input-autocomplete w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
-                            <div class="lista-autocomplete hidden absolute z-30 left-0 right-0 top-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1 divide-y divide-slate-100"></div>
+                    {% set servicos_salvos = os.itens|selectattr('tipo', 'equalto', 'SERVICO')|list if os.itens else [] %}
+                    {% if servicos_salvos %}
+                        {% for item in servicos_salvos %}
+                        <div class="grid grid-cols-12 gap-2 items-center linha-item">
+                            <div class="col-span-6 sm:col-span-7 relative">
+                                <input type="hidden" name="servico_prod_id[]" value="{{ item.produto_id or '' }}">
+                                <input type="text" name="servico_nome[]" autocomplete="off"
+                                    value="{{ item.descricao }}"
+                                    placeholder="Descrição do serviço ou busque no catálogo..."
+                                    oninput="buscarAutocomplete(this, 'SERVICO')"
+                                    class="input-autocomplete w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                                <div class="lista-autocomplete hidden absolute z-30 left-0 right-0 top-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1 divide-y divide-slate-100"></div>
+                            </div>
+                            <div class="col-span-2 sm:col-span-2">
+                                <input type="number" step="any" name="servico_qtd[]"
+                                    value="{{ "%0.0f"|format(item.quantidade) if item.quantidade == item.quantidade|int else item.quantidade }}"
+                                    placeholder="Qtd"
+                                    oninput="atualizarTotais()"
+                                    class="w-full border border-slate-300 rounded-lg px-2 py-2 text-xs text-center text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-3 sm:col-span-2">
+                                <input type="text" name="servico_valor[]"
+                                    value="{{ item.valor_unitario|moeda }}"
+                                    placeholder="0,00" oninput="atualizarTotais()"
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" onclick="removerLinha(this)"
+                                    class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+                            </div>
                         </div>
-                        <div class="col-span-2 sm:col-span-2">
-                            <input type="number" step="any" name="servico_qtd[]" value="1" placeholder="Qtd"
-                                oninput="atualizarTotais()"
-                                class="w-full border border-slate-300 rounded-lg px-2 py-2 text-xs text-center text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                        {% endfor %}
+                    {% else %}
+                        <div class="grid grid-cols-12 gap-2 items-center linha-item">
+                            <div class="col-span-6 sm:col-span-7 relative">
+                                <input type="hidden" name="servico_prod_id[]" value="">
+                                <input type="text" name="servico_nome[]" autocomplete="off"
+                                    placeholder="Descrição do serviço ou busque no catálogo..."
+                                    oninput="buscarAutocomplete(this, 'SERVICO')"
+                                    class="input-autocomplete w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                                <div class="lista-autocomplete hidden absolute z-30 left-0 right-0 top-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1 divide-y divide-slate-100"></div>
+                            </div>
+                            <div class="col-span-2 sm:col-span-2">
+                                <input type="number" step="any" name="servico_qtd[]" value="1" placeholder="Qtd"
+                                    oninput="atualizarTotais()"
+                                    class="w-full border border-slate-300 rounded-lg px-2 py-2 text-xs text-center text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-3 sm:col-span-2">
+                                <input type="text" name="servico_valor[]" placeholder="0,00" oninput="atualizarTotais()"
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" onclick="removerLinha(this)"
+                                    class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+                            </div>
                         </div>
-                        <div class="col-span-3 sm:col-span-2">
-                            <input type="text" name="servico_valor[]" placeholder="0,00" oninput="atualizarTotais()"
-                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div class="col-span-1 text-center">
-                            <button type="button" onclick="removerLinha(this)"
-                                class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
-                        </div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -764,21 +891,35 @@
                 </div>
             </div>
 
-            <!-- BARRA DE TOTAIS EM TEMPO REAL -->
+            <!-- BARRA DE TOTAIS EM TEMPO REAL E AÇÕES -->
             <div
-                class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap justify-between items-center gap-4">
-                <div class="flex gap-6 text-xs text-slate-600 font-medium">
+                class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex flex-wrap gap-4 sm:gap-6 text-xs text-slate-600 font-medium items-center">
                     <span>Total Peças: <strong id="lbl-pecas" class="font-mono text-slate-900">R$ 0,00</strong></span>
-                    <span>Total Serviços: <strong id="lbl-servicos" class="font-mono text-slate-900">R$
-                            0,00</strong></span>
+                    <span>Total Serviços: <strong id="lbl-servicos" class="font-mono text-slate-900">R$ 0,00</strong></span>
                     <span class="text-sm">Total Geral: <strong id="lbl-total"
                             class="font-mono text-emerald-600 text-base">R$ 0,00</strong></span>
                 </div>
 
-                <button type="submit"
-                    class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2.5 rounded-lg shadow-sm transition">
-                    Concluir Serviço & Lançar no Caixa
-                </button>
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <!-- Botão 1: Salvar Orçamento (Sem Caixa / Sem Estoque) -->
+                    <button type="submit" formaction="{{ url_for('salvar_orcamento_os', os_id=os.id) }}"
+                        class="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-4 py-2.5 rounded-lg shadow-sm transition active:scale-95">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                        </svg>
+                        <span>💾 Salvar Orçamento & Imprimir</span>
+                    </button>
+
+                    <!-- Botão 2: Concluir Venda / Aprovar Orçamento (Lança no Caixa) -->
+                    <button type="submit" formaction="{{ url_for('concluir_os', os_id=os.id) }}"
+                        class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg shadow-sm transition active:scale-95">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>✅ Aprovar Orçamento & Lançar no Caixa</span>
+                    </button>
+                </div>
             </div>
         </form>
     </div>

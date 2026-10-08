@@ -1188,7 +1188,10 @@ def dashboard():
     despesas_mes = sum(t.valor for t in transacoes_mes if t.tipo == 'DESPESA')
     faturamento_mes = receitas_mes - despesas_mes
 
-    os_abertas = OrdemServico.query.filter_by(empresa_id=empresa_id, status='ABERTA').order_by(OrdemServico.id.desc()).all()
+    os_abertas = OrdemServico.query.filter(
+        OrdemServico.empresa_id == empresa_id,
+        OrdemServico.status.in_(['ABERTA', 'ORCAMENTO'])
+    ).order_by(OrdemServico.id.desc()).all()
 
     return render_template(
         'dashboard.html',
@@ -1241,7 +1244,11 @@ def lista_os():
 
     query = OrdemServico.query.filter_by(empresa_id=g.empresa.id)
 
-    if status:
+    if status == 'ORCAMENTO':
+        query = query.filter_by(status='ORCAMENTO')
+    elif status == 'ABERTA':
+        query = query.filter(OrdemServico.status.in_(['ABERTA', 'ORCAMENTO']))
+    elif status:
         query = query.filter_by(status=status)
 
     if busca:
@@ -1436,6 +1443,15 @@ def concluir_os(os_id):
         peca_valores = request.form.getlist('peca_valor[]')
         peca_prod_ids = request.form.getlist('peca_prod_id[]')
 
+        serv_nomes = request.form.getlist('servico_nome[]')
+        serv_qtds = request.form.getlist('servico_qtd[]')
+        serv_valores = request.form.getlist('servico_valor[]')
+        serv_prod_ids = request.form.getlist('servico_prod_id[]')
+
+        # Se vieram itens preenchidos no formulário, limpa itens anteriores (ex: de orçamento) para não duplicar
+        if any((n or '').strip() for n in peca_nomes) or any((n or '').strip() for n in serv_nomes):
+            ItemOS.query.filter_by(os_id=os.id).delete()
+
         total_pecas = 0.0
         for i, (nome, qtd_str, val_str) in enumerate(zip(peca_nomes, peca_qtds, peca_valores)):
             nome_clean = (nome or '').strip()
@@ -1469,11 +1485,6 @@ def concluir_os(os_id):
                 total_pecas += sub
 
         # 2. Processar Serviços / Mão de Obra
-        serv_nomes = request.form.getlist('servico_nome[]')
-        serv_qtds = request.form.getlist('servico_qtd[]')
-        serv_valores = request.form.getlist('servico_valor[]')
-        serv_prod_ids = request.form.getlist('servico_prod_id[]')
-
         total_servicos = 0.0
         for i, (nome, qtd_str, val_str) in enumerate(zip(serv_nomes, serv_qtds, serv_valores)):
             nome_clean = (nome or '').strip()
@@ -1506,8 +1517,13 @@ def concluir_os(os_id):
                 total_servicos += sub
 
         # Suporte fallback caso os campos antigos de valor tenham sido preenchidos
+        if total_pecas == 0 and os.itens:
+            total_pecas = sum(it.subtotal for it in os.itens if it.tipo == 'PECA')
         if total_pecas == 0:
             total_pecas = converter_valor(request.form.get('valor_pecas', '0'))
+
+        if total_servicos == 0 and os.itens:
+            total_servicos = sum(it.subtotal for it in os.itens if it.tipo == 'SERVICO')
         if total_servicos == 0:
             total_servicos = converter_valor(request.form.get('valor_mao_obra', '0'))
 
@@ -1643,6 +1659,162 @@ def concluir_os(os_id):
         flash(f"Atenção ao concluir OS: {str(e)}", "danger")
 
     return redirect(url_for('ver_os', os_id=os.id))
+
+
+@app.route('/os/<int:os_id>/salvar-orcamento', methods=['POST'])
+@login_required
+def salvar_orcamento_os(os_id):
+    os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+
+    def converter_valor(v):
+        if not v:
+            return 0.0
+        try:
+            s = str(v).strip().replace('R$', '').replace(' ', '')
+            if ',' in s and '.' in s:
+                s = s.replace('.', '').replace(',', '.')
+            elif ',' in s:
+                s = s.replace(',', '.')
+            return max(0.0, float(s))
+        except (ValueError, TypeError):
+            return 0.0
+
+    try:
+        peca_nomes = request.form.getlist('peca_nome[]')
+        peca_qtds = request.form.getlist('peca_qtd[]')
+        peca_valores = request.form.getlist('peca_valor[]')
+        peca_prod_ids = request.form.getlist('peca_prod_id[]')
+
+        serv_nomes = request.form.getlist('servico_nome[]')
+        serv_qtds = request.form.getlist('servico_qtd[]')
+        serv_valores = request.form.getlist('servico_valor[]')
+        serv_prod_ids = request.form.getlist('servico_prod_id[]')
+
+        # Se vieram itens preenchidos no formulário, limpa anteriores e recria
+        if any((n or '').strip() for n in peca_nomes) or any((n or '').strip() for n in serv_nomes):
+            ItemOS.query.filter_by(os_id=os_obj.id).delete()
+
+        total_pecas = 0.0
+        for i, (nome, qtd_str, val_str) in enumerate(zip(peca_nomes, peca_qtds, peca_valores)):
+            nome_clean = (nome or '').strip()
+            qtd = converter_valor(qtd_str) or 1.0
+            val_unit = converter_valor(val_str)
+            sub = round(qtd * val_unit, 2)
+            if nome_clean:
+                item = ItemOS(
+                    os_id=os_obj.id,
+                    tipo='PECA',
+                    descricao=nome_clean,
+                    quantidade=qtd,
+                    valor_unitario=val_unit,
+                    subtotal=sub
+                )
+                if i < len(peca_prod_ids) and peca_prod_ids[i]:
+                    try:
+                        p_id = int(peca_prod_ids[i])
+                        prod = Produto.query.filter_by(id=p_id, empresa_id=g.empresa.id).first()
+                        if prod:
+                            item.produto_id = prod.id
+                            if not item.ncm and prod.ncm:
+                                item.ncm = prod.ncm
+                            if not item.cfop and prod.cfop:
+                                item.cfop = prod.cfop
+                    except (ValueError, TypeError):
+                        pass
+                db.session.add(item)
+                total_pecas += sub
+
+        total_servicos = 0.0
+        for i, (nome, qtd_str, val_str) in enumerate(zip(serv_nomes, serv_qtds, serv_valores)):
+            nome_clean = (nome or '').strip()
+            qtd = converter_valor(qtd_str) or 1.0
+            val_unit = converter_valor(val_str)
+            sub = round(qtd * val_unit, 2)
+            if nome_clean:
+                item = ItemOS(
+                    os_id=os_obj.id,
+                    tipo='SERVICO',
+                    descricao=nome_clean,
+                    quantidade=qtd,
+                    valor_unitario=val_unit,
+                    subtotal=sub
+                )
+                if i < len(serv_prod_ids) and serv_prod_ids[i]:
+                    try:
+                        s_id = int(serv_prod_ids[i])
+                        serv_prod = Produto.query.filter_by(id=s_id, empresa_id=g.empresa.id).first()
+                        if serv_prod:
+                            item.produto_id = serv_prod.id
+                            if not item.codigo_servico_municipal and serv_prod.codigo_servico_municipal:
+                                item.codigo_servico_municipal = serv_prod.codigo_servico_municipal
+                            if not item.aliquota_iss and serv_prod.aliquota_iss:
+                                item.aliquota_iss = serv_prod.aliquota_iss
+                    except (ValueError, TypeError):
+                        pass
+                db.session.add(item)
+                total_servicos += sub
+
+        if total_pecas == 0:
+            total_pecas = converter_valor(request.form.get('valor_pecas', '0'))
+        if total_servicos == 0:
+            total_servicos = converter_valor(request.form.get('valor_mao_obra', '0'))
+
+        os_obj.valor_pecas = round(float(total_pecas or 0.0), 2)
+        os_obj.valor_mao_obra = round(float(total_servicos or 0.0), 2)
+        os_obj.valor_total = round(os_obj.valor_pecas + os_obj.valor_mao_obra, 2)
+
+        os_obj.servico_executado = (request.form.get('servico_executado') or '').strip()
+        os_obj.status = 'ORCAMENTO'
+        if os_obj.etapa_andamento in ['RECEBIDO', 'DIAGNOSTICO']:
+            os_obj.etapa_andamento = 'DIAGNOSTICO'
+
+        # Colaboradores previstos (opcional)
+        vendedor_id_form = (request.form.get('vendedor_id') or '').strip()
+        mecanico_id_form = (request.form.get('mecanico_id') or '').strip()
+        os_obj.vendedor_id = int(vendedor_id_form) if vendedor_id_form.isdigit() else None
+        os_obj.mecanico_id = int(mecanico_id_form) if mecanico_id_form.isdigit() else None
+
+        db.session.commit()
+        flash(f"Orçamento #{os_obj.numero_exibicao:04d} salvo com sucesso! Os valores estão registrados e você já pode imprimir sem lançar no Caixa.", "info")
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erro ao salvar orçamento: {str(e)}", "danger")
+
+    return redirect(url_for('ver_os', os_id=os_obj.id))
+
+
+@app.route('/os/<int:os_id>/excluir', methods=['POST'])
+@login_required
+def excluir_os(os_id):
+    os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+    numero = os_obj.numero_exibicao
+
+    try:
+        # Se estava concluída, estorna do caixa e devolve estoque
+        if os_obj.status == 'CONCLUIDA':
+            Transacao.query.filter_by(os_id=os_obj.id, empresa_id=g.empresa.id).delete()
+            for it in os_obj.itens:
+                if it.produto_id:
+                    prod = Produto.query.filter_by(id=it.produto_id, empresa_id=g.empresa.id).first()
+                    if prod:
+                        prod.estoque_atual = round((prod.estoque_atual or 0.0) + (it.quantidade or 1.0), 2)
+
+        # Deleta itens filhos vinculados
+        ItemOS.query.filter_by(os_id=os_obj.id).delete()
+
+        # Desvincula notas fiscais se houver
+        for nf in getattr(os_obj, 'notas_fiscais', []):
+            nf.ordem_servico_id = None
+
+        db.session.delete(os_obj)
+        db.session.commit()
+        flash(f"Orçamento / Pedido #{numero:04d} excluído com sucesso!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erro ao excluir orçamento: {str(e)}", "danger")
+
+    return redirect(url_for('lista_os'))
 
 
 @app.route('/os/<int:os_id>/atualizar-pagamento', methods=['POST'])

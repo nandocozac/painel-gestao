@@ -41,6 +41,11 @@
                 class="px-3 py-1.5 rounded-lg transition-all whitespace-nowrap {% if not status_atual %}bg-white text-slate-900 shadow-xs font-bold{% else %}text-slate-600 hover:text-slate-900{% endif %}">
                 Todos
             </a>
+            <a href="{{ url_for('lista_os', status='ORCAMENTO', busca=busca) }}"
+                class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap {% if status_atual == 'ORCAMENTO' %}bg-white text-indigo-700 shadow-xs font-bold{% else %}text-slate-600 hover:text-indigo-700{% endif %}">
+                <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                Orçamentos
+            </a>
             <a href="{{ url_for('lista_os', status='ABERTA', busca=busca) }}"
                 class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap {% if status_atual == 'ABERTA' %}bg-white text-amber-700 shadow-xs font-bold{% else %}text-slate-600 hover:text-amber-700{% endif %}">
                 <span class="w-2 h-2 rounded-full bg-amber-500"></span>
@@ -141,6 +146,11 @@
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 Concluída
                             </span>
+                            {% elif os.status == 'ORCAMENTO' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                Orçamento
+                            </span>
                             {% else %}
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -152,11 +162,25 @@
                             R$ {{ os.valor_total|moeda }}
                         </td>
                         <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                            <a href="{{ url_for('ver_os', os_id=os.id) }}"
-                                class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
-                                <span>Abrir OS</span>
-                                <span>&rarr;</span>
-                            </a>
+                            <div class="inline-flex items-center gap-1.5">
+                                <a href="{{ url_for('ver_os', os_id=os.id) }}"
+                                    class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
+                                    <span>{% if os.status == 'ORCAMENTO' %}Ver / Aprovar{% else %}Abrir OS{% endif %}</span>
+                                    <span>&rarr;</span>
+                                </a>
+                                {% if os.status != 'CONCLUIDA' %}
+                                <form method="POST" action="{{ url_for('excluir_os', os_id=os.id) }}"
+                                    onsubmit="return confirm('Deseja excluir definitivamente este {% if os.status == 'ORCAMENTO' %}orçamento{% else %}pedido/OS{% endif %}? Nenhum valor constará no caixa.');"
+                                    class="inline">
+                                    <button type="submit" title="Excluir {% if os.status == 'ORCAMENTO' %}Orçamento{% else %}OS{% endif %}"
+                                        class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}

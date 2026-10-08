@@ -157,14 +157,18 @@
 
         <div class="divider"></div>
         <div class="center bold uppercase">
+            {% if os.status != 'CONCLUIDA' %}
+            *** ORÇAMENTO NÃO-FISCAL ***
+            {% else %}
             COMPROVANTE DE ATENDIMENTO
+            {% endif %}
         </div>
         <div class="divider"></div>
 
         <!-- Dados do Atendimento -->
         <table style="width: 100%; font-size: 10.5px;">
             <tr>
-                <td class="bold">OS Nº: {{ "%04d"|format(os.numero_exibicao) }}</td>
+                <td class="bold">{% if os.status == 'ORCAMENTO' %}ORÇAMENTO Nº:{% else %}OS Nº:{% endif %} {{ "%04d"|format(os.numero_exibicao) }}</td>
                 <td class="right">{{ os.data_abertura.strftime('%d/%m/%Y') }}</td>
             </tr>
             <tr>
@@ -181,7 +185,7 @@
             </tr>
             {% endif %}
             <tr>
-                <td colspan="2">STATUS: <span class="bold">{{ os.status }}</span></td>
+                <td colspan="2">STATUS: <span class="bold">{% if os.status == 'ORCAMENTO' %}ORÇAMENTO{% else %}{{ os.status }}{% endif %}</span></td>
             </tr>
         </table>
 
@@ -234,24 +238,26 @@
             </tr>
             {% endif %}
             <tr style="font-size: 13px;" class="bold">
-                <td>TOTAL A PAGAR:</td>
+                <td>{% if os.status != 'CONCLUIDA' %}TOTAL ESTIMADO:{% else %}TOTAL A PAGAR:{% endif %}</td>
                 <td class="right">R$ {{ os.valor_total|moeda }}</td>
             </tr>
-            {% if os.lista_pagamentos|length > 1 %}
-            <tr>
-                <td colspan="2" class="bold" style="padding-top: 4px; border-top: 1px dashed #000;">PAGAMENTOS DETALHADOS:</td>
-            </tr>
-            {% for p in os.lista_pagamentos %}
-            <tr style="font-size: 10.5px;">
-                <td style="padding-left: 6px;">&bull; {{ p.forma }}:</td>
-                <td class="right font-mono bold">R$ {{ "%.2f"|format(p.valor)|replace('.', ',') }}</td>
-            </tr>
-            {% endfor %}
-            {% elif os.forma_pagamento %}
-            <tr>
-                <td>Forma Pagto:</td>
-                <td class="right bold">{{ os.forma_pagamento }}</td>
-            </tr>
+            {% if os.status == 'CONCLUIDA' %}
+                {% if os.lista_pagamentos|length > 1 %}
+                <tr>
+                    <td colspan="2" class="bold" style="padding-top: 4px; border-top: 1px dashed #000;">PAGAMENTOS DETALHADOS:</td>
+                </tr>
+                {% for p in os.lista_pagamentos %}
+                <tr style="font-size: 10.5px;">
+                    <td style="padding-left: 6px;">&bull; {{ p.forma }}:</td>
+                    <td class="right font-mono bold">R$ {{ "%.2f"|format(p.valor)|replace('.', ',') }}</td>
+                </tr>
+                {% endfor %}
+                {% elif os.forma_pagamento %}
+                <tr>
+                    <td>Forma Pagto:</td>
+                    <td class="right bold">{{ os.forma_pagamento }}</td>
+                </tr>
+                {% endif %}
             {% endif %}
         </table>
 
@@ -259,7 +265,11 @@
 
         <!-- Termos de Garantia e Rastreio -->
         <div style="font-size: 9.5px; text-align: justify; margin: 4px 0;">
+            {% if os.status != 'CONCLUIDA' %}
+            * Proposta / Orçamento sem compromisso válido por 10 dias úteis. Não constitui documento fiscal nem comprovação de pagamento.
+            {% else %}
             * Garantia legal de 90 dias sobre peças e serviços executados, conforme Código de Defesa do Consumidor.
+            {% endif %}
         </div>
 
         {% if os.codigo_rastreio %}
