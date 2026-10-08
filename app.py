@@ -252,6 +252,20 @@ def migrar_banco_multiempresa():
                 except Exception:
                     db.session.rollback()
 
+            # Garantir que itens_os e transacoes aceitem descricoes detalhadas sem limite de caracteres
+            alteracoes_tipos = [
+                "ALTER TABLE itens_os ALTER COLUMN descricao TYPE TEXT",
+                "ALTER TABLE transacoes ALTER COLUMN descricao TYPE TEXT",
+                "ALTER TABLE transacoes ALTER COLUMN forma_pagamento TYPE VARCHAR(255)",
+                "ALTER TABLE ordens_servico ALTER COLUMN forma_pagamento TYPE VARCHAR(255)"
+            ]
+            for sql_alt in alteracoes_tipos:
+                try:
+                    db.session.execute(text(sql_alt))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+
             pg_colunas_os = {
                 'numero_sequencial': "INTEGER",
                 'vendedor_id': "INTEGER REFERENCES colaboradores(id)",

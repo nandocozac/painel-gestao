@@ -193,7 +193,7 @@ class ItemOS(db.Model):
     os_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id'), nullable=False)
     produto_id = db.Column(db.Integer, db.ForeignKey('produtos.id'), nullable=True) # Vínculo opcional com estoque
     tipo = db.Column(db.String(10), nullable=False) # 'PECA' ou 'SERVICO'
-    descricao = db.Column(db.String(150), nullable=False)
+    descricao = db.Column(db.Text, nullable=False)
     quantidade = db.Column(db.Float, default=1.0)
     valor_unitario = db.Column(db.Float, default=0.0)
     subtotal = db.Column(db.Float, default=0.0)
@@ -211,9 +211,9 @@ class Transacao(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=True)
     tipo = db.Column(db.String(10), nullable=False) # 'RECEITA' ou 'DESPESA'
-    descricao = db.Column(db.String(200), nullable=False)
+    descricao = db.Column(db.Text, nullable=False)
     valor = db.Column(db.Float, nullable=False)
-    forma_pagamento = db.Column(db.String(30), nullable=True)
+    forma_pagamento = db.Column(db.String(255), nullable=True)
     data_movimento = db.Column(db.Date, default=date.today)
     
     os_id = db.Column(db.Integer, db.ForeignKey('ordens_servico.id'), nullable=True)
