@@ -2721,6 +2721,8 @@ def retornos_preventivos():
         OrdemServico.status == 'CONCLUIDA'
     ).order_by(OrdemServico.retorno_previsto.asc()).all()
 
+    return render_template('retornos.html', alertas=alertas)
+
 # --- GESTÃO DE COLABORADORES (VENDEDORES & MECÂNICOS/TÉCNICOS) ---
 
 @app.route('/colaboradores')

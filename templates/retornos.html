@@ -63,14 +63,14 @@
                                 <span>Alterar Data</span>
                             </button>
 
-                            {% set fone_limpo = a.cliente.telefone|replace('(', '')|replace(')', '')|replace('-', '')|replace(' ', '') %}
+                            {% set fone_limpo = a.cliente.telefone|fone_whatsapp %}
                             {% if empresa.tipo_negocio == 'OFICINA' %}
                                 {% set veic_info = " do seu veículo " ~ a.veiculo.modelo if a.veiculo else "" %}
                                 {% set msg = "Olá " ~ a.cliente.nome ~ "! Notamos que está próxima a data prevista para a revisão preventiva" ~ veic_info ~ " na oficina " ~ empresa.nome_empresa ~ ". Gostaria de agendar seu atendimento?" %}
                             {% else %}
                                 {% set msg = "Olá " ~ a.cliente.nome ~ "! Tudo bem? Passando para saber como foi sua experiência com sua última compra na " ~ empresa.nome_empresa ~ ". Temos novidades que você vai adorar, estamos à disposição!" %}
                             {% endif %}
-                            <a href="https://wa.me/55{{ fone_limpo }}?text={{ msg|urlencode }}" target="_blank"
+                            <a href="https://wa.me/{{ fone_limpo }}?text={{ msg|urlencode }}" target="_blank"
                                 class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-sm">
                                 Notificar WhatsApp
                             </a>
