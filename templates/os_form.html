@@ -177,14 +177,23 @@
                             {% endif %}
                             {% endfor %}
                         </select>
-                        <div>
-                            <label class="block text-[11px] text-slate-500 mb-0.5">Comissão do Vendedor (%)</label>
-                            <div class="relative">
-                                <input type="number" step="0.1" min="0" max="100" name="porcentagem_comissao_vendedor" id="porc_vendedor" placeholder="0.0"
-                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                <span class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-[11px] font-semibold text-slate-600">Comissão do Vendedor</label>
+                                <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
+                                    <input type="hidden" name="tipo_comissao_vendedor" id="tipo_comissao_vendedor" value="PORCENTAGEM">
+                                    <button type="button" id="btn_tipo_vend_porc" onclick="alterarTipoForm('vendedor', 'PORCENTAGEM')"
+                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs">%</button>
+                                    <button type="button" id="btn_tipo_vend_fixo" onclick="alterarTipoForm('vendedor', 'FIXO')"
+                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
+                                </div>
                             </div>
-                            <span class="text-[10px] text-slate-400 block mt-0.5">Calculada sobre o valor das vendas</span>
+                            <div class="relative">
+                                <input type="text" name="porcentagem_comissao_vendedor" id="porc_vendedor" placeholder="0.0"
+                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-8">
+                                <span id="sufixo_vend" class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                            </div>
+                            <span id="desc_tipo_vend" class="text-[10px] text-slate-400 block mt-0.5">Calculada sobre o valor das vendas</span>
                         </div>
                     </div>
 
@@ -205,14 +214,23 @@
                             {% endif %}
                             {% endfor %}
                         </select>
-                        <div>
-                            <label class="block text-[11px] text-slate-500 mb-0.5">Comissão da Mão de Obra (%)</label>
-                            <div class="relative">
-                                <input type="number" step="0.1" min="0" max="100" name="porcentagem_comissao_mecanico" id="porc_mecanico" placeholder="0.0"
-                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                <span class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-[11px] font-semibold text-slate-600">Comissão da Mão de Obra</label>
+                                <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
+                                    <input type="hidden" name="tipo_comissao_mecanico" id="tipo_comissao_mecanico" value="PORCENTAGEM">
+                                    <button type="button" id="btn_tipo_mec_porc" onclick="alterarTipoForm('mecanico', 'PORCENTAGEM')"
+                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs">%</button>
+                                    <button type="button" id="btn_tipo_mec_fixo" onclick="alterarTipoForm('mecanico', 'FIXO')"
+                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
+                                </div>
                             </div>
-                            <span class="text-[10px] text-slate-400 block mt-0.5">Calculada sobre a mão de obra/serviço</span>
+                            <div class="relative">
+                                <input type="text" name="porcentagem_comissao_mecanico" id="porc_mecanico" placeholder="0.0"
+                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-8">
+                                <span id="sufixo_mec" class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                            </div>
+                            <span id="desc_tipo_mec" class="text-[10px] text-slate-400 block mt-0.5">Calculada sobre a mão de obra/serviço</span>
                         </div>
                     </div>
                 </div>
@@ -370,12 +388,59 @@
         campoBusca.focus();
     }
 
+    function alterarTipoForm(papel, tipo) {
+        if (papel === 'vendedor') {
+            const h = document.getElementById('tipo_comissao_vendedor');
+            const bp = document.getElementById('btn_tipo_vend_porc');
+            const bf = document.getElementById('btn_tipo_vend_fixo');
+            const s = document.getElementById('sufixo_vend');
+            const desc = document.getElementById('desc_tipo_vend');
+            const inp = document.getElementById('porc_vendedor');
+            if (h) h.value = tipo;
+            if (tipo === 'FIXO') {
+                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs';
+                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+                if (s) s.innerText = 'R$';
+                if (desc) desc.innerText = 'Valor fixo em reais por venda';
+                if (inp) inp.placeholder = '0,00';
+            } else {
+                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs';
+                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+                if (s) s.innerText = '%';
+                if (desc) desc.innerText = 'Calculada sobre o valor das vendas';
+                if (inp) inp.placeholder = '0.0';
+            }
+        } else if (papel === 'mecanico') {
+            const h = document.getElementById('tipo_comissao_mecanico');
+            const bp = document.getElementById('btn_tipo_mec_porc');
+            const bf = document.getElementById('btn_tipo_mec_fixo');
+            const s = document.getElementById('sufixo_mec');
+            const desc = document.getElementById('desc_tipo_mec');
+            const inp = document.getElementById('porc_mecanico');
+            if (h) h.value = tipo;
+            if (tipo === 'FIXO') {
+                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs';
+                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+                if (s) s.innerText = 'R$';
+                if (desc) desc.innerText = 'Valor fixo em reais pela mão de obra';
+                if (inp) inp.placeholder = '0,00';
+            } else {
+                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs';
+                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+                if (s) s.innerText = '%';
+                if (desc) desc.innerText = 'Calculada sobre a mão de obra/serviço';
+                if (inp) inp.placeholder = '0.0';
+            }
+        }
+    }
+
     // Atualiza porcentagens padrão conforme seleção de vendedor e mecânico
     function atualizarPorcentagemVendedor(select) {
         const option = select.options[select.selectedIndex];
         const porc = option.getAttribute('data-porc');
         const inputPorc = document.getElementById('porc_vendedor');
         if (porc && parseFloat(porc) > 0) {
+            alterarTipoForm('vendedor', 'PORCENTAGEM');
             inputPorc.value = porc;
         } else if (!select.value) {
             inputPorc.value = '';
@@ -387,6 +452,7 @@
         const porc = option.getAttribute('data-porc');
         const inputPorc = document.getElementById('porc_mecanico');
         if (porc && parseFloat(porc) > 0) {
+            alterarTipoForm('mecanico', 'PORCENTAGEM');
             inputPorc.value = porc;
         } else if (!select.value) {
             inputPorc.value = '';

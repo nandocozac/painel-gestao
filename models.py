@@ -146,8 +146,10 @@ class OrdemServico(db.Model):
     # Identificação do Vendedor e do Responsável pela Mão de Obra / Mecânico
     vendedor_id = db.Column(db.Integer, db.ForeignKey('colaboradores.id'), nullable=True)
     mecanico_id = db.Column(db.Integer, db.ForeignKey('colaboradores.id'), nullable=True)
+    tipo_comissao_vendedor = db.Column(db.String(15), default='PORCENTAGEM') # 'PORCENTAGEM' ou 'FIXO'
     porcentagem_comissao_vendedor = db.Column(db.Float, default=0.0)
     valor_comissao_vendedor = db.Column(db.Float, default=0.0)
+    tipo_comissao_mecanico = db.Column(db.String(15), default='PORCENTAGEM') # 'PORCENTAGEM' ou 'FIXO'
     porcentagem_comissao_mecanico = db.Column(db.Float, default=0.0)
     valor_comissao_mecanico = db.Column(db.Float, default=0.0)
 

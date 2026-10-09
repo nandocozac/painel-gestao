@@ -301,7 +301,7 @@
                         <th class="py-3 px-4">Profissional Beneficiado</th>
                         <th class="py-3 px-4">Papel na OS</th>
                         <th class="py-3 px-4 text-right">Base de Cálculo</th>
-                        <th class="py-3 px-4 text-center">% Aplicada</th>
+                        <th class="py-3 px-4 text-center">% / Tipo</th>
                         <th class="py-3 px-4 text-right">Comissão (R$)</th>
                         <th class="py-3 px-4 text-center no-print">Ação</th>
                     </tr>
@@ -330,8 +330,16 @@
                         <td class="py-3 px-4 text-right font-mono text-slate-700">
                             R$ {{ item.base|moeda }}
                         </td>
-                        <td class="py-3 px-4 text-center font-mono font-bold text-blue-600">
-                            {{ item.porcentagem }}%
+                        <td class="py-3 px-4 text-center">
+                            {% if item.tipo == 'FIXO' %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                Valor Fixo
+                            </span>
+                            {% else %}
+                            <span class="font-mono font-bold text-blue-600">
+                                {{ item.porcentagem }}%
+                            </span>
+                            {% endif %}
                         </td>
                         <td class="py-3 px-4 text-right font-mono font-black text-emerald-600">
                             R$ {{ item.valor_comissao|moeda }}
