@@ -110,6 +110,12 @@ class Colaborador(db.Model):
     ativo = db.Column(db.Boolean, default=True)
     data_cadastro = db.Column(db.Date, default=date.today)
 
+    # Credenciais e Permissões de Acesso ao Sistema
+    email = db.Column(db.String(120), nullable=True) # E-mail de login próprio
+    senha_hash = db.Column(db.String(255), nullable=True) # Senha criptografada
+    pode_acessar = db.Column(db.Boolean, default=False) # Habilita/desabilita login deste colaborador
+    perfil = db.Column(db.String(20), default='VENDEDOR') # 'VENDEDOR' ou 'ADMIN'
+
     empresa = db.relationship('Empresa', backref=db.backref('colaboradores', lazy=True))
 
     def to_dict(self):
@@ -121,7 +127,10 @@ class Colaborador(db.Model):
             'chave_pix': self.chave_pix or '',
             'porcentagem_padrao': float(self.porcentagem_padrao or 0.0),
             'tipo_base': self.tipo_base or 'TOTAL',
-            'ativo': self.ativo
+            'ativo': self.ativo,
+            'email': self.email or '',
+            'pode_acessar': bool(self.pode_acessar),
+            'perfil': self.perfil or 'VENDEDOR'
         }
 
 

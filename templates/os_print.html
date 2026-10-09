@@ -36,7 +36,8 @@
             {% endif %}
 
             {% if os.status == 'CONCLUIDA' %}
-            <!-- Botão de Reabrir OS para Edição -->
+            {% if is_admin_empresa %}
+            <!-- Botão de Reabrir OS para Edição (Apenas Administrador) -->
             <form method="POST" action="{{ url_for('reabrir_os', os_id=os.id) }}"
                 onsubmit="return confirm('Deseja reabrir esta OS para edição? O valor lançado no caixa será estornado para que você possa corrigir os itens.');"
                 class="inline">
@@ -49,6 +50,13 @@
                     Reabrir / Editar OS
                 </button>
             </form>
+            {% else %}
+            <!-- Bloqueio para Vendedor após venda concluída -->
+            <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200"
+                title="Esta venda já entrou no Caixa. Apenas o administrador da empresa tem autorização para reabri-la ou alterá-la.">
+                🔒 Venda Faturada (Bloqueada para edição)
+            </span>
+            {% endif %}
             {% endif %}
 
             {% set fone_limpo = os.cliente.telefone|fone_whatsapp %}
@@ -937,10 +945,12 @@
                     <p class="text-[11px] text-slate-500">Valores apurados para o vendedor e mão de obra deste atendimento</p>
                 </div>
             </div>
+            {% if is_admin_empresa %}
             <button type="button" onclick="document.getElementById('modal-editar-comissoes').classList.remove('hidden')"
                 class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition flex items-center gap-1.5">
                 <span>✏️</span> Ajustar Comissões
             </button>
+            {% endif %}
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1038,10 +1048,12 @@
                     <p class="text-[11px] text-slate-500">Entradas financeiras lançadas no Caixa para esta OS</p>
                 </div>
             </div>
+            {% if is_admin_empresa %}
             <button type="button" onclick="document.getElementById('modal-editar-pagamento').classList.remove('hidden')"
                 class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition flex items-center gap-1.5">
                 <span>✏️</span> Ajustar Formas de Pagamento
             </button>
+            {% endif %}
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">

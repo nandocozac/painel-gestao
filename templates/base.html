@@ -141,10 +141,12 @@
                         Clientes
                     </a>
 
+                    {% if is_admin_empresa %}
                     <a href="{{ url_for('relatorio_financeiro') }}"
                         class="px-2.5 py-1.5 rounded-lg transition-all {% if request.endpoint == 'relatorio_financeiro' %}bg-slate-800 text-white shadow-xs border border-slate-700/60{% else %}text-slate-300 hover:text-white hover:bg-slate-800/60{% endif %}">
                         Caixa
                     </a>
+                    {% endif %}
 
                     <a href="{{ url_for('relatorio_comissoes') }}"
                         class="px-2.5 py-1.5 rounded-lg transition-all {% if request.endpoint == 'relatorio_comissoes' %}bg-slate-800 text-white shadow-xs border border-slate-700/60{% else %}text-slate-300 hover:text-white hover:bg-slate-800/60{% endif %}">
@@ -161,6 +163,7 @@
                         {% if empresa.tipo_negocio == 'OFICINA' %}Retornos{% else %}Pós-Venda{% endif %}
                     </a>
 
+                    {% if is_admin_empresa %}
                     <a href="{{ url_for('configuracoes_empresa') }}"
                         class="px-2.5 py-1.5 rounded-lg transition-all {% if request.endpoint == 'configuracoes_empresa' %}bg-slate-800 text-white shadow-xs border border-slate-700/60{% else %}text-slate-300 hover:text-white hover:bg-slate-800/60{% endif %} flex items-center gap-1">
                         <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,8 +172,9 @@
                         </svg>
                         <span>Empresa</span>
                     </a>
+                    {% endif %}
 
-                    {% if empresa.permite_emissao_fiscal or empresa.is_admin %}
+                    {% if is_admin_empresa and (empresa.permite_emissao_fiscal or empresa.is_admin) %}
                     <a href="{{ url_for('configuracoes_fiscal') }}"
                         class="px-2.5 py-1.5 rounded-lg transition-all text-purple-300 hover:text-white bg-purple-950/40 hover:bg-purple-900/60 border border-purple-800/40 flex items-center gap-1">
                         <svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,9 +196,16 @@
                     {% endif %}
                 </nav>
 
-                <!-- Ações Direitas (Botão Novo Pedido/OS e Perfil) -->
+                <!-- Ações Direitas (Perfil Logado, Botão Novo Pedido/OS e Sair) -->
                 <div class="flex items-center gap-2.5 shrink-0">
                     {% if empresa %}
+                    <div class="hidden sm:flex flex-col text-right leading-tight mr-1">
+                        <span class="text-xs font-bold text-white max-w-[130px] truncate" title="{{ usuario_nome }}">{{ usuario_nome }}</span>
+                        <span class="text-[10px] {{ 'text-amber-400 font-semibold' if is_admin_empresa else 'text-blue-300 font-medium' }}">
+                            {{ '👑 Administrador' if is_admin_empresa else '🛍️ Vendedor' }}
+                        </span>
+                    </div>
+
                     <a href="{{ url_for('nova_os') }}"
                         class="bg-blue-600 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-md shadow-blue-600/25 active:scale-95 transition-all inline-flex items-center gap-1.5 hover-lift">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,7 +215,7 @@
                     </a>
 
                     <!-- Botão Sair com Tooltip -->
-                    <a href="{{ url_for('logout') }}" title="Sair da Conta"
+                    <a href="{{ url_for('logout') }}" title="Sair da Conta ({{ usuario_nome }})"
                         class="text-slate-400 hover:text-rose-400 p-2 rounded-xl hover:bg-slate-800 transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -225,10 +236,14 @@
             <a href="{{ url_for('lista_os') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">{% if empresa.tipo_negocio == 'OFICINA' %}OSs{% else %}Pedidos{% endif %}</a>
             <a href="{{ url_for('lista_produtos') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Estoque</a>
             <a href="{{ url_for('lista_clientes') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Clientes</a>
+            {% if is_admin_empresa %}
             <a href="{{ url_for('relatorio_financeiro') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Caixa</a>
+            {% endif %}
             <a href="{{ url_for('relatorio_comissoes') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Comissões</a>
             <a href="{{ url_for('lista_colaboradores') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Equipe</a>
+            {% if is_admin_empresa %}
             <a href="{{ url_for('configuracoes_empresa') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Empresa</a>
+            {% endif %}
             {% if empresa.is_admin %}
             <a href="{{ url_for('admin_empresas') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-indigo-400 font-bold">Master</a>
             {% endif %}

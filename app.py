@@ -153,7 +153,7 @@ def migrar_banco_multiempresa():
                 db.session.execute(text("ALTER TABLE transacoes ADD COLUMN os_id INTEGER REFERENCES ordens_servico(id)"))
                 db.session.commit()
 
-            # 4.2 Garantir existência da tabela colaboradores (SQLite)
+            # 4.2 Garantir existência e colunas de acesso na tabela colaboradores (SQLite)
             try:
                 db.session.execute(text("""
                     CREATE TABLE IF NOT EXISTS colaboradores (
@@ -166,12 +166,28 @@ def migrar_banco_multiempresa():
                         porcentagem_padrao FLOAT DEFAULT 0.0,
                         tipo_base VARCHAR(20) DEFAULT 'TOTAL',
                         ativo BOOLEAN DEFAULT 1,
-                        data_cadastro DATE
+                        data_cadastro DATE,
+                        email VARCHAR(120),
+                        senha_hash VARCHAR(255),
+                        pode_acessar BOOLEAN DEFAULT 0,
+                        perfil VARCHAR(20) DEFAULT 'VENDEDOR'
                     )
                 """))
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+
+            colunas_colab = [row[1] for row in db.session.execute(text("PRAGMA table_info(colaboradores)")).fetchall()]
+            novas_colunas_colab = {
+                'email': 'VARCHAR(120)',
+                'senha_hash': 'VARCHAR(255)',
+                'pode_acessar': 'BOOLEAN DEFAULT 0',
+                'perfil': 'VARCHAR(20) DEFAULT "VENDEDOR"'
+            }
+            for col, col_type in novas_colunas_colab.items():
+                if col not in colunas_colab:
+                    db.session.execute(text(f"ALTER TABLE colaboradores ADD COLUMN {col} {col_type}"))
+            db.session.commit()
 
             # 5. Garantir colunas de CPF/CNPJ e endereço na tabela clientes (SQLite)
             colunas_clientes = [row[1] for row in db.session.execute(text("PRAGMA table_info(clientes)")).fetchall()]
@@ -306,6 +322,19 @@ def migrar_banco_multiempresa():
             for col, col_type in pg_colunas_clientes.items():
                 try:
                     db.session.execute(text(f"ALTER TABLE clientes ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+
+            pg_colunas_colab = {
+                'email': "VARCHAR(120)",
+                'senha_hash': "VARCHAR(255)",
+                'pode_acessar': "BOOLEAN DEFAULT FALSE",
+                'perfil': "VARCHAR(20) DEFAULT 'VENDEDOR'"
+            }
+            for col, col_type in pg_colunas_colab.items():
+                try:
+                    db.session.execute(text(f"ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS {col} {col_type}"))
                     db.session.commit()
                 except Exception:
                     db.session.rollback()
@@ -474,10 +503,40 @@ def carregar_empresa_logada():
     if empresa_id:
         g.empresa = db.session.get(Empresa, empresa_id)
         if not g.empresa:
-            session.pop('empresa_id', None)
+            session.clear()
             g.empresa = None
+            g.colaborador = None
+            g.usuario_perfil = None
+            g.usuario_nome = None
+            g.is_admin_empresa = False
+            return
+
+        colaborador_id = session.get('colaborador_id')
+        if colaborador_id:
+            g.colaborador = db.session.get(Colaborador, colaborador_id)
+            if not g.colaborador or not g.colaborador.ativo or not g.colaborador.pode_acessar:
+                session.clear()
+                g.empresa = None
+                g.colaborador = None
+                g.usuario_perfil = None
+                g.usuario_nome = None
+                g.is_admin_empresa = False
+                flash('Seu acesso ao sistema foi desativado ou suspenso.', 'warning')
+                return
+            g.usuario_perfil = g.colaborador.perfil or 'VENDEDOR'
+            g.usuario_nome = g.colaborador.nome
+            g.is_admin_empresa = (g.usuario_perfil == 'ADMIN')
+        else:
+            g.colaborador = None
+            g.usuario_perfil = 'ADMIN'
+            g.usuario_nome = g.empresa.nome_empresa
+            g.is_admin_empresa = True
     else:
         g.empresa = None
+        g.colaborador = None
+        g.usuario_perfil = None
+        g.usuario_nome = None
+        g.is_admin_empresa = False
 
 
 @app.after_request
@@ -496,7 +555,14 @@ def add_no_cache_headers(response):
 
 @app.context_processor
 def inject_empresa():
-    return dict(empresa=getattr(g, 'empresa', None), hoje=date.today())
+    return dict(
+        empresa=getattr(g, 'empresa', None),
+        colaborador=getattr(g, 'colaborador', None),
+        usuario_perfil=getattr(g, 'usuario_perfil', 'ADMIN'),
+        usuario_nome=getattr(g, 'usuario_nome', None),
+        is_admin_empresa=getattr(g, 'is_admin_empresa', True),
+        hoje=date.today()
+    )
 
 
 def login_required(view_func):
@@ -512,6 +578,21 @@ def login_required(view_func):
             esta_bloqueada = (g.empresa.status_assinatura != 'ATIVO') or (g.empresa.data_validade and g.empresa.data_validade < hoje)
             if esta_bloqueada:
                 return redirect(url_for('assinatura_bloqueada'))
+
+        return view_func(*args, **kwargs)
+    return wrapped_view
+
+
+def empresa_admin_required(view_func):
+    @wraps(view_func)
+    def wrapped_view(*args, **kwargs):
+        if not getattr(g, 'empresa', None):
+            flash('Por favor, faça login para acessar o sistema.', 'warning')
+            return redirect(url_for('login', next=request.path))
+
+        if not getattr(g, 'is_admin_empresa', False):
+            flash('Acesso restrito ao Administrador da empresa.', 'error')
+            return redirect(url_for('dashboard'))
 
         return view_func(*args, **kwargs)
     return wrapped_view
@@ -622,9 +703,13 @@ def login():
         email = request.form.get('email', '').strip().lower()
         senha = request.form.get('senha', '').strip()
 
+        # 1. Tentar login como Dono da Empresa (Administrador Principal)
         empresa = Empresa.query.filter_by(email=email).first()
         if empresa and check_password_hash(empresa.senha_hash, senha):
             session['empresa_id'] = empresa.id
+            session['colaborador_id'] = None
+            session['usuario_nome'] = empresa.nome_empresa
+            session['usuario_perfil'] = 'ADMIN'
             
             # Se for empresa comum e estiver pendente ou bloqueada, informa com clareza
             if not empresa.is_admin:
@@ -637,11 +722,37 @@ def login():
                         flash("Sua assinatura está expirada ou bloqueada. Efetue o pagamento para renovar o acesso.", "warning")
                     return redirect(url_for('assinatura_bloqueada'))
 
-            flash(f"Bem-vindo(a), {empresa.nome_empresa}!", "success")
+            flash(f"Bem-vindo(a), {empresa.nome_empresa}! (Administrador)", "success")
             next_url = request.args.get('next')
             return redirect(next_url or url_for('dashboard'))
-        else:
-            flash("E-mail ou senha incorretos. Tente novamente.", "error")
+
+        # 2. Tentar login como Colaborador / Vendedor com acesso habilitado
+        colab = Colaborador.query.filter_by(email=email, pode_acessar=True, ativo=True).first()
+        if colab and colab.senha_hash and check_password_hash(colab.senha_hash, senha):
+            empresa_colab = colab.empresa
+            if not empresa_colab:
+                flash("Empresa vinculada não foi encontrada.", "error")
+                return render_template('login.html')
+
+            # Verificar assinatura da empresa do colaborador
+            if not empresa_colab.is_admin:
+                hoje = date.today()
+                esta_bloqueada = (empresa_colab.status_assinatura != 'ATIVO') or (empresa_colab.data_validade and empresa_colab.data_validade < hoje)
+                if esta_bloqueada:
+                    flash("A assinatura da empresa está suspensa ou aguardando pagamento. Contate o administrador.", "warning")
+                    return redirect(url_for('assinatura_bloqueada'))
+
+            session['empresa_id'] = empresa_colab.id
+            session['colaborador_id'] = colab.id
+            session['usuario_nome'] = colab.nome
+            session['usuario_perfil'] = colab.perfil or 'VENDEDOR'
+
+            perfil_label = 'Administrador' if colab.perfil == 'ADMIN' else 'Vendedor'
+            flash(f"Olá, {colab.nome}! Conectado(a) como {perfil_label} em {empresa_colab.nome_empresa}.", "success")
+            next_url = request.args.get('next')
+            return redirect(next_url or url_for('dashboard'))
+
+        flash("E-mail ou senha incorretos. Tente novamente.", "error")
 
     return render_template('login.html')
 
@@ -1223,6 +1334,7 @@ def dashboard():
 
 @app.route('/financeiro/despesa', methods=['POST'])
 @login_required
+@empresa_admin_required
 def nova_despesa():
     descricao = request.form.get('descricao', '').strip()
     forma_pagamento = request.form.get('forma_pagamento', 'Dinheiro').strip()
@@ -1680,6 +1792,10 @@ def concluir_os(os_id):
 def salvar_orcamento_os(os_id):
     os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
 
+    if os_obj.status == 'CONCLUIDA' and not g.is_admin_empresa:
+        flash("Esta venda já foi concluída no caixa e não pode ser modificada por vendedor.", "error")
+        return redirect(url_for('ver_os', os_id=os_obj.id))
+
     def converter_valor(v):
         if not v:
             return 0.0
@@ -1804,6 +1920,10 @@ def excluir_os(os_id):
     os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
     numero = os_obj.numero_exibicao
 
+    if os_obj.status == 'CONCLUIDA' and not g.is_admin_empresa:
+        flash("Apenas o Administrador da empresa pode excluir uma venda já lançada no caixa.", "error")
+        return redirect(url_for('ver_os', os_id=os_id))
+
     try:
         # Se estava concluída, estorna do caixa e devolve estoque
         if os_obj.status == 'CONCLUIDA':
@@ -1836,6 +1956,10 @@ def excluir_os(os_id):
 def atualizar_pagamento_os(os_id):
     """Permite ao dono ajustar ou alterar as formas de pagamento em uma OS concluída"""
     os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+
+    if not g.is_admin_empresa:
+        flash("Apenas o Administrador da empresa tem permissão para alterar formas de pagamento após a entrada no caixa.", "error")
+        return redirect(url_for('ver_os', os_id=os_obj.id))
 
     tipo_pagamento = (request.form.get('tipo_pagamento') or 'UNICO').strip().upper()
     formas_lista = request.form.getlist('pagamento_forma[]')
@@ -1893,6 +2017,10 @@ def atualizar_comissao_os(os_id):
     """Permite ao dono ajustar ou vincular vendedor e executor da mão de obra em qualquer OS já existente"""
     os_obj = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
 
+    if not g.is_admin_empresa:
+        flash("Apenas o Administrador da empresa pode alterar comissões e responsáveis.", "error")
+        return redirect(url_for('ver_os', os_id=os_obj.id))
+
     vendedor_id_form = request.form.get('vendedor_id', '').strip()
     mecanico_id_form = request.form.get('mecanico_id', '').strip()
     porc_vendedor_input = request.form.get('porcentagem_comissao_vendedor', '').strip()
@@ -1930,6 +2058,10 @@ def atualizar_comissao_os(os_id):
 @login_required
 def reabrir_os(os_id):
     os = OrdemServico.query.filter_by(id=os_id, empresa_id=g.empresa.id).first_or_404()
+
+    if not g.is_admin_empresa:
+        flash("Apenas o Administrador da empresa tem permissão para reabrir uma venda/OS concluída.", "error")
+        return redirect(url_for('ver_os', os_id=os.id))
 
     if os.status == 'CONCLUIDA':
         # 1. Estorna a transação financeira do livro caixa da empresa
@@ -2642,6 +2774,7 @@ def editar_cliente(cliente_id):
 
 @app.route('/financeiro')
 @login_required
+@empresa_admin_required
 def relatorio_financeiro():
     hoje = date.today()
     mes_selecionado = int(request.args.get('mes', hoje.month))
@@ -2677,6 +2810,7 @@ def relatorio_financeiro():
 
 @app.route('/financeiro/exportar')
 @login_required
+@empresa_admin_required
 def exportar_financeiro():
     hoje = date.today()
     mes = int(request.args.get('mes', hoje.month))
@@ -2769,6 +2903,7 @@ def lista_colaboradores():
 
 @app.route('/colaboradores/novo', methods=['POST'])
 @login_required
+@empresa_admin_required
 def novo_colaborador():
     nome = request.form.get('nome', '').strip()
     if not nome:
@@ -2786,6 +2921,28 @@ def novo_colaborador():
     if tipo_base not in ['TOTAL', 'PECAS', 'MAO_DE_OBRA']:
         tipo_base = 'TOTAL' if funcao == 'VENDEDOR' else 'MAO_DE_OBRA'
 
+    # Gestão de Acesso ao Sistema (Login)
+    pode_acessar = request.form.get('pode_acessar') == '1'
+    email_acesso = request.form.get('email_acesso', '').strip().lower()
+    senha_acesso = request.form.get('senha_acesso', '').strip()
+    perfil_acesso = request.form.get('perfil_acesso', 'VENDEDOR').strip().upper()
+    if perfil_acesso not in ['ADMIN', 'VENDEDOR']:
+        perfil_acesso = 'VENDEDOR'
+
+    senha_hash = None
+    if pode_acessar:
+        if not email_acesso or not senha_acesso:
+            flash("Para habilitar o acesso ao sistema, é obrigatório informar e-mail e senha.", "error")
+            return redirect(url_for('lista_colaboradores'))
+
+        emp_existente = Empresa.query.filter_by(email=email_acesso).first()
+        colab_existente = Colaborador.query.filter_by(email=email_acesso).first()
+        if emp_existente or colab_existente:
+            flash("Este e-mail de acesso já está em uso por outro usuário ou empresa.", "error")
+            return redirect(url_for('lista_colaboradores'))
+
+        senha_hash = generate_password_hash(senha_acesso)
+
     colab = Colaborador(
         empresa_id=g.empresa.id,
         nome=nome,
@@ -2795,16 +2952,27 @@ def novo_colaborador():
         porcentagem_padrao=porcentagem,
         tipo_base=tipo_base,
         ativo=True,
-        data_cadastro=date.today()
+        data_cadastro=date.today(),
+        email=email_acesso if pode_acessar else None,
+        senha_hash=senha_hash,
+        pode_acessar=pode_acessar,
+        perfil=perfil_acesso
     )
     db.session.add(colab)
     db.session.commit()
-    flash(f"Colaborador(a) '{nome}' cadastrado(a) com sucesso com {porcentagem}% de comissão padrão!", "success")
+
+    if pode_acessar:
+        perfil_msg = "Administrador" if perfil_acesso == 'ADMIN' else "Vendedor"
+        flash(f"Colaborador(a) '{nome}' cadastrado(a) com acesso ativo ao sistema ({perfil_msg})!", "success")
+    else:
+        flash(f"Colaborador(a) '{nome}' cadastrado(a) com sucesso!", "success")
+
     return redirect(url_for('lista_colaboradores'))
 
 
 @app.route('/colaboradores/<int:colaborador_id>/editar', methods=['POST'])
 @login_required
+@empresa_admin_required
 def editar_colaborador(colaborador_id):
     colab = Colaborador.query.filter_by(id=colaborador_id, empresa_id=g.empresa.id).first_or_404()
 
@@ -2828,6 +2996,37 @@ def editar_colaborador(colaborador_id):
     colab.tipo_base = tipo_base
     colab.ativo = ativo
 
+    # Gestão de Acesso ao Sistema (Login)
+    pode_acessar = request.form.get('pode_acessar') == '1'
+    email_acesso = request.form.get('email_acesso', '').strip().lower()
+    senha_acesso = request.form.get('senha_acesso', '').strip()
+    perfil_acesso = request.form.get('perfil_acesso', colab.perfil or 'VENDEDOR').strip().upper()
+    if perfil_acesso not in ['ADMIN', 'VENDEDOR']:
+        perfil_acesso = 'VENDEDOR'
+
+    if pode_acessar:
+        if not email_acesso:
+            flash("Para habilitar o acesso ao sistema, é obrigatório informar o e-mail.", "error")
+            return redirect(url_for('lista_colaboradores'))
+
+        emp_existente = Empresa.query.filter_by(email=email_acesso).first()
+        colab_existente = Colaborador.query.filter(Colaborador.email == email_acesso, Colaborador.id != colab.id).first()
+        if emp_existente or colab_existente:
+            flash("Este e-mail de acesso já está em uso por outro usuário ou empresa.", "error")
+            return redirect(url_for('lista_colaboradores'))
+
+        colab.email = email_acesso
+        colab.perfil = perfil_acesso
+        colab.pode_acessar = True
+
+        if senha_acesso:
+            colab.senha_hash = generate_password_hash(senha_acesso)
+        elif not colab.senha_hash:
+            flash("Para habilitar o acesso, defina uma senha inicial para este colaborador.", "error")
+            return redirect(url_for('lista_colaboradores'))
+    else:
+        colab.pode_acessar = False
+
     db.session.commit()
     flash(f"Dados de '{colab.nome}' atualizados com sucesso!", "success")
     return redirect(url_for('lista_colaboradores'))
@@ -2835,6 +3034,7 @@ def editar_colaborador(colaborador_id):
 
 @app.route('/colaboradores/<int:colaborador_id>/toggle-status', methods=['POST'])
 @login_required
+@empresa_admin_required
 def toggle_status_colaborador(colaborador_id):
     colab = Colaborador.query.filter_by(id=colaborador_id, empresa_id=g.empresa.id).first_or_404()
     colab.ativo = not colab.ativo
@@ -3031,6 +3231,7 @@ def backup_banco():
 
 @app.route('/configuracoes', methods=['GET', 'POST'])
 @login_required
+@empresa_admin_required
 def configuracoes_empresa():
     empresa = g.empresa
 
@@ -3092,6 +3293,7 @@ def configuracoes_empresa():
 
 @app.route('/configuracoes/remover-logo', methods=['POST'])
 @login_required
+@empresa_admin_required
 def remover_logo_empresa():
     empresa = g.empresa
     if empresa.logo_filename:
@@ -3112,6 +3314,7 @@ def remover_logo_empresa():
 
 @app.route('/configuracoes/fiscal', methods=['GET', 'POST'])
 @login_required
+@empresa_admin_required
 def configuracoes_fiscal():
     empresa = g.empresa
 
