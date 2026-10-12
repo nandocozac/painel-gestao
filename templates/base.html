@@ -136,10 +136,12 @@
                         Estoque
                     </a>
 
+                    {% if is_admin_empresa %}
                     <a href="{{ url_for('lista_clientes') }}"
                         class="px-2.5 py-1.5 rounded-lg transition-all {% if request.endpoint in ['lista_clientes', 'detalhe_cliente'] %}bg-slate-800 text-white shadow-xs border border-slate-700/60{% else %}text-slate-300 hover:text-white hover:bg-slate-800/60{% endif %}">
                         Clientes
                     </a>
+                    {% endif %}
 
                     {% if is_admin_empresa %}
                     <a href="{{ url_for('relatorio_financeiro') }}"
@@ -186,7 +188,7 @@
                     </a>
                     {% endif %}
 
-                    {% if empresa.is_admin %}
+                    {% if is_admin_empresa and empresa.is_admin %}
                     <a href="{{ url_for('admin_empresas') }}"
                         class="px-2.5 py-1.5 rounded-lg transition-all text-indigo-300 hover:text-white bg-indigo-950/50 hover:bg-indigo-900/70 border border-indigo-800/50 font-bold flex items-center gap-1">
                         <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,7 +239,9 @@
             <a href="{{ url_for('dashboard') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Dashboard</a>
             <a href="{{ url_for('lista_os') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">{% if empresa.tipo_negocio == 'OFICINA' %}OSs{% else %}Pedidos{% endif %}</a>
             <a href="{{ url_for('lista_produtos') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Estoque</a>
+            {% if is_admin_empresa %}
             <a href="{{ url_for('lista_clientes') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Clientes</a>
+            {% endif %}
             {% if is_admin_empresa %}
             <a href="{{ url_for('relatorio_financeiro') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Caixa</a>
             {% endif %}
@@ -248,7 +252,7 @@
             {% if is_admin_empresa %}
             <a href="{{ url_for('configuracoes_empresa') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Empresa</a>
             {% endif %}
-            {% if empresa.is_admin %}
+            {% if is_admin_empresa and empresa.is_admin %}
             <a href="{{ url_for('admin_empresas') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-indigo-400 font-bold">Master</a>
             {% endif %}
             {% endif %}

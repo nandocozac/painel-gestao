@@ -605,7 +605,7 @@ def empresa_admin_required(view_func):
 def admin_required(view_func):
     @wraps(view_func)
     def wrapped_view(*args, **kwargs):
-        if not getattr(g, 'empresa', None) or not g.empresa.is_admin:
+        if not getattr(g, 'empresa', None) or not g.empresa.is_admin or not getattr(g, 'is_admin_empresa', False):
             flash('Acesso restrito ao Administrador Master.', 'error')
             return redirect(url_for('dashboard'))
         return view_func(*args, **kwargs)
@@ -2636,6 +2636,7 @@ def confirmar_entrada_produtos():
 
 @app.route('/clientes')
 @login_required
+@empresa_admin_required
 def lista_clientes():
     busca = request.args.get('busca', '').strip()
 
@@ -2716,6 +2717,7 @@ def api_busca_clientes():
 
 @app.route('/clientes/<int:cliente_id>')
 @login_required
+@empresa_admin_required
 def detalhe_cliente(cliente_id):
     cliente = Cliente.query.filter_by(id=cliente_id, empresa_id=g.empresa.id).first_or_404()
 
