@@ -1526,7 +1526,7 @@ def nova_os():
             tipo_comissao_mecanico=tipo_comissao_mecanico,
             porcentagem_comissao_mecanico=porc_mecanico,
             valor_comissao_mecanico=val_fixo_mecanico,
-            descricao_problema=problema,
+            descricao_problema=problema or "",
             status='ABERTA',
             etapa_andamento='RECEBIDO',
             codigo_rastreio=uuid.uuid4().hex[:12],
@@ -1747,8 +1747,14 @@ def concluir_os(os_id):
         if tipo_mecanico not in ['PORCENTAGEM', 'FIXO']:
             tipo_mecanico = 'PORCENTAGEM'
 
-        comissao_vendedor_input = (request.form.get('porcentagem_comissao_vendedor') or '').strip()
-        comissao_mecanico_input = (request.form.get('porcentagem_comissao_mecanico') or '').strip()
+        # Para usuários não administradores (ex: Vendedor), preservar os responsáveis já vinculados ou vincular a si mesmo
+        if not getattr(g, 'is_admin_empresa', False):
+            if not vendedor_id and os.vendedor_id:
+                vendedor_id = os.vendedor_id
+            elif not vendedor_id and getattr(g, 'colaborador', None):
+                vendedor_id = g.colaborador.id
+            if not mecanico_id and os.mecanico_id:
+                mecanico_id = os.mecanico_id
 
         if vendedor_id:
             vend = Colaborador.query.filter_by(id=vendedor_id, empresa_id=g.empresa.id).first()
@@ -2928,6 +2934,7 @@ def retornos_preventivos():
 
 @app.route('/colaboradores')
 @login_required
+@empresa_admin_required
 def lista_colaboradores():
     hoje = date.today()
     primeiro_dia_mes = hoje.replace(day=1)
@@ -3122,6 +3129,7 @@ def api_colaboradores():
 
 @app.route('/comissoes')
 @login_required
+@empresa_admin_required
 def relatorio_comissoes():
     hoje = date.today()
     periodo = request.args.get('periodo', 'mes').strip().lower() # 'hoje', 'semana', 'mes', 'personalizado'

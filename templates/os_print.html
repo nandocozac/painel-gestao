@@ -270,6 +270,7 @@
         </div>
 
         <!-- Problema / Solicitação Relatada -->
+        {% if os.descricao_problema %}
         <div>
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                 {% if empresa.tipo_negocio == 'OFICINA' %}Problema Relatado na Entrada{% else %}Solicitação / Detalhes do Pedido{% endif %}
@@ -279,6 +280,7 @@
                 {{ os.descricao_problema }}
             </div>
         </div>
+        {% endif %}
 
         <!-- NOTAS FISCAIS EMITIDAS PARA ESTA OS -->
         {% if os.notas_fiscais %}
@@ -698,6 +700,7 @@
                 </div>
             </div>
 
+            {% if is_admin_empresa %}
             <!-- 3. EQUIPE RESPONSÁVEL & COMISSÕES -->
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                 <div class="flex items-center justify-between">
@@ -829,6 +832,14 @@
                     </div>
                 </div>
             </div>
+            {% else %}
+            <input type="hidden" name="vendedor_id" value="{{ os.vendedor_id or (colaborador.id if colaborador else '') }}">
+            <input type="hidden" name="mecanico_id" value="{{ os.mecanico_id or '' }}">
+            <input type="hidden" name="tipo_comissao_vendedor" value="{{ os.tipo_comissao_vendedor or 'PORCENTAGEM' }}">
+            <input type="hidden" name="porcentagem_comissao_vendedor" value="{{ os.porcentagem_comissao_vendedor or '' }}">
+            <input type="hidden" name="tipo_comissao_mecanico" value="{{ os.tipo_comissao_mecanico or 'PORCENTAGEM' }}">
+            <input type="hidden" name="porcentagem_comissao_mecanico" value="{{ os.porcentagem_comissao_mecanico or '' }}">
+            {% endif %}
 
             <!-- 4. OBSERVAÇÕES E FORMA DE PAGAMENTO -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
@@ -972,6 +983,7 @@
 
     <!-- PAINEL DE COMISSÕES DESTA OS (QUANDO JÁ CONCLUÍDA) -->
     {% if os.status == 'CONCLUIDA' %}
+    {% if is_admin_empresa %}
     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm no-print space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div class="flex items-center gap-2">
@@ -1097,6 +1109,7 @@
             </form>
         </div>
     </div>
+    {% endif %}
 
     <!-- PAINEL DE PAGAMENTOS DESTA OS (QUANDO JÁ CONCLUÍDA) -->
     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm no-print space-y-4">

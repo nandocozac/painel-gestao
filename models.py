@@ -160,7 +160,7 @@ class OrdemServico(db.Model):
     def numero_exibicao(self):
         return self.numero_sequencial if self.numero_sequencial is not None else self.id
     
-    descricao_problema = db.Column(db.Text, nullable=False)
+    descricao_problema = db.Column(db.Text, nullable=True, default="")
     servico_executado = db.Column(db.Text, nullable=True)
     
     valor_pecas = db.Column(db.Float, default=0.0)
