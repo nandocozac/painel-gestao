@@ -2863,14 +2863,29 @@ def editar_cliente(cliente_id):
 @empresa_admin_required
 def relatorio_financeiro():
     hoje = date.today()
-    mes_selecionado = int(request.args.get('mes', hoje.month))
-    ano_selecionado = int(request.args.get('ano', hoje.year))
+    dia_str = request.args.get('dia', '').strip()
+    dia_selecionado = int(dia_str) if dia_str.isdigit() and 1 <= int(dia_str) <= 31 else None
 
-    transacoes = Transacao.query.filter(
+    try:
+        mes_selecionado = int(request.args.get('mes', hoje.month))
+    except (ValueError, TypeError):
+        mes_selecionado = hoje.month
+
+    try:
+        ano_selecionado = int(request.args.get('ano', hoje.year))
+    except (ValueError, TypeError):
+        ano_selecionado = hoje.year
+
+    query = Transacao.query.filter(
         Transacao.empresa_id == g.empresa.id,
         db.extract('month', Transacao.data_movimento) == mes_selecionado,
         db.extract('year', Transacao.data_movimento) == ano_selecionado
-    ).order_by(Transacao.data_movimento.desc(), Transacao.id.desc()).all()
+    )
+
+    if dia_selecionado:
+        query = query.filter(db.extract('day', Transacao.data_movimento) == dia_selecionado)
+
+    transacoes = query.order_by(Transacao.data_movimento.desc(), Transacao.id.desc()).all()
 
     total_receitas = sum(t.valor for t in transacoes if t.tipo == 'RECEITA')
     total_despesas = sum(t.valor for t in transacoes if t.tipo == 'DESPESA')
@@ -2889,8 +2904,10 @@ def relatorio_financeiro():
         total_despesas=total_despesas,
         resultado_liquido=resultado_liquido,
         totais_pagamento=totais_pagamento,
+        dia_atual=dia_selecionado,
         mes_atual=mes_selecionado,
-        ano_atual=ano_selecionado
+        ano_atual=ano_selecionado,
+        hoje=hoje
     )
 
 
@@ -2899,14 +2916,29 @@ def relatorio_financeiro():
 @empresa_admin_required
 def exportar_financeiro():
     hoje = date.today()
-    mes = int(request.args.get('mes', hoje.month))
-    ano = int(request.args.get('ano', hoje.year))
+    dia_str = request.args.get('dia', '').strip()
+    dia = int(dia_str) if dia_str.isdigit() and 1 <= int(dia_str) <= 31 else None
 
-    transacoes = Transacao.query.filter(
+    try:
+        mes = int(request.args.get('mes', hoje.month))
+    except (ValueError, TypeError):
+        mes = hoje.month
+
+    try:
+        ano = int(request.args.get('ano', hoje.year))
+    except (ValueError, TypeError):
+        ano = hoje.year
+
+    query = Transacao.query.filter(
         Transacao.empresa_id == g.empresa.id,
         db.extract('month', Transacao.data_movimento) == mes,
         db.extract('year', Transacao.data_movimento) == ano
-    ).order_by(Transacao.data_movimento.asc()).all()
+    )
+
+    if dia:
+        query = query.filter(db.extract('day', Transacao.data_movimento) == dia)
+
+    transacoes = query.order_by(Transacao.data_movimento.asc(), Transacao.id.asc()).all()
 
     si = StringIO()
     writer = csv.writer(si, delimiter=';')
@@ -2923,8 +2955,10 @@ def exportar_financeiro():
         ])
 
     output = Response(si.getvalue(), mimetype='text/csv')
-    output.headers["Content-Disposition"] = f"attachment; filename=extrato_{mes:02d}_{ano}.csv"
+    filename = f"extrato_{dia:02d}_{mes:02d}_{ano}.csv" if dia else f"extrato_{mes:02d}_{ano}.csv"
+    output.headers["Content-Disposition"] = f"attachment; filename={filename}"
     return output
+
 
 
 # --- RETORNOS PREVENTIVOS ISOLADOS ---
