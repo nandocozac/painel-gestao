@@ -256,13 +256,30 @@
                 {% endif %}
             </div>
             {% endif %}
-            {% if os.vendedor or os.mecanico %}
+            {% if os.lista_equipe or os.vendedor or os.mecanico %}
             <div>
                 <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Equipe Responsável</h2>
-                {% if os.vendedor %}
+                {% if os.lista_vendedores %}
+                <p class="text-xs text-slate-700">
+                    Vendedor(es):
+                    {% for v in os.lista_vendedores %}
+                    <strong class="text-slate-900">{{ v.nome }}</strong>{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+                {% elif os.vendedor %}
                 <p class="text-xs text-slate-700">Vendedor: <strong class="text-slate-900">{{ os.vendedor.nome }}</strong></p>
                 {% endif %}
-                {% if os.mecanico %}
+
+                {% if os.lista_mecanicos %}
+                <div class="text-xs text-slate-700 mt-1">
+                    <span class="text-slate-500 font-semibold">{% if empresa.tipo_negocio == 'OFICINA' %}Mecânico(s){% else %}Mão de Obra{% endif %}:</span>
+                    {% for m in os.lista_mecanicos %}
+                    <div class="ml-1 mt-0.5">
+                        • <strong class="text-slate-900">{{ m.nome }}</strong>{% if m.especialidade %} <span class="text-slate-600 font-normal italic">({{ m.especialidade }})</span>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% elif os.mecanico %}
                 <p class="text-xs text-slate-700 mt-0.5">{% if empresa.tipo_negocio == 'OFICINA' %}Mecânico{% else %}Mão de Obra{% endif %}: <strong class="text-slate-900">{{ os.mecanico.nome }}</strong></p>
                 {% endif %}
             </div>
@@ -693,144 +710,321 @@
                             </div>
                             <div class="col-span-1 text-center">
                                 <button type="button" onclick="removerLinha(this)"
-                                    class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
-                            </div>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            {% if is_admin_empresa %}
-            <!-- 3. EQUIPE RESPONSÁVEL & COMISSÕES -->
-            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
-                        <span>👥</span>
-                        Equipe Responsável & Comissões
-                    </span>
+                                    class="text-rose-            {% if is_admin_empresa %}
+            <!-- 3. EQUIPE RESPONSÁVEL & COMISSÕES (MÚLTIPLOS VENDEDORES E MECÂNICOS) -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                    <div>
+                        <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+                            <span>👥</span>
+                            Equipe Responsável & Comissões
+                        </span>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Vincule todos os profissionais que participaram desta venda ou prestaram serviços específicos</p>
+                    </div>
                     <a href="{{ url_for('lista_colaboradores') }}" target="_blank"
                         class="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition">
                         + Cadastrar Profissional
                     </a>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <!-- Vendedor -->
-                    <div class="bg-white p-3 rounded-lg border border-slate-200/80 space-y-2">
-                        <label class="block text-xs font-semibold text-slate-700">
-                            🛍️ Vendedor / Comercial
-                        </label>
-                        <select name="vendedor_id" id="concluir_vendedor_id" onchange="atualizarPorcConclusaoVendedor(this)"
-                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="" data-porc="0.0">-- Nenhum Vendedor --</option>
-                            {% for v in vendedores %}
-                            <option value="{{ v.id }}" data-porc="{{ v.porcentagem_padrao }}" {% if os.vendedor_id == v.id %}selected{% endif %}>
-                                {{ v.nome }} (Padrão: {{ v.porcentagem_padrao }}%)
-                            </option>
-                            {% endfor %}
-                            {% for c in colaboradores %}
-                            {% if c.funcao != 'VENDEDOR' %}
-                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}" {% if os.vendedor_id == c.id %}selected{% endif %}>
-                                {{ c.nome }} ({{ c.funcao }})
-                            </option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
-                        <div class="space-y-1.5 pt-1">
-                            <div class="flex items-center justify-between">
-                                <label class="block text-[11px] font-semibold text-slate-600">Comissão da Venda:</label>
-                                <!-- Toggle % vs R$ -->
-                                <div class="inline-flex rounded-md p-0.5 bg-slate-100 border border-slate-200">
-                                    <input type="hidden" name="tipo_comissao_vendedor" id="tipo_comissao_vendedor" value="{{ os.tipo_comissao_vendedor or 'PORCENTAGEM' }}">
-                                    <button type="button" id="btn_tipo_vend_porc" onclick="alterarTipoComissao('vendedor', 'PORCENTAGEM')"
-                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition {% if os.tipo_comissao_vendedor != 'FIXO' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-                                        % Porcentagem
-                                    </button>
-                                    <button type="button" id="btn_tipo_vend_fixo" onclick="alterarTipoComissao('vendedor', 'FIXO')"
-                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition {% if os.tipo_comissao_vendedor == 'FIXO' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-                                        R$ Valor Fixo
+                <!-- Datalist com sugestões rápidas de especialidades do mecânico -->
+                <datalist id="datalist-especialidades-mecanico-concluir">
+                    <option value="Motor e Cabeçote">
+                    <option value="Câmbio e Transmissão">
+                    <option value="Freios e Suspensão">
+                    <option value="Injeção Eletrônica e Diagnóstico">
+                    <option value="Elétrica e Ignição">
+                    <option value="Ar Condicionado e Arrefecimento">
+                    <option value="Alinhamento e Balanceamento">
+                    <option value="Troca de Óleo e Filtros">
+                    <option value="Funilaria e Pintura">
+                    <option value="Estética e Polimento">
+                    <option value="Instalação de Acessórios">
+                    <option value="Revisão Geral Preventiva">
+                </datalist>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- COLUNA 1: VENDEDORES -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>🛍️</span>
+                                Vendedor(es) / Comercial
+                            </label>
+                            <button type="button" onclick="adicionarLinhaConcluirVendedor()"
+                                class="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 transition">
+                                <span>+</span> Adicionar Vendedor
+                            </button>
+                        </div>
+
+                        <!-- Container dinâmico de Vendedores na Conclusão -->
+                        <div id="concluir-container-vendedores" class="space-y-3">
+                            {% set vend_list = os.lista_vendedores if os.lista_vendedores else ([{'colaborador_id': os.vendedor_id, 'tipo_comissao': os.tipo_comissao_vendedor or 'PORCENTAGEM', 'porcentagem': os.porcentagem_comissao_vendedor, 'valor_comissao': os.valor_comissao_vendedor}] if os.vendedor_id else [{}]) %}
+                            {% for v_item in vend_list %}
+                            <div class="linha-concluir-vendedor bg-white p-3 rounded-lg border border-slate-200/80 space-y-2 relative shadow-xs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                        <span class="badge-num-vendedor bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold">Vendedor {{ loop.index }}</span>
+                                    </span>
+                                    <button type="button" onclick="removerLinhaConcluirVendedor(this)"
+                                        class="btn-remover-vendedor text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded text-[11px] font-bold transition" title="Remover este vendedor">
+                                        ✕ Remover
                                     </button>
                                 </div>
-                            </div>
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex-1">
-                                    <div class="relative">
-                                        <input type="text" name="porcentagem_comissao_vendedor" id="concluir_porc_vendedor"
-                                            value="{% if os.tipo_comissao_vendedor == 'FIXO' %}{{ '%.2f'|format(os.valor_comissao_vendedor)|replace('.', ',') if os.valor_comissao_vendedor else '' }}{% else %}{{ os.porcentagem_comissao_vendedor or (os.vendedor.porcentagem_padrao if os.vendedor else '') }}{% endif %}"
-                                            oninput="atualizarTotais()"
-                                            placeholder="{% if os.tipo_comissao_vendedor == 'FIXO' %}0,00{% else %}0.0{% endif %}"
-                                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-8">
-                                        <span id="sufixo_tipo_vendedor" class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">
-                                            {% if os.tipo_comissao_vendedor == 'FIXO' %}R${% else %}%{% endif %}
-                                        </span>
+
+                                <select name="vendedor_ids[]" onchange="aoMudarConcluirColaborador(this, 'vendedor')"
+                                    class="select-colaborador w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="" data-porc="0.0">-- Selecione um Vendedor --</option>
+                                    {% for v in vendedores %}
+                                    <option value="{{ v.id }}" data-porc="{{ v.porcentagem_padrao }}" {% if v_item.colaborador_id == v.id %}selected{% endif %}>
+                                        {{ v.nome }} (Padrão: {{ v.porcentagem_padrao }}%)
+                                    </option>
+                                    {% endfor %}
+                                    {% for c in colaboradores %}
+                                    {% if c.funcao != 'VENDEDOR' %}
+                                    <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}" {% if v_item.colaborador_id == c.id %}selected{% endif %}>
+                                        {{ c.nome }} ({{ c.funcao }})
+                                    </option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <input type="hidden" name="vendedor_especialidades[]" value="">
+
+                                <div class="space-y-1 pt-0.5">
+                                    <div class="flex items-center justify-between">
+                                        <label class="block text-[10px] font-semibold text-slate-600">Comissão da Venda:</label>
+                                        <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
+                                            <input type="hidden" name="vendedor_tipos[]" class="tipo-comissao-val" value="{{ v_item.tipo_comissao or 'PORCENTAGEM' }}">
+                                            <button type="button" onclick="alternarTipoConcluir(this, 'PORCENTAGEM', 'vendedor')"
+                                                class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition {% if v_item.tipo_comissao != 'FIXO' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">%</button>
+                                            <button type="button" onclick="alternarTipoConcluir(this, 'FIXO', 'vendedor')"
+                                                class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition {% if v_item.tipo_comissao == 'FIXO' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">R$</button>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 relative">
+                                            <input type="text" name="vendedor_valores[]"
+                                                value="{% if v_item.tipo_comissao == 'FIXO' %}{{ '%.2f'|format(v_item.valor_comissao)|replace('.', ',') if v_item.valor_comissao else '' }}{% else %}{{ v_item.porcentagem if v_item.porcentagem is not none else '' }}{% endif %}"
+                                                oninput="atualizarTotais()"
+                                                placeholder="{% if v_item.tipo_comissao == 'FIXO' %}0,00{% else %}0.0{% endif %}"
+                                                class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-8">
+                                            <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">{% if v_item.tipo_comissao == 'FIXO' %}R${% else %}%{% endif %}</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="block text-[9px] text-slate-400">Prevista</span>
+                                            <span class="lbl-comissao-prevista text-xs font-bold font-mono text-emerald-600">R$ 0,00</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="text-right">
-                                    <span class="block text-[10px] text-slate-500">Comissão Prevista</span>
-                                    <span id="lbl-comissao-vendedor-prevista" class="text-xs font-bold font-mono text-emerald-600">R$ 0,00</span>
-                                </div>
                             </div>
+                            {% endfor %}
                         </div>
                     </div>
 
-                    <!-- Mecânico / Mão de Obra -->
-                    <div class="bg-white p-3 rounded-lg border border-slate-200/80 space-y-2">
-                        <label class="block text-xs font-semibold text-slate-700">
-                            🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico Responsável{% else %}Profissional da Mão de Obra{% endif %}
-                        </label>
-                        <select name="mecanico_id" id="concluir_mecanico_id" onchange="atualizarPorcConclusaoMecanico(this)"
-                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="" data-porc="0.0">-- Nenhum Mecânico/Técnico --</option>
-                            {% for m in mecanicos %}
-                            <option value="{{ m.id }}" data-porc="{{ m.porcentagem_padrao }}" {% if os.mecanico_id == m.id %}selected{% endif %}>
-                                {{ m.nome }} (Padrão: {{ m.porcentagem_padrao }}%)
-                            </option>
+                    <!-- COLUNA 2: MECÂNICOS / MÃO DE OBRA -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>🔧</span>
+                                {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico(s) / Especialistas{% else %}Profissional(is) da Mão de Obra{% endif %}
+                            </label>
+                            <button type="button" onclick="adicionarLinhaConcluirMecanico()"
+                                class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition">
+                                <span>+</span> Adicionar Mecânico
+                            </button>
+                        </div>
+
+                        <!-- Container dinâmico de Mecânicos na Conclusão -->
+                        <div id="concluir-container-mecanicos" class="space-y-3">
+                            {% set mec_list = os.lista_mecanicos if os.lista_mecanicos else ([{'colaborador_id': os.mecanico_id, 'especialidade': '', 'tipo_comissao': os.tipo_comissao_mecanico or 'PORCENTAGEM', 'porcentagem': os.porcentagem_comissao_mecanico, 'valor_comissao': os.valor_comissao_mecanico}] if os.mecanico_id else [{}]) %}
+                            {% for m_item in mec_list %}
+                            <div class="linha-concluir-mecanico bg-white p-3 rounded-lg border border-slate-200/80 space-y-2 relative shadow-xs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                        <span class="badge-num-mecanico bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold">Mecânico {{ loop.index }}</span>
+                                    </span>
+                                    <button type="button" onclick="removerLinhaConcluirMecanico(this)"
+                                        class="btn-remover-mecanico text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded text-[11px] font-bold transition" title="Remover este mecânico">
+                                        ✕ Remover
+                                    </button>
+                                </div>
+
+                                <select name="mecanico_ids[]" onchange="aoMudarConcluirColaborador(this, 'mecanico')"
+                                    class="select-colaborador w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="" data-porc="0.0">-- Selecione um Mecânico/Técnico --</option>
+                                    {% for m in mecanicos %}
+                                    <option value="{{ m.id }}" data-porc="{{ m.porcentagem_padrao }}" {% if m_item.colaborador_id == m.id %}selected{% endif %}>
+                                        {{ m.nome }} (Padrão: {{ m.porcentagem_padrao }}%)
+                                    </option>
+                                    {% endfor %}
+                                    {% for c in colaboradores %}
+                                    {% if c.funcao not in ['MECANICO', 'TECNICO'] %}
+                                    <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}" {% if m_item.colaborador_id == c.id %}selected{% endif %}>
+                                        {{ c.nome }} ({{ c.funcao }})
+                                    </option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+
+                                <!-- Especialidade do Mecânico -->
+                                <div class="space-y-1">
+                                    <label class="block text-[10px] font-semibold text-slate-600 flex items-center justify-between">
+                                        <span>Especialidade / Serviço Realizado:</span>
+                                        <span class="text-[9px] text-slate-400 font-normal">Ex: Motor, Freios, Elétrica...</span>
+                                    </label>
+                                    <input type="text" name="mecanico_especialidades[]" list="datalist-especialidades-mecanico-concluir"
+                                        value="{{ m_item.especialidade or '' }}"
+                                        placeholder="Ex: Motor, Suspensão, Freios..."
+                                        class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 bg-white placeholder:text-slate-400">
+                                </div>
+
+                                <div class="space-y-1 pt-0.5">
+                                    <div class="flex items-center justify-between">
+                                        <label class="block text-[10px] font-semibold text-slate-600">Comissão Mão de Obra:</label>
+                                        <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
+                                            <input type="hidden" name="mecanico_tipos[]" class="tipo-comissao-val" value="{{ m_item.tipo_comissao or 'PORCENTAGEM' }}">
+                                            <button type="button" onclick="alternarTipoConcluir(this, 'PORCENTAGEM', 'mecanico')"
+                                                class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition {% if m_item.tipo_comissao != 'FIXO' %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">%</button>
+                                            <button type="button" onclick="alternarTipoConcluir(this, 'FIXO', 'mecanico')"
+                                                class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition {% if m_item.tipo_comissao == 'FIXO' %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">R$</button>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 relative">
+                                            <input type="text" name="mecanico_valores[]"
+                                                value="{% if m_item.tipo_comissao == 'FIXO' %}{{ '%.2f'|format(m_item.valor_comissao)|replace('.', ',') if m_item.valor_comissao else '' }}{% else %}{{ m_item.porcentagem if m_item.porcentagem is not none else '' }}{% endif %}"
+                                                oninput="atualizarTotais()"
+                                                placeholder="{% if m_item.tipo_comissao == 'FIXO' %}0,00{% else %}0.0{% endif %}"
+                                                class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500 bg-white pr-8">
+                                            <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">{% if m_item.tipo_comissao == 'FIXO' %}R${% else %}%{% endif %}</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="block text-[9px] text-slate-400">Prevista</span>
+                                            <span class="lbl-comissao-prevista text-xs font-bold font-mono text-emerald-600">R$ 0,00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Template HTML para Novo Vendedor (Conclusão) -->
+                <template id="template-concluir-vendedor">
+                    <div class="linha-concluir-vendedor bg-white p-3 rounded-lg border border-slate-200/80 space-y-2 relative shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                <span class="badge-num-vendedor bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold">Vendedor</span>
+                            </span>
+                            <button type="button" onclick="removerLinhaConcluirVendedor(this)"
+                                class="btn-remover-vendedor text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded text-[11px] font-bold transition" title="Remover este vendedor">
+                                ✕ Remover
+                            </button>
+                        </div>
+
+                        <select name="vendedor_ids[]" onchange="aoMudarConcluirColaborador(this, 'vendedor')"
+                            class="select-colaborador w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" data-porc="0.0">-- Selecione um Vendedor --</option>
+                            {% for v in vendedores %}
+                            <option value="{{ v.id }}" data-porc="{{ v.porcentagem_padrao }}">{{ v.nome }} (Padrão: {{ v.porcentagem_padrao }}%)</option>
                             {% endfor %}
                             {% for c in colaboradores %}
-                            {% if c.funcao not in ['MECANICO', 'TECNICO'] %}
-                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}" {% if os.mecanico_id == c.id %}selected{% endif %}>
-                                {{ c.nome }} ({{ c.funcao }})
-                            </option>
+                            {% if c.funcao != 'VENDEDOR' %}
+                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}">{{ c.nome }} ({{ c.funcao }})</option>
                             {% endif %}
                             {% endfor %}
                         </select>
-                        <div class="space-y-1.5 pt-1">
+                        <input type="hidden" name="vendedor_especialidades[]" value="">
+
+                        <div class="space-y-1 pt-0.5">
                             <div class="flex items-center justify-between">
-                                <label class="block text-[11px] font-semibold text-slate-600">Comissão Mão de Obra:</label>
-                                <!-- Toggle % vs R$ -->
-                                <div class="inline-flex rounded-md p-0.5 bg-slate-100 border border-slate-200">
-                                    <input type="hidden" name="tipo_comissao_mecanico" id="tipo_comissao_mecanico" value="{{ os.tipo_comissao_mecanico or 'PORCENTAGEM' }}">
-                                    <button type="button" id="btn_tipo_mec_porc" onclick="alterarTipoComissao('mecanico', 'PORCENTAGEM')"
-                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition {% if os.tipo_comissao_mecanico != 'FIXO' %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-                                        % Porcentagem
-                                    </button>
-                                    <button type="button" id="btn_tipo_mec_fixo" onclick="alterarTipoComissao('mecanico', 'FIXO')"
-                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition {% if os.tipo_comissao_mecanico == 'FIXO' %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-                                        R$ Valor Fixo
-                                    </button>
+                                <label class="block text-[10px] font-semibold text-slate-600">Comissão da Venda:</label>
+                                <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
+                                    <input type="hidden" name="vendedor_tipos[]" class="tipo-comissao-val" value="PORCENTAGEM">
+                                    <button type="button" onclick="alternarTipoConcluir(this, 'PORCENTAGEM', 'vendedor')"
+                                        class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs">%</button>
+                                    <button type="button" onclick="alternarTipoConcluir(this, 'FIXO', 'vendedor')"
+                                        class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
                                 </div>
                             </div>
                             <div class="flex items-center justify-between gap-2">
-                                <div class="flex-1">
-                                    <div class="relative">
-                                        <input type="text" name="porcentagem_comissao_mecanico" id="concluir_porc_mecanico"
-                                            value="{% if os.tipo_comissao_mecanico == 'FIXO' %}{{ '%.2f'|format(os.valor_comissao_mecanico)|replace('.', ',') if os.valor_comissao_mecanico else '' }}{% else %}{{ os.porcentagem_comissao_mecanico or (os.mecanico.porcentagem_padrao if os.mecanico else '') }}{% endif %}"
-                                            oninput="atualizarTotais()"
-                                            placeholder="{% if os.tipo_comissao_mecanico == 'FIXO' %}0,00{% else %}0.0{% endif %}"
-                                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-8">
-                                        <span id="sufixo_tipo_mecanico" class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">
-                                            {% if os.tipo_comissao_mecanico == 'FIXO' %}R${% else %}%{% endif %}
-                                        </span>
-                                    </div>
+                                <div class="flex-1 relative">
+                                    <input type="text" name="vendedor_valores[]" placeholder="0.0" oninput="atualizarTotais()"
+                                        class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-8">
+                                    <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
                                 </div>
                                 <div class="text-right">
-                                    <span class="block text-[10px] text-slate-500">Comissão Prevista</span>
-                                    <span id="lbl-comissao-mecanico-prevista" class="text-xs font-bold font-mono text-emerald-600">R$ 0,00</span>
+                                    <span class="block text-[9px] text-slate-400">Prevista</span>
+                                    <span class="lbl-comissao-prevista text-xs font-bold font-mono text-emerald-600">R$ 0,00</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </template>
+
+                <!-- Template HTML para Novo Mecânico (Conclusão) -->
+                <template id="template-concluir-mecanico">
+                    <div class="linha-concluir-mecanico bg-white p-3 rounded-lg border border-slate-200/80 space-y-2 relative shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                <span class="badge-num-mecanico bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold">Mecânico</span>
+                            </span>
+                            <button type="button" onclick="removerLinhaConcluirMecanico(this)"
+                                class="btn-remover-mecanico text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded text-[11px] font-bold transition" title="Remover este mecânico">
+                                ✕ Remover
+                            </button>
+                        </div>
+
+                        <select name="mecanico_ids[]" onchange="aoMudarConcluirColaborador(this, 'mecanico')"
+                            class="select-colaborador w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="" data-porc="0.0">-- Selecione um Mecânico/Técnico --</option>
+                            {% for m in mecanicos %}
+                            <option value="{{ m.id }}" data-porc="{{ m.porcentagem_padrao }}">{{ m.nome }} (Padrão: {{ m.porcentagem_padrao }}%)</option>
+                            {% endfor %}
+                            {% for c in colaboradores %}
+                            {% if c.funcao not in ['MECANICO', 'TECNICO'] %}
+                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}">{{ c.nome }} ({{ c.funcao }})</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+
+                        <!-- Especialidade do Mecânico -->
+                        <div class="space-y-1">
+                            <label class="block text-[10px] font-semibold text-slate-600 flex items-center justify-between">
+                                <span>Especialidade / Serviço Realizado:</span>
+                                <span class="text-[9px] text-slate-400 font-normal">Ex: Motor, Freios, Elétrica...</span>
+                            </label>
+                            <input type="text" name="mecanico_especialidades[]" list="datalist-especialidades-mecanico-concluir"
+                                placeholder="Ex: Motor, Suspensão, Freios..."
+                                class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 bg-white placeholder:text-slate-400">
+                        </div>
+
+                        <div class="space-y-1 pt-0.5">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-[10px] font-semibold text-slate-600">Comissão Mão de Obra:</label>
+                                <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
+                                    <input type="hidden" name="mecanico_tipos[]" class="tipo-comissao-val" value="PORCENTAGEM">
+                                    <button type="button" onclick="alternarTipoConcluir(this, 'PORCENTAGEM', 'mecanico')"
+                                        class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs">%</button>
+                                    <button type="button" onclick="alternarTipoConcluir(this, 'FIXO', 'mecanico')"
+                                        class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex-1 relative">
+                                    <input type="text" name="mecanico_valores[]" placeholder="0.0" oninput="atualizarTotais()"
+                                        class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500 bg-white pr-8">
+                                    <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="block text-[9px] text-slate-400">Prevista</span>
+                                    <span class="lbl-comissao-prevista text-xs font-bold font-mono text-emerald-600">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
             {% else %}
             <input type="hidden" name="vendedor_id" value="{{ os.vendedor_id or (colaborador.id if colaborador else '') }}">
@@ -1002,109 +1196,315 @@
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Vendedor -->
-            <div class="p-3.5 rounded-lg border {% if os.vendedor %}bg-blue-50/50 border-blue-200{% else %}bg-slate-50 border-slate-200{% endif %}">
-                <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-slate-600">🛍️ Vendedor / Comercial</span>
-                    {% if os.vendedor %}
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{{ os.porcentagem_comissao_vendedor or os.vendedor.porcentagem_padrao }}%</span>
+            <!-- Vendedores -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <span>🛍️</span> Vendedor(es) / Comercial
+                    </span>
+                    {% if os.lista_vendedores %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{{ os.lista_vendedores|length }} vinculado(s)</span>
                     {% endif %}
                 </div>
-                {% if os.vendedor %}
-                <p class="text-sm font-bold text-slate-900">{{ os.vendedor.nome }}</p>
-                <p class="text-xs text-slate-500 mt-1">Comissão Gerada: <strong class="text-blue-700 font-mono text-sm">R$ {{ "%.2f"|format(os.valor_comissao_vendedor or 0)|replace('.', ',') }}</strong></p>
+                {% if os.lista_vendedores %}
+                    {% for v in os.lista_vendedores %}
+                    <div class="p-3.5 rounded-lg border bg-blue-50/50 border-blue-200">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-bold text-slate-900">{{ v.nome }}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                                {% if v.tipo_comissao == 'FIXO' %}R$ Fixo{% else %}{{ v.porcentagem }}%{% endif %}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Comissão Gerada: <strong class="text-blue-700 font-mono text-sm">R$ {{ "%.2f"|format(v.valor_comissao or 0)|replace('.', ',') }}</strong></p>
+                    </div>
+                    {% endfor %}
+                {% elif os.vendedor %}
+                    <div class="p-3.5 rounded-lg border bg-blue-50/50 border-blue-200">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-bold text-slate-900">{{ os.vendedor.nome }}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{{ os.porcentagem_comissao_vendedor or os.vendedor.porcentagem_padrao }}%</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Comissão Gerada: <strong class="text-blue-700 font-mono text-sm">R$ {{ "%.2f"|format(os.valor_comissao_vendedor or 0)|replace('.', ',') }}</strong></p>
+                    </div>
                 {% else %}
-                <p class="text-xs text-slate-400 italic">Nenhum vendedor vinculado a esta OS</p>
+                    <div class="p-3.5 rounded-lg border bg-slate-50 border-slate-200">
+                        <p class="text-xs text-slate-400 italic">Nenhum vendedor vinculado a esta OS</p>
+                    </div>
                 {% endif %}
             </div>
 
-            <!-- Mecânico / Mão de Obra -->
-            <div class="p-3.5 rounded-lg border {% if os.mecanico %}bg-indigo-50/50 border-indigo-200{% else %}bg-slate-50 border-slate-200{% endif %}">
-                <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-slate-600">🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico Responsável{% else %}Mão de Obra / Técnico{% endif %}</span>
-                    {% if os.mecanico %}
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">{{ os.porcentagem_comissao_mecanico or os.mecanico.porcentagem_padrao }}%</span>
+            <!-- Mecânicos / Mão de Obra -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <span>🔧</span> {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico(s) Responsável(eis){% else %}Mão de Obra / Técnico(s){% endif %}
+                    </span>
+                    {% if os.lista_mecanicos %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">{{ os.lista_mecanicos|length }} vinculado(s)</span>
                     {% endif %}
                 </div>
-                {% if os.mecanico %}
-                <p class="text-sm font-bold text-slate-900">{{ os.mecanico.nome }}</p>
-                <p class="text-xs text-slate-500 mt-1">Comissão Gerada: <strong class="text-indigo-700 font-mono text-sm">R$ {{ "%.2f"|format(os.valor_comissao_mecanico or 0)|replace('.', ',') }}</strong></p>
+                {% if os.lista_mecanicos %}
+                    {% for m in os.lista_mecanicos %}
+                    <div class="p-3.5 rounded-lg border bg-indigo-50/50 border-indigo-200">
+                        <div class="flex items-center justify-between mb-1">
+                            <div>
+                                <span class="text-sm font-bold text-slate-900">{{ m.nome }}</span>
+                                {% if m.especialidade %}
+                                <span class="inline-block text-[11px] font-semibold text-indigo-700 bg-indigo-100/70 border border-indigo-200 px-2 py-0.5 rounded ml-1.5">
+                                    🛠️ {{ m.especialidade }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                                {% if m.tipo_comissao == 'FIXO' %}R$ Fixo{% else %}{{ m.porcentagem }}%{% endif %}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Comissão Gerada: <strong class="text-indigo-700 font-mono text-sm">R$ {{ "%.2f"|format(m.valor_comissao or 0)|replace('.', ',') }}</strong></p>
+                    </div>
+                    {% endfor %}
+                {% elif os.mecanico %}
+                    <div class="p-3.5 rounded-lg border bg-indigo-50/50 border-indigo-200">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-bold text-slate-900">{{ os.mecanico.nome }}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">{{ os.porcentagem_comissao_mecanico or os.mecanico.porcentagem_padrao }}%</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Comissão Gerada: <strong class="text-indigo-700 font-mono text-sm">R$ {{ "%.2f"|format(os.valor_comissao_mecanico or 0)|replace('.', ',') }}</strong></p>
+                    </div>
                 {% else %}
-                <p class="text-xs text-slate-400 italic">Nenhum mecânico/técnico vinculado</p>
+                    <div class="p-3.5 rounded-lg border bg-slate-50 border-slate-200">
+                        <p class="text-xs text-slate-400 italic">Nenhum mecânico/técnico vinculado</p>
+                    </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- MODAL PARA AJUSTAR COMISSÃO EM OS JÁ CONCLUIDA -->
+    <!-- MODAL PARA AJUSTAR COMISSÃO EM OS JÁ CONCLUIDA (MÚLTIPLOS VENDEDORES E MECÂNICOS) -->
     <div id="modal-editar-comissoes" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
             <div class="flex items-center justify-between border-b pb-3">
-                <h3 class="text-sm font-bold text-slate-900">Ajustar Comissões da OS #{{ "%04d"|format(os.numero_exibicao) }}</h3>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">Ajustar Equipe e Comissões da OS #{{ "%04d"|format(os.numero_exibicao) }}</h3>
+                    <p class="text-xs text-slate-500">Adicione ou remova vendedores e mecânicos participantes desta OS</p>
+                </div>
                 <button type="button" onclick="document.getElementById('modal-editar-comissoes').classList.add('hidden')"
                     class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
             <form method="POST" action="{{ url_for('atualizar_comissao_os', os_id=os.id) }}" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Vendedor</label>
-                    <select name="vendedor_id" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
-                        <option value="">-- Nenhum --</option>
-                        {% for v in vendedores %}
-                        <option value="{{ v.id }}" {% if os.vendedor_id == v.id %}selected{% endif %}>{{ v.nome }} ({{ v.porcentagem_padrao }}%)</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="space-y-1.5">
-                    <div class="flex items-center justify-between">
-                        <label class="block text-xs font-bold text-slate-700">Comissão Vendedor (sobre venda/total)</label>
-                        <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
-                            <input type="hidden" name="tipo_comissao_vendedor" id="modal_tipo_vend" value="{{ os.tipo_comissao_vendedor or 'PORCENTAGEM' }}">
-                            <button type="button" onclick="setModalTipoComissao('vend', 'PORCENTAGEM')" id="modal_btn_vend_porc"
-                                class="px-2 py-0.5 text-[10px] font-bold rounded transition {% if os.tipo_comissao_vendedor != 'FIXO' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">%</button>
-                            <button type="button" onclick="setModalTipoComissao('vend', 'FIXO')" id="modal_btn_vend_fixo"
-                                class="px-2 py-0.5 text-[10px] font-bold rounded transition {% if os.tipo_comissao_vendedor == 'FIXO' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">R$</button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- VENDEDORES NO MODAL -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>🛍️</span> Vendedor(es) / Comercial
+                            </label>
+                            <button type="button" onclick="adicionarLinhaModalVendedor()"
+                                class="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 transition">
+                                + Vendedor
+                            </button>
+                        </div>
+                        <div id="modal-container-vendedores" class="space-y-3">
+                            {% set modal_vends = os.lista_vendedores if os.lista_vendedores else ([{'colaborador_id': os.vendedor_id, 'tipo_comissao': os.tipo_comissao_vendedor or 'PORCENTAGEM', 'porcentagem': os.porcentagem_comissao_vendedor, 'valor_comissao': os.valor_comissao_vendedor}] if os.vendedor_id else [{}]) %}
+                            {% for v_item in modal_vends %}
+                            <div class="linha-modal-vendedor bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2 relative">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded-full font-mono">Vendedor {{ loop.index }}</span>
+                                    <button type="button" onclick="removerLinhaModalVendedor(this)"
+                                        class="text-red-500 hover:text-red-700 text-xs font-bold px-1.5 py-0.5 rounded hover:bg-red-50">✕ Remover</button>
+                                </div>
+                                <select name="vendedor_ids[]" onchange="aoMudarModalColaborador(this, 'vendedor')"
+                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white text-slate-800">
+                                    <option value="" data-porc="0.0">-- Selecione um Vendedor --</option>
+                                    {% for v in vendedores %}
+                                    <option value="{{ v.id }}" data-porc="{{ v.porcentagem_padrao }}" {% if v_item.colaborador_id == v.id %}selected{% endif %}>{{ v.nome }} ({{ v.porcentagem_padrao }}%)</option>
+                                    {% endfor %}
+                                    {% for c in colaboradores %}
+                                    {% if c.funcao != 'VENDEDOR' %}
+                                    <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}" {% if v_item.colaborador_id == c.id %}selected{% endif %}>{{ c.nome }} ({{ c.funcao }})</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <input type="hidden" name="vendedor_especialidades[]" value="">
+                                <div class="space-y-1">
+                                    <div class="flex items-center justify-between">
+                                        <label class="text-[10px] font-semibold text-slate-600">Comissão:</label>
+                                        <div class="inline-flex rounded p-0.5 bg-slate-200/70 border border-slate-300">
+                                            <input type="hidden" name="vendedor_tipos[]" class="tipo-comissao-val" value="{{ v_item.tipo_comissao or 'PORCENTAGEM' }}">
+                                            <button type="button" onclick="alternarTipoModal(this, 'PORCENTAGEM', 'vendedor')"
+                                                class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition {% if v_item.tipo_comissao != 'FIXO' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">%</button>
+                                            <button type="button" onclick="alternarTipoModal(this, 'FIXO', 'vendedor')"
+                                                class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition {% if v_item.tipo_comissao == 'FIXO' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">R$</button>
+                                        </div>
+                                    </div>
+                                    <div class="relative">
+                                        <input type="text" name="vendedor_valores[]"
+                                            value="{% if v_item.tipo_comissao == 'FIXO' %}{{ '%.2f'|format(v_item.valor_comissao)|replace('.', ',') if v_item.valor_comissao else '' }}{% else %}{{ v_item.porcentagem if v_item.porcentagem is not none else '' }}{% endif %}"
+                                            placeholder="{% if v_item.tipo_comissao == 'FIXO' %}0,00{% else %}0.0{% endif %}"
+                                            class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 pr-8 bg-white">
+                                        <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">{% if v_item.tipo_comissao == 'FIXO' %}R${% else %}%{% endif %}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
                     </div>
-                    <div class="relative">
-                        <input type="text" name="porcentagem_comissao_vendedor" id="modal_input_vend"
-                            value="{% if os.tipo_comissao_vendedor == 'FIXO' %}{{ '%.2f'|format(os.valor_comissao_vendedor)|replace('.', ',') if os.valor_comissao_vendedor else '' }}{% else %}{{ os.porcentagem_comissao_vendedor or (os.vendedor.porcentagem_padrao if os.vendedor else '') }}{% endif %}"
-                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-blue-600 pr-8">
-                        <span id="modal_sufixo_vend" class="absolute right-3 top-2 text-xs text-slate-400 font-bold">{% if os.tipo_comissao_vendedor == 'FIXO' %}R${% else %}%{% endif %}</span>
-                    </div>
-                </div>
-                <hr class="border-slate-100">
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">{% if empresa.tipo_negocio == 'OFICINA' %}Mecânico{% else %}Mão de Obra{% endif %}</label>
-                    <select name="mecanico_id" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
-                        <option value="">-- Nenhum --</option>
-                        {% for m in mecanicos %}
-                        <option value="{{ m.id }}" {% if os.mecanico_id == m.id %}selected{% endif %}>{{ m.nome }} ({{ m.porcentagem_padrao }}%)</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="space-y-1.5">
-                    <div class="flex items-center justify-between">
-                        <label class="block text-xs font-bold text-slate-700">Comissão Mecânico (sobre mão de obra)</label>
-                        <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
-                            <input type="hidden" name="tipo_comissao_mecanico" id="modal_tipo_mec" value="{{ os.tipo_comissao_mecanico or 'PORCENTAGEM' }}">
-                            <button type="button" onclick="setModalTipoComissao('mec', 'PORCENTAGEM')" id="modal_btn_mec_porc"
-                                class="px-2 py-0.5 text-[10px] font-bold rounded transition {% if os.tipo_comissao_mecanico != 'FIXO' %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">%</button>
-                            <button type="button" onclick="setModalTipoComissao('mec', 'FIXO')" id="modal_btn_mec_fixo"
-                                class="px-2 py-0.5 text-[10px] font-bold rounded transition {% if os.tipo_comissao_mecanico == 'FIXO' %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">R$</button>
+
+                    <!-- MECÂNICOS NO MODAL -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>🔧</span> {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico(s){% else %}Mão de Obra{% endif %}
+                            </label>
+                            <button type="button" onclick="adicionarLinhaModalMecanico()"
+                                class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 transition">
+                                + Mecânico
+                            </button>
+                        </div>
+                        <div id="modal-container-mecanicos" class="space-y-3">
+                            {% set modal_mecs = os.lista_mecanicos if os.lista_mecanicos else ([{'colaborador_id': os.mecanico_id, 'especialidade': '', 'tipo_comissao': os.tipo_comissao_mecanico or 'PORCENTAGEM', 'porcentagem': os.porcentagem_comissao_mecanico, 'valor_comissao': os.valor_comissao_mecanico}] if os.mecanico_id else [{}]) %}
+                            {% for m_item in modal_mecs %}
+                            <div class="linha-modal-mecanico bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2 relative">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-bold text-indigo-800 bg-indigo-100 px-1.5 py-0.5 rounded-full font-mono">Mecânico {{ loop.index }}</span>
+                                    <button type="button" onclick="removerLinhaModalMecanico(this)"
+                                        class="text-red-500 hover:text-red-700 text-xs font-bold px-1.5 py-0.5 rounded hover:bg-red-50">✕ Remover</button>
+                                </div>
+                                <select name="mecanico_ids[]" onchange="aoMudarModalColaborador(this, 'mecanico')"
+                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white text-slate-800">
+                                    <option value="" data-porc="0.0">-- Selecione um Mecânico --</option>
+                                    {% for m in mecanicos %}
+                                    <option value="{{ m.id }}" data-porc="{{ m.porcentagem_padrao }}" {% if m_item.colaborador_id == m.id %}selected{% endif %}>{{ m.nome }} ({{ m.porcentagem_padrao }}%)</option>
+                                    {% endfor %}
+                                    {% for c in colaboradores %}
+                                    {% if c.funcao not in ['MECANICO', 'TECNICO'] %}
+                                    <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}" {% if m_item.colaborador_id == c.id %}selected{% endif %}>{{ c.nome }} ({{ c.funcao }})</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <div class="space-y-1">
+                                    <label class="block text-[10px] font-semibold text-slate-600">Especialidade / Serviço:</label>
+                                    <input type="text" name="mecanico_especialidades[]" list="datalist-especialidades-mecanico-concluir"
+                                        value="{{ m_item.especialidade or '' }}"
+                                        placeholder="Ex: Motor, Suspensão, Freios..."
+                                        class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-800 bg-white">
+                                </div>
+                                <div class="space-y-1">
+                                    <div class="flex items-center justify-between">
+                                        <label class="text-[10px] font-semibold text-slate-600">Comissão:</label>
+                                        <div class="inline-flex rounded p-0.5 bg-slate-200/70 border border-slate-300">
+                                            <input type="hidden" name="mecanico_tipos[]" class="tipo-comissao-val" value="{{ m_item.tipo_comissao or 'PORCENTAGEM' }}">
+                                            <button type="button" onclick="alternarTipoModal(this, 'PORCENTAGEM', 'mecanico')"
+                                                class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition {% if m_item.tipo_comissao != 'FIXO' %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">%</button>
+                                            <button type="button" onclick="alternarTipoModal(this, 'FIXO', 'mecanico')"
+                                                class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition {% if m_item.tipo_comissao == 'FIXO' %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">R$</button>
+                                        </div>
+                                    </div>
+                                    <div class="relative">
+                                        <input type="text" name="mecanico_valores[]"
+                                            value="{% if m_item.tipo_comissao == 'FIXO' %}{{ '%.2f'|format(m_item.valor_comissao)|replace('.', ',') if m_item.valor_comissao else '' }}{% else %}{{ m_item.porcentagem if m_item.porcentagem is not none else '' }}{% endif %}"
+                                            placeholder="{% if m_item.tipo_comissao == 'FIXO' %}0,00{% else %}0.0{% endif %}"
+                                            class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 pr-8 bg-white">
+                                        <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">{% if m_item.tipo_comissao == 'FIXO' %}R${% else %}%{% endif %}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
                     </div>
-                    <div class="relative">
-                        <input type="text" name="porcentagem_comissao_mecanico" id="modal_input_mec"
-                            value="{% if os.tipo_comissao_mecanico == 'FIXO' %}{{ '%.2f'|format(os.valor_comissao_mecanico)|replace('.', ',') if os.valor_comissao_mecanico else '' }}{% else %}{{ os.porcentagem_comissao_mecanico or (os.mecanico.porcentagem_padrao if os.mecanico else '') }}{% endif %}"
-                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-indigo-600 pr-8">
-                        <span id="modal_sufixo_mec" class="absolute right-3 top-2 text-xs text-slate-400 font-bold">{% if os.tipo_comissao_mecanico == 'FIXO' %}R${% else %}%{% endif %}</span>
-                    </div>
                 </div>
-                <div class="flex justify-end gap-2 pt-2">
+
+                <!-- Template HTML para Novo Vendedor no Modal -->
+                <template id="template-modal-vendedor">
+                    <div class="linha-modal-vendedor bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2 relative">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded-full font-mono">Vendedor</span>
+                            <button type="button" onclick="removerLinhaModalVendedor(this)"
+                                class="text-red-500 hover:text-red-700 text-xs font-bold px-1.5 py-0.5 rounded hover:bg-red-50">✕ Remover</button>
+                        </div>
+                        <select name="vendedor_ids[]" onchange="aoMudarModalColaborador(this, 'vendedor')"
+                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white text-slate-800">
+                            <option value="" data-porc="0.0">-- Selecione um Vendedor --</option>
+                            {% for v in vendedores %}
+                            <option value="{{ v.id }}" data-porc="{{ v.porcentagem_padrao }}">{{ v.nome }} ({{ v.porcentagem_padrao }}%)</option>
+                            {% endfor %}
+                            {% for c in colaboradores %}
+                            {% if c.funcao != 'VENDEDOR' %}
+                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}">{{ c.nome }} ({{ c.funcao }})</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="vendedor_especialidades[]" value="">
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[10px] font-semibold text-slate-600">Comissão:</label>
+                                <div class="inline-flex rounded p-0.5 bg-slate-200/70 border border-slate-300">
+                                    <input type="hidden" name="vendedor_tipos[]" class="tipo-comissao-val" value="PORCENTAGEM">
+                                    <button type="button" onclick="alternarTipoModal(this, 'PORCENTAGEM', 'vendedor')"
+                                        class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs">%</button>
+                                    <button type="button" onclick="alternarTipoModal(this, 'FIXO', 'vendedor')"
+                                        class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
+                                </div>
+                            </div>
+                            <div class="relative">
+                                <input type="text" name="vendedor_valores[]" placeholder="0.0"
+                                    class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 pr-8 bg-white">
+                                <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Template HTML para Novo Mecânico no Modal -->
+                <template id="template-modal-mecanico">
+                    <div class="linha-modal-mecanico bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2 relative">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-indigo-800 bg-indigo-100 px-1.5 py-0.5 rounded-full font-mono">Mecânico</span>
+                            <button type="button" onclick="removerLinhaModalMecanico(this)"
+                                class="text-red-500 hover:text-red-700 text-xs font-bold px-1.5 py-0.5 rounded hover:bg-red-50">✕ Remover</button>
+                        </div>
+                        <select name="mecanico_ids[]" onchange="aoMudarModalColaborador(this, 'mecanico')"
+                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white text-slate-800">
+                            <option value="" data-porc="0.0">-- Selecione um Mecânico --</option>
+                            {% for m in mecanicos %}
+                            <option value="{{ m.id }}" data-porc="{{ m.porcentagem_padrao }}">{{ m.nome }} ({{ m.porcentagem_padrao }}%)</option>
+                            {% endfor %}
+                            {% for c in colaboradores %}
+                            {% if c.funcao not in ['MECANICO', 'TECNICO'] %}
+                            <option value="{{ c.id }}" data-porc="{{ c.porcentagem_padrao }}">{{ c.nome }} ({{ c.funcao }})</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="space-y-1">
+                            <label class="block text-[10px] font-semibold text-slate-600">Especialidade / Serviço:</label>
+                            <input type="text" name="mecanico_especialidades[]" list="datalist-especialidades-mecanico-concluir"
+                                placeholder="Ex: Motor, Suspensão, Freios..."
+                                class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-800 bg-white">
+                        </div>
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[10px] font-semibold text-slate-600">Comissão:</label>
+                                <div class="inline-flex rounded p-0.5 bg-slate-200/70 border border-slate-300">
+                                    <input type="hidden" name="mecanico_tipos[]" class="tipo-comissao-val" value="PORCENTAGEM">
+                                    <button type="button" onclick="alternarTipoModal(this, 'PORCENTAGEM', 'mecanico')"
+                                        class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs">%</button>
+                                    <button type="button" onclick="alternarTipoModal(this, 'FIXO', 'mecanico')"
+                                        class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
+                                </div>
+                            </div>
+                            <div class="relative">
+                                <input type="text" name="mecanico_valores[]" placeholder="0.0"
+                                    class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 pr-8 bg-white">
+                                <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <div class="flex justify-end gap-2 pt-2 border-t">
                     <button type="button" onclick="document.getElementById('modal-editar-comissoes').classList.add('hidden')"
-                        class="px-4 py-2 border rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button>
+                        class="px-4 py-2 border rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Cancelar</button>
                     <button type="submit"
-                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold">Salvar e Recalcular</button>
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm">Salvar e Recalcular Equipe</button>
                 </div>
             </form>
         </div>
@@ -1455,78 +1855,227 @@
         return isNaN(val) ? 0 : val;
     }
 
-    function alterarTipoComissao(papel, tipo) {
-        if (papel === 'vendedor') {
-            const hidden = document.getElementById('tipo_comissao_vendedor');
-            const btnPorc = document.getElementById('btn_tipo_vend_porc');
-            const btnFixo = document.getElementById('btn_tipo_vend_fixo');
-            const sufixo = document.getElementById('sufixo_tipo_vendedor');
-            const input = document.getElementById('concluir_porc_vendedor');
-            if (hidden) hidden.value = tipo;
-            if (tipo === 'FIXO') {
-                if (btnFixo) btnFixo.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs';
-                if (btnPorc) btnPorc.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (sufixo) sufixo.innerText = 'R$';
-                if (input) input.placeholder = '0,00';
-            } else {
-                if (btnPorc) btnPorc.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs';
-                if (btnFixo) btnFixo.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (sufixo) sufixo.innerText = '%';
-                if (input) input.placeholder = '0.0';
-            }
-        } else if (papel === 'mecanico') {
-            const hidden = document.getElementById('tipo_comissao_mecanico');
-            const btnPorc = document.getElementById('btn_tipo_mec_porc');
-            const btnFixo = document.getElementById('btn_tipo_mec_fixo');
-            const sufixo = document.getElementById('sufixo_tipo_mecanico');
-            const input = document.getElementById('concluir_porc_mecanico');
-            if (hidden) hidden.value = tipo;
-            if (tipo === 'FIXO') {
-                if (btnFixo) btnFixo.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs';
-                if (btnPorc) btnPorc.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (sufixo) sufixo.innerText = 'R$';
-                if (input) input.placeholder = '0,00';
-            } else {
-                if (btnPorc) btnPorc.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs';
-                if (btnFixo) btnFixo.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (sufixo) sufixo.innerText = '%';
-                if (input) input.placeholder = '0.0';
-            }
+    // --- GERENCIAMENTO DE MÚLTIPLOS VENDEDORES E MECÂNICOS (CONCLUIR / ORÇAMENTO) ---
+    function adicionarLinhaConcluirVendedor() {
+        const container = document.getElementById('concluir-container-vendedores');
+        const template = document.getElementById('template-concluir-vendedor');
+        if (!container || !template) return;
+        const clone = template.content.cloneNode(true);
+        container.appendChild(clone);
+        atualizarIndicesConcluir('vendedor');
+        atualizarTotais();
+    }
+
+    function removerLinhaConcluirVendedor(btn) {
+        const container = document.getElementById('concluir-container-vendedores');
+        const linha = btn.closest('.linha-concluir-vendedor');
+        if (!container || !linha) return;
+        const total = container.querySelectorAll('.linha-concluir-vendedor').length;
+        if (total <= 1) {
+            const select = linha.querySelector('.select-colaborador');
+            const inputVal = linha.querySelector('.input-valor-comissao');
+            if (select) select.value = '';
+            if (inputVal) inputVal.value = '';
+        } else {
+            linha.remove();
+            atualizarIndicesConcluir('vendedor');
         }
         atualizarTotais();
     }
 
-    function setModalTipoComissao(papel, tipo) {
-        if (papel === 'vend') {
-            const h = document.getElementById('modal_tipo_vend');
-            const bp = document.getElementById('modal_btn_vend_porc');
-            const bf = document.getElementById('modal_btn_vend_fixo');
-            const s = document.getElementById('modal_sufixo_vend');
-            if (h) h.value = tipo;
-            if (tipo === 'FIXO') {
-                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs';
-                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (s) s.innerText = 'R$';
-            } else {
-                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs';
-                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (s) s.innerText = '%';
-            }
-        } else if (papel === 'mec') {
-            const h = document.getElementById('modal_tipo_mec');
-            const bp = document.getElementById('modal_btn_mec_porc');
-            const bf = document.getElementById('modal_btn_mec_fixo');
-            const s = document.getElementById('modal_sufixo_mec');
-            if (h) h.value = tipo;
-            if (tipo === 'FIXO') {
-                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs';
-                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (s) s.innerText = 'R$';
-            } else {
-                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs';
-                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (s) s.innerText = '%';
-            }
+    function adicionarLinhaConcluirMecanico() {
+        const container = document.getElementById('concluir-container-mecanicos');
+        const template = document.getElementById('template-concluir-mecanico');
+        if (!container || !template) return;
+        const clone = template.content.cloneNode(true);
+        container.appendChild(clone);
+        atualizarIndicesConcluir('mecanico');
+        atualizarTotais();
+    }
+
+    function removerLinhaConcluirMecanico(btn) {
+        const container = document.getElementById('concluir-container-mecanicos');
+        const linha = btn.closest('.linha-concluir-mecanico');
+        if (!container || !linha) return;
+        const total = container.querySelectorAll('.linha-concluir-mecanico').length;
+        if (total <= 1) {
+            const select = linha.querySelector('.select-colaborador');
+            const inputVal = linha.querySelector('.input-valor-comissao');
+            const inputEsp = linha.querySelector('input[name="mecanico_especialidades[]"]');
+            if (select) select.value = '';
+            if (inputVal) inputVal.value = '';
+            if (inputEsp) inputEsp.value = '';
+        } else {
+            linha.remove();
+            atualizarIndicesConcluir('mecanico');
+        }
+        atualizarTotais();
+    }
+
+    function atualizarIndicesConcluir(tipo) {
+        if (tipo === 'vendedor') {
+            const linhas = document.querySelectorAll('#concluir-container-vendedores .linha-concluir-vendedor');
+            linhas.forEach((linha, idx) => {
+                const badge = linha.querySelector('.badge-num-vendedor');
+                if (badge) badge.innerText = `Vendedor ${idx + 1}`;
+            });
+        } else if (tipo === 'mecanico') {
+            const linhas = document.querySelectorAll('#concluir-container-mecanicos .linha-concluir-mecanico');
+            linhas.forEach((linha, idx) => {
+                const badge = linha.querySelector('.badge-num-mecanico');
+                if (badge) badge.innerText = `Mecânico ${idx + 1}`;
+            });
+        }
+    }
+
+    function aoMudarConcluirColaborador(select, tipo) {
+        const linha = select.closest(tipo === 'vendedor' ? '.linha-concluir-vendedor' : '.linha-concluir-mecanico');
+        if (!linha) return;
+        const option = select.options[select.selectedIndex];
+        const porc = option ? option.getAttribute('data-porc') : null;
+        const inputVal = linha.querySelector('.input-valor-comissao');
+        const btnPorc = linha.querySelector('.btn-porc');
+        if (porc && parseFloat(porc) > 0) {
+            alternarTipoConcluir(btnPorc, 'PORCENTAGEM', tipo);
+            if (inputVal) inputVal.value = porc;
+        } else if (!select.value && inputVal) {
+            inputVal.value = '';
+        }
+        atualizarTotais();
+    }
+
+    function alternarTipoConcluir(btn, tipo, papel) {
+        const linha = btn.closest(papel === 'vendedor' ? '.linha-concluir-vendedor' : '.linha-concluir-mecanico');
+        if (!linha) return;
+        const inputTipo = linha.querySelector('.tipo-comissao-val');
+        const btnPorc = linha.querySelector('.btn-porc');
+        const btnFixo = linha.querySelector('.btn-fixo');
+        const sufixo = linha.querySelector('.sufixo-tipo');
+        const inputVal = linha.querySelector('.input-valor-comissao');
+
+        const corBg = papel === 'vendedor' ? 'bg-blue-600' : 'bg-indigo-600';
+
+        if (inputTipo) inputTipo.value = tipo;
+        if (tipo === 'FIXO') {
+            if (btnFixo) btnFixo.className = `btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition ${corBg} text-white shadow-xs`;
+            if (btnPorc) btnPorc.className = 'btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+            if (sufixo) sufixo.innerText = 'R$';
+            if (inputVal) inputVal.placeholder = '0,00';
+        } else {
+            if (btnPorc) btnPorc.className = `btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition ${corBg} text-white shadow-xs`;
+            if (btnFixo) btnFixo.className = 'btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+            if (sufixo) sufixo.innerText = '%';
+            if (inputVal) inputVal.placeholder = '0.0';
+        }
+        atualizarTotais();
+    }
+
+    // --- GERENCIAMENTO DE MÚLTIPLOS VENDEDORES E MECÂNICOS NO MODAL DE AJUSTE ---
+    function adicionarLinhaModalVendedor() {
+        const container = document.getElementById('modal-container-vendedores');
+        const template = document.getElementById('template-modal-vendedor');
+        if (!container || !template) return;
+        const clone = template.content.cloneNode(true);
+        container.appendChild(clone);
+        atualizarIndicesModal('vendedor');
+    }
+
+    function removerLinhaModalVendedor(btn) {
+        const container = document.getElementById('modal-container-vendedores');
+        const linha = btn.closest('.linha-modal-vendedor');
+        if (!container || !linha) return;
+        const total = container.querySelectorAll('.linha-modal-vendedor').length;
+        if (total <= 1) {
+            const select = linha.querySelector('select');
+            const inputVal = linha.querySelector('.input-valor-comissao');
+            if (select) select.value = '';
+            if (inputVal) inputVal.value = '';
+        } else {
+            linha.remove();
+            atualizarIndicesModal('vendedor');
+        }
+    }
+
+    function adicionarLinhaModalMecanico() {
+        const container = document.getElementById('modal-container-mecanicos');
+        const template = document.getElementById('template-modal-mecanico');
+        if (!container || !template) return;
+        const clone = template.content.cloneNode(true);
+        container.appendChild(clone);
+        atualizarIndicesModal('mecanico');
+    }
+
+    function removerLinhaModalMecanico(btn) {
+        const container = document.getElementById('modal-container-mecanicos');
+        const linha = btn.closest('.linha-modal-mecanico');
+        if (!container || !linha) return;
+        const total = container.querySelectorAll('.linha-modal-mecanico').length;
+        if (total <= 1) {
+            const select = linha.querySelector('select');
+            const inputVal = linha.querySelector('.input-valor-comissao');
+            const inputEsp = linha.querySelector('input[name="mecanico_especialidades[]"]');
+            if (select) select.value = '';
+            if (inputVal) inputVal.value = '';
+            if (inputEsp) inputEsp.value = '';
+        } else {
+            linha.remove();
+            atualizarIndicesModal('mecanico');
+        }
+    }
+
+    function atualizarIndicesModal(tipo) {
+        if (tipo === 'vendedor') {
+            const linhas = document.querySelectorAll('#modal-container-vendedores .linha-modal-vendedor');
+            linhas.forEach((linha, idx) => {
+                const badge = linha.querySelector('.badge-num-vendedor') || linha.querySelector('span.font-mono');
+                if (badge) badge.innerText = `Vendedor ${idx + 1}`;
+            });
+        } else if (tipo === 'mecanico') {
+            const linhas = document.querySelectorAll('#modal-container-mecanicos .linha-modal-mecanico');
+            linhas.forEach((linha, idx) => {
+                const badge = linha.querySelector('.badge-num-mecanico') || linha.querySelector('span.font-mono');
+                if (badge) badge.innerText = `Mecânico ${idx + 1}`;
+            });
+        }
+    }
+
+    function aoMudarModalColaborador(select, tipo) {
+        const linha = select.closest(tipo === 'vendedor' ? '.linha-modal-vendedor' : '.linha-modal-mecanico');
+        if (!linha) return;
+        const option = select.options[select.selectedIndex];
+        const porc = option ? option.getAttribute('data-porc') : null;
+        const inputVal = linha.querySelector('.input-valor-comissao');
+        const btnPorc = linha.querySelector('.btn-porc');
+        if (porc && parseFloat(porc) > 0) {
+            alternarTipoModal(btnPorc, 'PORCENTAGEM', tipo);
+            if (inputVal) inputVal.value = porc;
+        } else if (!select.value && inputVal) {
+            inputVal.value = '';
+        }
+    }
+
+    function alternarTipoModal(btn, tipo, papel) {
+        const linha = btn.closest(papel === 'vendedor' ? '.linha-modal-vendedor' : '.linha-modal-mecanico');
+        if (!linha) return;
+        const inputTipo = linha.querySelector('.tipo-comissao-val');
+        const btnPorc = linha.querySelector('.btn-porc');
+        const btnFixo = linha.querySelector('.btn-fixo');
+        const sufixo = linha.querySelector('.sufixo-tipo');
+        const inputVal = linha.querySelector('.input-valor-comissao');
+
+        const corBg = papel === 'vendedor' ? 'bg-blue-600' : 'bg-indigo-600';
+
+        if (inputTipo) inputTipo.value = tipo;
+        if (tipo === 'FIXO') {
+            if (btnFixo) btnFixo.className = `btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition ${corBg} text-white shadow-xs`;
+            if (btnPorc) btnPorc.className = 'btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+            if (sufixo) sufixo.innerText = 'R$';
+            if (inputVal) inputVal.placeholder = '0,00';
+        } else {
+            if (btnPorc) btnPorc.className = `btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition ${corBg} text-white shadow-xs`;
+            if (btnFixo) btnFixo.className = 'btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+            if (sufixo) sufixo.innerText = '%';
+            if (inputVal) inputVal.placeholder = '0.0';
         }
     }
 
@@ -1534,41 +2083,19 @@
         return 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    function atualizarPorcConclusaoVendedor(select) {
-        const opt = select.options[select.selectedIndex];
-        const porc = opt ? opt.getAttribute('data-porc') : '';
-        const inputPorc = document.getElementById('concluir_porc_vendedor');
-        if (inputPorc && porc !== null && porc !== undefined) {
-            alterarTipoComissao('vendedor', 'PORCENTAGEM');
-            inputPorc.value = porc;
-        }
-        atualizarTotais();
-    }
-
-    function atualizarPorcConclusaoMecanico(select) {
-        const opt = select.options[select.selectedIndex];
-        const porc = opt ? opt.getAttribute('data-porc') : '';
-        const inputPorc = document.getElementById('concluir_porc_mecanico');
-        if (inputPorc && porc !== null && porc !== undefined) {
-            alterarTipoComissao('mecanico', 'PORCENTAGEM');
-            inputPorc.value = porc;
-        }
-        atualizarTotais();
-    }
-
     function atualizarTotais() {
         let totalPecas = 0;
         let totalServicos = 0;
 
         document.querySelectorAll('#container-pecas .linha-item').forEach(linha => {
-            let qtd = parseMoeda(linha.querySelector('input[name="peca_qtd[]"]').value) || 1;
-            let val = parseMoeda(linha.querySelector('input[name="peca_valor[]"]').value);
+            let qtd = parseMoeda(linha.querySelector('input[name="peca_qtd[]"]')?.value) || 1;
+            let val = parseMoeda(linha.querySelector('input[name="peca_valor[]"]')?.value);
             totalPecas += (qtd * val);
         });
 
         document.querySelectorAll('#container-servicos .linha-item').forEach(linha => {
-            let qtd = parseMoeda(linha.querySelector('input[name="servico_qtd[]"]').value) || 1;
-            let val = parseMoeda(linha.querySelector('input[name="servico_valor[]"]').value);
+            let qtd = parseMoeda(linha.querySelector('input[name="servico_qtd[]"]')?.value) || 1;
+            let val = parseMoeda(linha.querySelector('input[name="servico_valor[]"]')?.value);
             totalServicos += (qtd * val);
         });
 
@@ -1581,37 +2108,41 @@
         const lblT = document.getElementById('lbl-total');
         if (lblT) lblT.innerText = formatMoeda(totalGeral);
 
-        // Atualiza estimativa de comissão do vendedor em tempo real (Fixo ou Porcentagem)
-        const inputPorcVend = document.getElementById('concluir_porc_vendedor');
-        const lblComissaoVend = document.getElementById('lbl-comissao-vendedor-prevista');
-        const hiddenTipoVend = document.getElementById('tipo_comissao_vendedor');
-        const tipoVend = hiddenTipoVend ? hiddenTipoVend.value : 'PORCENTAGEM';
-        if (inputPorcVend && lblComissaoVend) {
-            if (tipoVend === 'FIXO') {
-                let vFixo = parseMoeda(inputPorcVend.value);
-                lblComissaoVend.innerText = formatMoeda(vFixo);
-            } else {
-                let pVend = parseMoeda(inputPorcVend.value);
-                let comissaoVend = (totalGeral * pVend) / 100;
-                lblComissaoVend.innerText = formatMoeda(comissaoVend);
+        // Atualiza estimativa de comissão de CADA vendedor da equipe em tempo real
+        document.querySelectorAll('#concluir-container-vendedores .linha-concluir-vendedor').forEach(linha => {
+            const inputVal = linha.querySelector('.input-valor-comissao');
+            const lblComissao = linha.querySelector('.lbl-comissao-prevista');
+            const hiddenTipo = linha.querySelector('.tipo-comissao-val');
+            const tipo = hiddenTipo ? hiddenTipo.value : 'PORCENTAGEM';
+            if (inputVal && lblComissao) {
+                if (tipo === 'FIXO') {
+                    let vFixo = parseMoeda(inputVal.value);
+                    lblComissao.innerText = formatMoeda(vFixo);
+                } else {
+                    let pVend = parseMoeda(inputVal.value);
+                    let comissaoVend = (totalGeral * pVend) / 100;
+                    lblComissao.innerText = formatMoeda(comissaoVend);
+                }
             }
-        }
+        });
 
-        // Atualiza estimativa de comissão do mecânico sobre serviços/mão de obra (Fixo ou Porcentagem)
-        const inputPorcMec = document.getElementById('concluir_porc_mecanico');
-        const lblComissaoMec = document.getElementById('lbl-comissao-mecanico-prevista');
-        const hiddenTipoMec = document.getElementById('tipo_comissao_mecanico');
-        const tipoMec = hiddenTipoMec ? hiddenTipoMec.value : 'PORCENTAGEM';
-        if (inputPorcMec && lblComissaoMec) {
-            if (tipoMec === 'FIXO') {
-                let vFixoM = parseMoeda(inputPorcMec.value);
-                lblComissaoMec.innerText = formatMoeda(vFixoM);
-            } else {
-                let pMec = parseMoeda(inputPorcMec.value);
-                let comissaoMec = (totalServicos * pMec) / 100;
-                lblComissaoMec.innerText = formatMoeda(comissaoMec);
+        // Atualiza estimativa de comissão de CADA mecânico da equipe sobre mão de obra em tempo real
+        document.querySelectorAll('#concluir-container-mecanicos .linha-concluir-mecanico').forEach(linha => {
+            const inputVal = linha.querySelector('.input-valor-comissao');
+            const lblComissao = linha.querySelector('.lbl-comissao-prevista');
+            const hiddenTipo = linha.querySelector('.tipo-comissao-val');
+            const tipo = hiddenTipo ? hiddenTipo.value : 'PORCENTAGEM';
+            if (inputVal && lblComissao) {
+                if (tipo === 'FIXO') {
+                    let vFixoM = parseMoeda(inputVal.value);
+                    lblComissao.innerText = formatMoeda(vFixoM);
+                } else {
+                    let pMec = parseMoeda(inputVal.value);
+                    let comissaoMec = (totalServicos * pMec) / 100;
+                    lblComissao.innerText = formatMoeda(comissaoMec);
+                }
             }
-        }
+        });
 
         // Atualiza cálculo de múltiplas formas de pagamento
         calcularTotalPagamentos();

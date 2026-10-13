@@ -149,28 +149,94 @@
             </div>
 
             {% if is_admin_empresa %}
-            <!-- EQUIPE RESPONSÁVEL & COMISSÕES (VENDEDOR E MECÂNICO) -->
-            <div class="bg-slate-50 border border-slate-200/90 rounded-xl p-4 space-y-3">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
-                        <span>👥</span>
-                        Equipe Responsável & Comissões
-                    </span>
+            <!-- EQUIPE RESPONSÁVEL & COMISSÕES (MÚLTIPLOS VENDEDORES E MECÂNICOS) -->
+            <div class="bg-slate-50 border border-slate-200/90 rounded-xl p-4 space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                    <div>
+                        <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+                            <span>👥</span>
+                            Equipe Responsável & Comissões
+                        </span>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Adicione quantos vendedores e mecânicos forem necessários para esta venda</p>
+                    </div>
                     <a href="{{ url_for('lista_colaboradores') }}" target="_blank"
                         class="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition">
                         + Cadastrar Profissional
                     </a>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <!-- Vendedor / Comercial -->
-                    <div class="bg-white p-3 rounded-lg border border-slate-200/80 space-y-2">
-                        <label class="block text-xs font-semibold text-slate-700">
-                            🛍️ Vendedor / Comercial
-                        </label>
-                        <select name="vendedor_id" id="select_vendedor" onchange="atualizarPorcentagemVendedor(this)"
-                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="" data-porc="0.0">-- Nenhum Vendedor --</option>
+                <!-- Datalist com sugestões rápidas de especialidades do mecânico -->
+                <datalist id="datalist-especialidades-mecanico">
+                    <option value="Motor e Cabeçote">
+                    <option value="Câmbio e Transmissão">
+                    <option value="Freios e Suspensão">
+                    <option value="Injeção Eletrônica e Diagnóstico">
+                    <option value="Elétrica e Ignição">
+                    <option value="Ar Condicionado e Arrefecimento">
+                    <option value="Alinhamento e Balanceamento">
+                    <option value="Troca de Óleo e Filtros">
+                    <option value="Funilaria e Pintura">
+                    <option value="Estética e Polimento">
+                    <option value="Instalação de Acessórios">
+                    <option value="Revisão Geral Preventiva">
+                </datalist>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- COLUNA 1: VENDEDORES -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>🛍️</span>
+                                Vendedor(es) / Comercial
+                            </label>
+                            <button type="button" onclick="adicionarLinhaVendedor()"
+                                class="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 transition">
+                                <span>+</span> Adicionar Vendedor
+                            </button>
+                        </div>
+
+                        <!-- Container dinâmico de Vendedores -->
+                        <div id="container-vendedores" class="space-y-3">
+                            <!-- Inserido dinamicamente via JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- COLUNA 2: MECÂNICOS / MÃO DE OBRA -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>🔧</span>
+                                {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico(s) / Especialistas{% else %}Profissional(is) da Mão de Obra{% endif %}
+                            </label>
+                            <button type="button" onclick="adicionarLinhaMecanico()"
+                                class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition">
+                                <span>+</span> Adicionar Mecânico
+                            </button>
+                        </div>
+
+                        <!-- Container dinâmico de Mecânicos -->
+                        <div id="container-mecanicos" class="space-y-3">
+                            <!-- Inserido dinamicamente via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Template HTML para Novo Vendedor -->
+                <template id="template-vendedor">
+                    <div class="linha-vendedor bg-white p-3 rounded-lg border border-slate-200/90 space-y-2 relative shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                <span class="badge-num-vendedor bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold">Vendedor</span>
+                            </span>
+                            <button type="button" onclick="removerLinhaVendedor(this)"
+                                class="btn-remover-vendedor text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded text-[11px] font-bold transition" title="Remover este vendedor">
+                                ✕ Remover
+                            </button>
+                        </div>
+
+                        <select name="vendedor_ids[]" onchange="aoMudarColaborador(this, 'vendedor')"
+                            class="select-colaborador w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" data-porc="0.0">-- Selecione um Vendedor --</option>
                             {% for v in vendedores %}
                             <option value="{{ v.id }}" data-porc="{{ v.porcentagem_padrao }}">{{ v.nome }} (Padrão: {{ v.porcentagem_padrao }}%)</option>
                             {% endfor %}
@@ -180,34 +246,45 @@
                             {% endif %}
                             {% endfor %}
                         </select>
-                        <div class="space-y-1">
+                        <input type="hidden" name="vendedor_especialidades[]" value="">
+
+                        <div class="space-y-1 pt-0.5">
                             <div class="flex items-center justify-between">
-                                <label class="block text-[11px] font-semibold text-slate-600">Comissão do Vendedor</label>
+                                <label class="block text-[10px] font-semibold text-slate-600">Comissão da Venda:</label>
                                 <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
-                                    <input type="hidden" name="tipo_comissao_vendedor" id="tipo_comissao_vendedor" value="PORCENTAGEM">
-                                    <button type="button" id="btn_tipo_vend_porc" onclick="alterarTipoForm('vendedor', 'PORCENTAGEM')"
-                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs">%</button>
-                                    <button type="button" id="btn_tipo_vend_fixo" onclick="alterarTipoForm('vendedor', 'FIXO')"
-                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
+                                    <input type="hidden" name="vendedor_tipos[]" class="tipo-comissao-val" value="PORCENTAGEM">
+                                    <button type="button" onclick="alternarTipoLinha(this, 'PORCENTAGEM', 'vendedor')"
+                                        class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs">%</button>
+                                    <button type="button" onclick="alternarTipoLinha(this, 'FIXO', 'vendedor')"
+                                        class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
                                 </div>
                             </div>
                             <div class="relative">
-                                <input type="text" name="porcentagem_comissao_vendedor" id="porc_vendedor" placeholder="0.0"
-                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-8">
-                                <span id="sufixo_vend" class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                                <input type="text" name="vendedor_valores[]" placeholder="0.0"
+                                    class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-8">
+                                <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
                             </div>
-                            <span id="desc_tipo_vend" class="text-[10px] text-slate-400 block mt-0.5">Calculada sobre o valor das vendas</span>
+                            <span class="desc-tipo text-[10px] text-slate-400 block">Calculada sobre as vendas</span>
                         </div>
                     </div>
+                </template>
 
-                    <!-- Mecânico / Executor da Mão de Obra -->
-                    <div class="bg-white p-3 rounded-lg border border-slate-200/80 space-y-2">
-                        <label class="block text-xs font-semibold text-slate-700">
-                            🔧 {% if empresa.tipo_negocio == 'OFICINA' %}Mecânico Responsável{% else %}Profissional da Mão de Obra{% endif %}
-                        </label>
-                        <select name="mecanico_id" id="select_mecanico" onchange="atualizarPorcentagemMecanico(this)"
-                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="" data-porc="0.0">-- Nenhum Mecânico/Técnico --</option>
+                <!-- Template HTML para Novo Mecânico -->
+                <template id="template-mecanico">
+                    <div class="linha-mecanico bg-white p-3 rounded-lg border border-slate-200/90 space-y-2 relative shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                <span class="badge-num-mecanico bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold">Mecânico</span>
+                            </span>
+                            <button type="button" onclick="removerLinhaMecanico(this)"
+                                class="btn-remover-mecanico text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded text-[11px] font-bold transition" title="Remover este mecânico">
+                                ✕ Remover
+                            </button>
+                        </div>
+
+                        <select name="mecanico_ids[]" onchange="aoMudarColaborador(this, 'mecanico')"
+                            class="select-colaborador w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="" data-porc="0.0">-- Selecione um Mecânico/Técnico --</option>
                             {% for m in mecanicos %}
                             <option value="{{ m.id }}" data-porc="{{ m.porcentagem_padrao }}">{{ m.nome }} (Padrão: {{ m.porcentagem_padrao }}%)</option>
                             {% endfor %}
@@ -217,26 +294,38 @@
                             {% endif %}
                             {% endfor %}
                         </select>
+
+                        <!-- Especialidade ou Serviço Específico do Mecânico -->
                         <div class="space-y-1">
+                            <label class="block text-[10px] font-semibold text-slate-600 flex items-center justify-between">
+                                <span>Especialidade / Serviço:</span>
+                                <span class="text-[9px] text-slate-400 font-normal">Ex: Freios, Motor, Elétrica...</span>
+                            </label>
+                            <input type="text" name="mecanico_especialidades[]" list="datalist-especialidades-mecanico"
+                                placeholder="Especialidade deste mecânico..."
+                                class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 bg-white placeholder:text-slate-400">
+                        </div>
+
+                        <div class="space-y-1 pt-0.5">
                             <div class="flex items-center justify-between">
-                                <label class="block text-[11px] font-semibold text-slate-600">Comissão da Mão de Obra</label>
+                                <label class="block text-[10px] font-semibold text-slate-600">Comissão da Mão de Obra:</label>
                                 <div class="inline-flex rounded p-0.5 bg-slate-100 border border-slate-200">
-                                    <input type="hidden" name="tipo_comissao_mecanico" id="tipo_comissao_mecanico" value="PORCENTAGEM">
-                                    <button type="button" id="btn_tipo_mec_porc" onclick="alterarTipoForm('mecanico', 'PORCENTAGEM')"
-                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs">%</button>
-                                    <button type="button" id="btn_tipo_mec_fixo" onclick="alterarTipoForm('mecanico', 'FIXO')"
-                                        class="px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
+                                    <input type="hidden" name="mecanico_tipos[]" class="tipo-comissao-val" value="PORCENTAGEM">
+                                    <button type="button" onclick="alternarTipoLinha(this, 'PORCENTAGEM', 'mecanico')"
+                                        class="btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs">%</button>
+                                    <button type="button" onclick="alternarTipoLinha(this, 'FIXO', 'mecanico')"
+                                        class="btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900">R$</button>
                                 </div>
                             </div>
                             <div class="relative">
-                                <input type="text" name="porcentagem_comissao_mecanico" id="porc_mecanico" placeholder="0.0"
-                                    class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-blue-500 bg-white pr-8">
-                                <span id="sufixo_mec" class="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
+                                <input type="text" name="mecanico_valores[]" placeholder="0.0"
+                                    class="input-valor-comissao w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500 bg-white pr-8">
+                                <span class="sufixo-tipo absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
                             </div>
-                            <span id="desc_tipo_mec" class="text-[10px] text-slate-400 block mt-0.5">Calculada sobre a mão de obra/serviço</span>
+                            <span class="desc-tipo text-[10px] text-slate-400 block">Calculada sobre a mão de obra</span>
                         </div>
                     </div>
-                </div>
+                </template>
             </div>
             {% else %}
                 {% if colaborador %}
@@ -396,76 +485,129 @@
         campoBusca.focus();
     }
 
-    function alterarTipoForm(papel, tipo) {
-        if (papel === 'vendedor') {
-            const h = document.getElementById('tipo_comissao_vendedor');
-            const bp = document.getElementById('btn_tipo_vend_porc');
-            const bf = document.getElementById('btn_tipo_vend_fixo');
-            const s = document.getElementById('sufixo_vend');
-            const desc = document.getElementById('desc_tipo_vend');
-            const inp = document.getElementById('porc_vendedor');
-            if (h) h.value = tipo;
-            if (tipo === 'FIXO') {
-                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs';
-                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (s) s.innerText = 'R$';
-                if (desc) desc.innerText = 'Valor fixo em reais por venda';
-                if (inp) inp.placeholder = '0,00';
-            } else {
-                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-blue-600 text-white shadow-xs';
-                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (s) s.innerText = '%';
-                if (desc) desc.innerText = 'Calculada sobre o valor das vendas';
-                if (inp) inp.placeholder = '0.0';
-            }
-        } else if (papel === 'mecanico') {
-            const h = document.getElementById('tipo_comissao_mecanico');
-            const bp = document.getElementById('btn_tipo_mec_porc');
-            const bf = document.getElementById('btn_tipo_mec_fixo');
-            const s = document.getElementById('sufixo_mec');
-            const desc = document.getElementById('desc_tipo_mec');
-            const inp = document.getElementById('porc_mecanico');
-            if (h) h.value = tipo;
-            if (tipo === 'FIXO') {
-                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs';
-                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (s) s.innerText = 'R$';
-                if (desc) desc.innerText = 'Valor fixo em reais pela mão de obra';
-                if (inp) inp.placeholder = '0,00';
-            } else {
-                if (bp) bp.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition bg-indigo-600 text-white shadow-xs';
-                if (bf) bf.className = 'px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
-                if (s) s.innerText = '%';
-                if (desc) desc.innerText = 'Calculada sobre a mão de obra/serviço';
-                if (inp) inp.placeholder = '0.0';
-            }
+    // --- GERENCIAMENTO DE MÚLTIPLOS VENDEDORES E MECÂNICOS ---
+    function adicionarLinhaVendedor() {
+        const container = document.getElementById('container-vendedores');
+        const template = document.getElementById('template-vendedor');
+        if (!container || !template) return;
+        const clone = template.content.cloneNode(true);
+        container.appendChild(clone);
+        atualizarIndicesEquipe('vendedor');
+    }
+
+    function removerLinhaVendedor(btn) {
+        const container = document.getElementById('container-vendedores');
+        const linha = btn.closest('.linha-vendedor');
+        if (!container || !linha) return;
+        const total = container.querySelectorAll('.linha-vendedor').length;
+        if (total <= 1) {
+            const select = linha.querySelector('.select-colaborador');
+            const inputVal = linha.querySelector('.input-valor-comissao');
+            if (select) select.value = '';
+            if (inputVal) inputVal.value = '';
+        } else {
+            linha.remove();
+            atualizarIndicesEquipe('vendedor');
         }
     }
 
-    // Atualiza porcentagens padrão conforme seleção de vendedor e mecânico
-    function atualizarPorcentagemVendedor(select) {
-        const option = select.options[select.selectedIndex];
-        const porc = option.getAttribute('data-porc');
-        const inputPorc = document.getElementById('porc_vendedor');
-        if (porc && parseFloat(porc) > 0) {
-            alterarTipoForm('vendedor', 'PORCENTAGEM');
-            inputPorc.value = porc;
-        } else if (!select.value) {
-            inputPorc.value = '';
+    function adicionarLinhaMecanico() {
+        const container = document.getElementById('container-mecanicos');
+        const template = document.getElementById('template-mecanico');
+        if (!container || !template) return;
+        const clone = template.content.cloneNode(true);
+        container.appendChild(clone);
+        atualizarIndicesEquipe('mecanico');
+    }
+
+    function removerLinhaMecanico(btn) {
+        const container = document.getElementById('container-mecanicos');
+        const linha = btn.closest('.linha-mecanico');
+        if (!container || !linha) return;
+        const total = container.querySelectorAll('.linha-mecanico').length;
+        if (total <= 1) {
+            const select = linha.querySelector('.select-colaborador');
+            const inputVal = linha.querySelector('.input-valor-comissao');
+            const inputEsp = linha.querySelector('input[name="mecanico_especialidades[]"]');
+            if (select) select.value = '';
+            if (inputVal) inputVal.value = '';
+            if (inputEsp) inputEsp.value = '';
+        } else {
+            linha.remove();
+            atualizarIndicesEquipe('mecanico');
         }
     }
 
-    function atualizarPorcentagemMecanico(select) {
-        const option = select.options[select.selectedIndex];
-        const porc = option.getAttribute('data-porc');
-        const inputPorc = document.getElementById('porc_mecanico');
-        if (porc && parseFloat(porc) > 0) {
-            alterarTipoForm('mecanico', 'PORCENTAGEM');
-            inputPorc.value = porc;
-        } else if (!select.value) {
-            inputPorc.value = '';
+    function atualizarIndicesEquipe(tipo) {
+        if (tipo === 'vendedor') {
+            const linhas = document.querySelectorAll('#container-vendedores .linha-vendedor');
+            linhas.forEach((linha, idx) => {
+                const badge = linha.querySelector('.badge-num-vendedor');
+                if (badge) badge.innerText = `Vendedor ${idx + 1}`;
+            });
+        } else if (tipo === 'mecanico') {
+            const linhas = document.querySelectorAll('#container-mecanicos .linha-mecanico');
+            linhas.forEach((linha, idx) => {
+                const badge = linha.querySelector('.badge-num-mecanico');
+                if (badge) badge.innerText = `Mecânico ${idx + 1}`;
+            });
         }
     }
+
+    function aoMudarColaborador(select, tipo) {
+        const linha = select.closest(tipo === 'vendedor' ? '.linha-vendedor' : '.linha-mecanico');
+        if (!linha) return;
+        const option = select.options[select.selectedIndex];
+        const porc = option ? option.getAttribute('data-porc') : null;
+        const inputVal = linha.querySelector('.input-valor-comissao');
+        const btnPorc = linha.querySelector('.btn-porc');
+        if (porc && parseFloat(porc) > 0) {
+            alternarTipoLinha(btnPorc, 'PORCENTAGEM', tipo);
+            if (inputVal) inputVal.value = porc;
+        } else if (!select.value && inputVal) {
+            inputVal.value = '';
+        }
+    }
+
+    function alternarTipoLinha(btn, tipo, papel) {
+        const linha = btn.closest(papel === 'vendedor' ? '.linha-vendedor' : '.linha-mecanico');
+        if (!linha) return;
+        const inputTipo = linha.querySelector('.tipo-comissao-val');
+        const btnPorc = linha.querySelector('.btn-porc');
+        const btnFixo = linha.querySelector('.btn-fixo');
+        const sufixo = linha.querySelector('.sufixo-tipo');
+        const desc = linha.querySelector('.desc-tipo');
+        const inputVal = linha.querySelector('.input-valor-comissao');
+
+        const corBg = papel === 'vendedor' ? 'bg-blue-600' : 'bg-indigo-600';
+
+        if (inputTipo) inputTipo.value = tipo;
+        if (tipo === 'FIXO') {
+            if (btnFixo) btnFixo.className = `btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition ${corBg} text-white shadow-xs`;
+            if (btnPorc) btnPorc.className = 'btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+            if (sufixo) sufixo.innerText = 'R$';
+            if (desc) desc.innerText = papel === 'vendedor' ? 'Valor fixo em R$ pela venda' : 'Valor fixo em R$ pela mão de obra';
+            if (inputVal) inputVal.placeholder = '0,00';
+        } else {
+            if (btnPorc) btnPorc.className = `btn-porc px-2 py-0.5 text-[10px] font-bold rounded transition ${corBg} text-white shadow-xs`;
+            if (btnFixo) btnFixo.className = 'btn-fixo px-2 py-0.5 text-[10px] font-bold rounded transition text-slate-600 hover:text-slate-900';
+            if (sufixo) sufixo.innerText = '%';
+            if (desc) desc.innerText = papel === 'vendedor' ? 'Calculada sobre as vendas' : 'Calculada sobre a mão de obra';
+            if (inputVal) inputVal.placeholder = '0.0';
+        }
+    }
+
+    // Inicializa a primeira linha para vendedor e mecânico se o container estiver presente
+    document.addEventListener('DOMContentLoaded', function() {
+        const cv = document.getElementById('container-vendedores');
+        const cm = document.getElementById('container-mecanicos');
+        if (cv && cv.children.length === 0) {
+            adicionarLinhaVendedor();
+        }
+        if (cm && cm.children.length === 0) {
+            adicionarLinhaMecanico();
+        }
+    });
 
     // Fecha dropdown ao clicar fora
     document.addEventListener('click', function(e) {

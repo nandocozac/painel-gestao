@@ -98,15 +98,35 @@
         </div>
 
         <!-- Profissionais Responsáveis pelo Atendimento -->
-        {% if os.vendedor or os.mecanico %}
+        {% if os.lista_equipe or os.vendedor or os.mecanico %}
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-lg border border-slate-100 print:bg-white print:border-slate-300 text-xs">
-            {% if os.vendedor %}
+            {% if os.lista_vendedores %}
+            <div>
+                <span class="text-slate-400 font-bold uppercase tracking-wider block text-[10px]">Vendedor(es) / Atendimento</span>
+                {% for v in os.lista_vendedores %}
+                <strong class="text-slate-800 text-sm block">{{ v.nome }}</strong>
+                {% endfor %}
+            </div>
+            {% elif os.vendedor %}
             <div>
                 <span class="text-slate-400 font-bold uppercase tracking-wider block text-[10px]">Vendedor / Atendimento</span>
                 <strong class="text-slate-800 text-sm">{{ os.vendedor.nome }}</strong>
             </div>
             {% endif %}
-            {% if os.mecanico %}
+
+            {% if os.lista_mecanicos %}
+            <div>
+                <span class="text-slate-400 font-bold uppercase tracking-wider block text-[10px]">{% if empresa.tipo_negocio == 'OFICINA' %}Mecânico(s) Responsável(eis){% else %}Técnico(s) / Mão de Obra{% endif %}</span>
+                {% for m in os.lista_mecanicos %}
+                <div class="mt-0.5">
+                    <strong class="text-slate-800 text-sm">{{ m.nome }}</strong>
+                    {% if m.especialidade %}
+                    <span class="text-slate-500 text-[11px] font-normal">({{ m.especialidade }})</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% elif os.mecanico %}
             <div>
                 <span class="text-slate-400 font-bold uppercase tracking-wider block text-[10px]">{% if empresa.tipo_negocio == 'OFICINA' %}Mecânico Responsável{% else %}Técnico / Mão de Obra{% endif %}</span>
                 <strong class="text-slate-800 text-sm">{{ os.mecanico.nome }}</strong>

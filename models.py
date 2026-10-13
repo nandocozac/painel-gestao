@@ -156,8 +156,56 @@ class OrdemServico(db.Model):
     porcentagem_comissao_mecanico = db.Column(db.Float, default=0.0)
     valor_comissao_mecanico = db.Column(db.Float, default=0.0)
 
+    # Suporte a múltiplos vendedores e mecânicos (JSON estruturado com equipe, especialidades e comissões)
+    detalhes_equipe = db.Column(db.Text, nullable=True)
+
     vendedor = db.relationship('Colaborador', foreign_keys=[vendedor_id], backref=db.backref('ordens_vendedor', lazy=True))
     mecanico = db.relationship('Colaborador', foreign_keys=[mecanico_id], backref=db.backref('ordens_mecanico', lazy=True))
+
+    @property
+    def lista_equipe(self):
+        """Retorna a lista estruturada de todos os membros da equipe (vendedores e mecânicos)"""
+        if self.detalhes_equipe:
+            try:
+                import json
+                dados = json.loads(self.detalhes_equipe)
+                if isinstance(dados, list) and len(dados) > 0:
+                    return dados
+            except Exception:
+                pass
+        # Fallback / retrocompatibilidade se não houver JSON multi-equipe
+        itens = []
+        if self.vendedor_id and self.vendedor:
+            itens.append({
+                'colaborador_id': self.vendedor_id,
+                'nome': self.vendedor.nome,
+                'papel': 'VENDEDOR',
+                'funcao_label': 'Vendedor / Comercial',
+                'especialidade': '',
+                'tipo_comissao': getattr(self, 'tipo_comissao_vendedor', 'PORCENTAGEM') or 'PORCENTAGEM',
+                'porcentagem': float(self.porcentagem_comissao_vendedor or 0.0),
+                'valor_comissao': float(self.valor_comissao_vendedor or 0.0)
+            })
+        if self.mecanico_id and self.mecanico:
+            itens.append({
+                'colaborador_id': self.mecanico_id,
+                'nome': self.mecanico.nome,
+                'papel': 'MECANICO',
+                'funcao_label': 'Mecânico / Mão de Obra',
+                'especialidade': '',
+                'tipo_comissao': getattr(self, 'tipo_comissao_mecanico', 'PORCENTAGEM') or 'PORCENTAGEM',
+                'porcentagem': float(self.porcentagem_comissao_mecanico or 0.0),
+                'valor_comissao': float(self.valor_comissao_mecanico or 0.0)
+            })
+        return itens
+
+    @property
+    def lista_vendedores(self):
+        return [m for m in self.lista_equipe if m.get('papel') == 'VENDEDOR']
+
+    @property
+    def lista_mecanicos(self):
+        return [m for m in self.lista_equipe if m.get('papel') in ['MECANICO', 'TECNICO']]
 
     @property
     def numero_exibicao(self):

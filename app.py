@@ -140,6 +140,7 @@ def migrar_banco_multiempresa():
                 'porcentagem_comissao_mecanico': 'FLOAT DEFAULT 0.0',
                 'valor_comissao_mecanico': 'FLOAT DEFAULT 0.0',
                 'detalhes_pagamento': 'TEXT',
+                'detalhes_equipe': 'TEXT',
                 'etapa_andamento': 'VARCHAR(30) DEFAULT "RECEBIDO"',
                 'codigo_rastreio': 'VARCHAR(32)',
                 'assinatura_cliente_data': 'TEXT',
@@ -297,6 +298,7 @@ def migrar_banco_multiempresa():
                 'porcentagem_comissao_mecanico': "FLOAT DEFAULT 0.0",
                 'valor_comissao_mecanico': "FLOAT DEFAULT 0.0",
                 'detalhes_pagamento': "TEXT",
+                'detalhes_equipe': "TEXT",
                 'etapa_andamento': "VARCHAR(30) DEFAULT 'RECEBIDO'",
                 'codigo_rastreio': "VARCHAR(32)",
                 'assinatura_cliente_data': "TEXT",
@@ -1415,6 +1417,156 @@ def converter_valor_monetario(v):
         return 0.0
 
 
+def processar_equipe_form(form, valor_total=0.0, valor_pecas=0.0, valor_mao_obra=0.0, os_existente=None):
+    """
+    Processa múltiplos vendedores e múltiplos mecânicos enviados pelo formulário.
+    Retorna: (detalhes_equipe_json, primeiro_vendedor_id, tipo_com_vend, porc_vend, val_vend,
+              primeiro_mecanico_id, tipo_com_mec, porc_mec, val_mec)
+    """
+    equipe_estruturada = []
+
+    # 1. Processar Vendedores (suporte a getlist com e sem colchetes e a campos únicos legados)
+    vendedor_ids = form.getlist('vendedor_ids[]') or form.getlist('vendedor_ids')
+    vendedor_tipos = form.getlist('vendedor_tipos[]') or form.getlist('vendedor_tipos')
+    vendedor_valores = form.getlist('vendedor_valores[]') or form.getlist('vendedor_valores')
+    vendedor_especialidades = form.getlist('vendedor_especialidades[]') or form.getlist('vendedor_especialidades')
+
+    if not vendedor_ids:
+        v_legado = form.get('vendedor_id', '').strip()
+        if v_legado.isdigit():
+            vendedor_ids = [v_legado]
+            vendedor_tipos = [form.get('tipo_comissao_vendedor', 'PORCENTAGEM')]
+            vendedor_valores = [form.get('porcentagem_comissao_vendedor', '0')]
+            vendedor_especialidades = ['']
+
+    for idx, v_id_str in enumerate(vendedor_ids):
+        v_id_limpo = str(v_id_str).strip()
+        if not v_id_limpo.isdigit():
+            continue
+        v_id = int(v_id_limpo)
+        colab = Colaborador.query.filter_by(id=v_id, empresa_id=g.empresa.id).first()
+        if not colab:
+            continue
+
+        tipo_c = (vendedor_tipos[idx] if idx < len(vendedor_tipos) else 'PORCENTAGEM').strip().upper()
+        if tipo_c not in ['PORCENTAGEM', 'FIXO']:
+            tipo_c = 'PORCENTAGEM'
+
+        val_input = (vendedor_valores[idx] if idx < len(vendedor_valores) else '').strip()
+        especialidade = (vendedor_especialidades[idx] if idx < len(vendedor_especialidades) else '').strip()
+
+        base_calc = valor_pecas if getattr(colab, 'tipo_base', 'TOTAL') == 'PECAS' else valor_total
+        if tipo_c == 'FIXO':
+            val_comissao = round(converter_valor_monetario(val_input), 2)
+            porc = 0.0
+        else:
+            porc = converter_valor_monetario(val_input) if val_input != '' else float(colab.porcentagem_padrao or 0.0)
+            val_comissao = round(base_calc * (porc / 100.0), 2) if base_calc > 0 else 0.0
+
+        equipe_estruturada.append({
+            'colaborador_id': colab.id,
+            'nome': colab.nome,
+            'papel': 'VENDEDOR',
+            'funcao_label': 'Vendedor / Comercial',
+            'especialidade': especialidade,
+            'tipo_comissao': tipo_c,
+            'porcentagem': porc,
+            'valor_comissao': val_comissao
+        })
+
+    # 2. Processar Mecânicos (suporte a getlist com e sem colchetes e a campos únicos legados)
+    mecanico_ids = form.getlist('mecanico_ids[]') or form.getlist('mecanico_ids')
+    mecanico_tipos = form.getlist('mecanico_tipos[]') or form.getlist('mecanico_tipos')
+    mecanico_valores = form.getlist('mecanico_valores[]') or form.getlist('mecanico_valores')
+    mecanico_especialidades = form.getlist('mecanico_especialidades[]') or form.getlist('mecanico_especialidades')
+
+    if not mecanico_ids:
+        m_legado = form.get('mecanico_id', '').strip()
+        if m_legado.isdigit():
+            mecanico_ids = [m_legado]
+            mecanico_tipos = [form.get('tipo_comissao_mecanico', 'PORCENTAGEM')]
+            mecanico_valores = [form.get('porcentagem_comissao_mecanico', '0')]
+            mecanico_especialidades = ['']
+
+    for idx, m_id_str in enumerate(mecanico_ids):
+        m_id_limpo = str(m_id_str).strip()
+        if not m_id_limpo.isdigit():
+            continue
+        m_id = int(m_id_limpo)
+        colab = Colaborador.query.filter_by(id=m_id, empresa_id=g.empresa.id).first()
+        if not colab:
+            continue
+
+        tipo_c = (mecanico_tipos[idx] if idx < len(mecanico_tipos) else 'PORCENTAGEM').strip().upper()
+        if tipo_c not in ['PORCENTAGEM', 'FIXO']:
+            tipo_c = 'PORCENTAGEM'
+
+        val_input = (mecanico_valores[idx] if idx < len(mecanico_valores) else '').strip()
+        especialidade = (mecanico_especialidades[idx] if idx < len(mecanico_especialidades) else '').strip()
+
+        base_calc = valor_mao_obra
+        if tipo_c == 'FIXO':
+            val_comissao = round(converter_valor_monetario(val_input), 2)
+            porc = 0.0
+        else:
+            porc = converter_valor_monetario(val_input) if val_input != '' else float(colab.porcentagem_padrao or 0.0)
+            val_comissao = round(base_calc * (porc / 100.0), 2) if base_calc > 0 else 0.0
+
+        equipe_estruturada.append({
+            'colaborador_id': colab.id,
+            'nome': colab.nome,
+            'papel': 'MECANICO',
+            'funcao_label': 'Mecânico / Mão de Obra',
+            'especialidade': especialidade,
+            'tipo_comissao': tipo_c,
+            'porcentagem': porc,
+            'valor_comissao': val_comissao
+        })
+
+    # Para vendedor logado (não admin): se não for admin e nenhum vendedor foi passado, preservar o existente ou vincular a si mesmo
+    if not getattr(g, 'is_admin_empresa', False):
+        ja_tem_vend = any(e['papel'] == 'VENDEDOR' for e in equipe_estruturada)
+        if not ja_tem_vend:
+            if os_existente and os_existente.vendedor_id:
+                colab = os_existente.vendedor
+            elif getattr(g, 'colaborador', None):
+                colab = g.colaborador
+            else:
+                colab = None
+
+            if colab:
+                base_calc = valor_pecas if getattr(colab, 'tipo_base', 'TOTAL') == 'PECAS' else valor_total
+                porc = float(colab.porcentagem_padrao or 0.0)
+                val_comissao = round(base_calc * (porc / 100.0), 2) if base_calc > 0 else 0.0
+                equipe_estruturada.append({
+                    'colaborador_id': colab.id,
+                    'nome': colab.nome,
+                    'papel': 'VENDEDOR',
+                    'funcao_label': 'Vendedor / Comercial',
+                    'especialidade': '',
+                    'tipo_comissao': 'PORCENTAGEM',
+                    'porcentagem': porc,
+                    'valor_comissao': val_comissao
+                })
+
+    detalhes_json = json.dumps(equipe_estruturada, ensure_ascii=False) if equipe_estruturada else None
+
+    primeiro_vendedor = next((e for e in equipe_estruturada if e['papel'] == 'VENDEDOR'), None)
+    primeiro_mecanico = next((e for e in equipe_estruturada if e['papel'] == 'MECANICO'), None)
+
+    return (
+        detalhes_json,
+        primeiro_vendedor['colaborador_id'] if primeiro_vendedor else None,
+        primeiro_vendedor['tipo_comissao'] if primeiro_vendedor else 'PORCENTAGEM',
+        primeiro_vendedor['porcentagem'] if primeiro_vendedor else 0.0,
+        primeiro_vendedor['valor_comissao'] if primeiro_vendedor else 0.0,
+        primeiro_mecanico['colaborador_id'] if primeiro_mecanico else None,
+        primeiro_mecanico['tipo_comissao'] if primeiro_mecanico else 'PORCENTAGEM',
+        primeiro_mecanico['porcentagem'] if primeiro_mecanico else 0.0,
+        primeiro_mecanico['valor_comissao'] if primeiro_mecanico else 0.0
+    )
+
+
 @app.route('/os/nova', methods=['GET', 'POST'])
 @login_required
 def nova_os():
@@ -1429,48 +1581,12 @@ def nova_os():
         cpf_cnpj = request.form.get('cliente_cpf_cnpj', '').strip()
         email = request.form.get('cliente_email', '').strip().lower()
 
-        # Dados de Vendedor e Mão de Obra / Mecânico
-        vendedor_id = request.form.get('vendedor_id', type=int)
-        mecanico_id = request.form.get('mecanico_id', type=int)
-        tipo_comissao_vendedor = (request.form.get('tipo_comissao_vendedor') or 'PORCENTAGEM').strip().upper()
-        if tipo_comissao_vendedor not in ['PORCENTAGEM', 'FIXO']:
-            tipo_comissao_vendedor = 'PORCENTAGEM'
-        tipo_comissao_mecanico = (request.form.get('tipo_comissao_mecanico') or 'PORCENTAGEM').strip().upper()
-        if tipo_comissao_mecanico not in ['PORCENTAGEM', 'FIXO']:
-            tipo_comissao_mecanico = 'PORCENTAGEM'
-
-        comissao_vendedor_input = request.form.get('porcentagem_comissao_vendedor', '').strip()
-        comissao_mecanico_input = request.form.get('porcentagem_comissao_mecanico', '').strip()
-
-        porc_vendedor = 0.0
-        val_fixo_vendedor = 0.0
-        if vendedor_id:
-            v_obj = Colaborador.query.filter_by(id=vendedor_id, empresa_id=g.empresa.id).first()
-            if tipo_comissao_vendedor == 'FIXO':
-                val_fixo_vendedor = converter_valor_monetario(comissao_vendedor_input)
-            else:
-                if comissao_vendedor_input:
-                    porc_vendedor = converter_valor_monetario(comissao_vendedor_input)
-                elif v_obj:
-                    porc_vendedor = float(v_obj.porcentagem_padrao or 0.0)
-        else:
-            vendedor_id = None
-            tipo_comissao_vendedor = 'PORCENTAGEM'
-
-        porc_mecanico = 0.0
-        val_fixo_mecanico = 0.0
-        if mecanico_id:
-            m_obj = Colaborador.query.filter_by(id=mecanico_id, empresa_id=g.empresa.id).first()
-            if tipo_comissao_mecanico == 'FIXO':
-                val_fixo_mecanico = converter_valor_monetario(comissao_mecanico_input)
-            else:
-                if comissao_mecanico_input:
-                    porc_mecanico = converter_valor_monetario(comissao_mecanico_input)
-                elif m_obj:
-                    porc_mecanico = float(m_obj.porcentagem_padrao or 0.0)
-        else:
-            mecanico_id = None
-            tipo_comissao_mecanico = 'PORCENTAGEM'
+        # Processar equipe responsável (múltiplos vendedores e mecânicos com especialidades)
+        (
+            detalhes_equipe_json,
+            vend_id, tipo_vend, porc_vend, val_vend,
+            mec_id, tipo_mec, porc_mec, val_mec
+        ) = processar_equipe_form(request.form, valor_total=0.0, valor_pecas=0.0, valor_mao_obra=0.0)
 
         cliente = None
         if cliente_id_form:
@@ -1520,14 +1636,15 @@ def nova_os():
             numero_sequencial=proximo_seq,
             cliente_id=cliente.id,
             veiculo_id=veiculo.id if veiculo else None,
-            vendedor_id=vendedor_id,
-            mecanico_id=mecanico_id,
-            tipo_comissao_vendedor=tipo_comissao_vendedor,
-            porcentagem_comissao_vendedor=porc_vendedor,
-            valor_comissao_vendedor=val_fixo_vendedor,
-            tipo_comissao_mecanico=tipo_comissao_mecanico,
-            porcentagem_comissao_mecanico=porc_mecanico,
-            valor_comissao_mecanico=val_fixo_mecanico,
+            vendedor_id=vend_id,
+            mecanico_id=mec_id,
+            tipo_comissao_vendedor=tipo_vend,
+            porcentagem_comissao_vendedor=porc_vend,
+            valor_comissao_vendedor=val_vend,
+            tipo_comissao_mecanico=tipo_mec,
+            porcentagem_comissao_mecanico=porc_mec,
+            valor_comissao_mecanico=val_mec,
+            detalhes_equipe=detalhes_equipe_json,
             descricao_problema=problema or "",
             status='ABERTA',
             etapa_andamento='RECEBIDO',
@@ -1735,77 +1852,22 @@ def concluir_os(os_id):
             except (ValueError, TypeError):
                 os.retorno_previsto = date.today() + timedelta(days=90)
 
-        # Processamento e Cálculo das Comissões (Vendedor e Mecânico / Mão de Obra)
-        vendedor_id_form = (request.form.get('vendedor_id') or '').strip()
-        mecanico_id_form = (request.form.get('mecanico_id') or '').strip()
+        # Processamento e Cálculo das Comissões (Equipe de Vendedores e Mecânicos)
+        (
+            detalhes_equipe_json,
+            vend_id, tipo_vend, porc_vend, val_vend,
+            mec_id, tipo_mec, porc_mec, val_mec
+        ) = processar_equipe_form(request.form, valor_total=os.valor_total, valor_pecas=os.valor_pecas, valor_mao_obra=os.valor_mao_obra, os_existente=os)
 
-        vendedor_id = int(vendedor_id_form) if vendedor_id_form.isdigit() else None
-        mecanico_id = int(mecanico_id_form) if mecanico_id_form.isdigit() else None
-
-        tipo_vendedor = (request.form.get('tipo_comissao_vendedor') or 'PORCENTAGEM').strip().upper()
-        if tipo_vendedor not in ['PORCENTAGEM', 'FIXO']:
-            tipo_vendedor = 'PORCENTAGEM'
-        tipo_mecanico = (request.form.get('tipo_comissao_mecanico') or 'PORCENTAGEM').strip().upper()
-        if tipo_mecanico not in ['PORCENTAGEM', 'FIXO']:
-            tipo_mecanico = 'PORCENTAGEM'
-
-        # Para usuários não administradores (ex: Vendedor), preservar os responsáveis já vinculados ou vincular a si mesmo
-        if not getattr(g, 'is_admin_empresa', False):
-            if not vendedor_id and os.vendedor_id:
-                vendedor_id = os.vendedor_id
-            elif not vendedor_id and getattr(g, 'colaborador', None):
-                vendedor_id = g.colaborador.id
-            if not mecanico_id and os.mecanico_id:
-                mecanico_id = os.mecanico_id
-
-        if vendedor_id:
-            vend = Colaborador.query.filter_by(id=vendedor_id, empresa_id=g.empresa.id).first()
-            if vend:
-                os.vendedor_id = vend.id
-                os.tipo_comissao_vendedor = tipo_vendedor
-                if tipo_vendedor == 'FIXO':
-                    os.porcentagem_comissao_vendedor = 0.0
-                    val_fixo = converter_valor_monetario(comissao_vendedor_input)
-                    os.valor_comissao_vendedor = round(val_fixo, 2)
-                else:
-                    pv = converter_valor_monetario(comissao_vendedor_input) if comissao_vendedor_input != '' else (os.porcentagem_comissao_vendedor or getattr(vend, 'porcentagem_padrao', 0.0) or 0.0)
-                    os.porcentagem_comissao_vendedor = float(pv or 0.0)
-                    base_vendedor = os.valor_pecas if getattr(vend, 'tipo_base', 'TOTAL') == 'PECAS' else os.valor_total
-                    os.valor_comissao_vendedor = round(float(base_vendedor or 0.0) * (os.porcentagem_comissao_vendedor / 100.0), 2)
-            else:
-                os.vendedor_id = None
-                os.tipo_comissao_vendedor = 'PORCENTAGEM'
-                os.porcentagem_comissao_vendedor = 0.0
-                os.valor_comissao_vendedor = 0.0
-        else:
-            os.vendedor_id = None
-            os.tipo_comissao_vendedor = 'PORCENTAGEM'
-            os.porcentagem_comissao_vendedor = 0.0
-            os.valor_comissao_vendedor = 0.0
-
-        if mecanico_id:
-            mec = Colaborador.query.filter_by(id=mecanico_id, empresa_id=g.empresa.id).first()
-            if mec:
-                os.mecanico_id = mec.id
-                os.tipo_comissao_mecanico = tipo_mecanico
-                if tipo_mecanico == 'FIXO':
-                    os.porcentagem_comissao_mecanico = 0.0
-                    val_fixo = converter_valor_monetario(comissao_mecanico_input)
-                    os.valor_comissao_mecanico = round(val_fixo, 2)
-                else:
-                    pm = converter_valor_monetario(comissao_mecanico_input) if comissao_mecanico_input != '' else (os.porcentagem_comissao_mecanico or getattr(mec, 'porcentagem_padrao', 0.0) or 0.0)
-                    os.porcentagem_comissao_mecanico = float(pm or 0.0)
-                    os.valor_comissao_mecanico = round(float(os.valor_mao_obra or 0.0) * (os.porcentagem_comissao_mecanico / 100.0), 2)
-            else:
-                os.mecanico_id = None
-                os.tipo_comissao_mecanico = 'PORCENTAGEM'
-                os.porcentagem_comissao_mecanico = 0.0
-                os.valor_comissao_mecanico = 0.0
-        else:
-            os.mecanico_id = None
-            os.tipo_comissao_mecanico = 'PORCENTAGEM'
-            os.porcentagem_comissao_mecanico = 0.0
-            os.valor_comissao_mecanico = 0.0
+        os.detalhes_equipe = detalhes_equipe_json
+        os.vendedor_id = vend_id
+        os.tipo_comissao_vendedor = tipo_vend
+        os.porcentagem_comissao_vendedor = porc_vend
+        os.valor_comissao_vendedor = val_vend
+        os.mecanico_id = mec_id
+        os.tipo_comissao_mecanico = tipo_mec
+        os.porcentagem_comissao_mecanico = porc_mec
+        os.valor_comissao_mecanico = val_mec
 
         # Entrada no Livro Caixa com isolamento de empresa para cada parcela de pagamento
         nome_cliente = os.cliente.nome if (os.cliente and os.cliente.nome) else "Cliente"
@@ -1955,11 +2017,22 @@ def salvar_orcamento_os(os_id):
         if os_obj.etapa_andamento in ['RECEBIDO', 'DIAGNOSTICO']:
             os_obj.etapa_andamento = 'DIAGNOSTICO'
 
-        # Colaboradores previstos (opcional)
-        vendedor_id_form = (request.form.get('vendedor_id') or '').strip()
-        mecanico_id_form = (request.form.get('mecanico_id') or '').strip()
-        os_obj.vendedor_id = int(vendedor_id_form) if vendedor_id_form.isdigit() else None
-        os_obj.mecanico_id = int(mecanico_id_form) if mecanico_id_form.isdigit() else None
+        # Colaboradores previstos (múltiplos vendedores e mecânicos com especialidades)
+        (
+            detalhes_equipe_json,
+            vend_id, tipo_vend, porc_vend, val_vend,
+            mec_id, tipo_mec, porc_mec, val_mec
+        ) = processar_equipe_form(request.form, valor_total=os_obj.valor_total, valor_pecas=os_obj.valor_pecas, valor_mao_obra=os_obj.valor_mao_obra, os_existente=os_obj)
+
+        os_obj.detalhes_equipe = detalhes_equipe_json
+        os_obj.vendedor_id = vend_id
+        os_obj.tipo_comissao_vendedor = tipo_vend
+        os_obj.porcentagem_comissao_vendedor = porc_vend
+        os_obj.valor_comissao_vendedor = val_vend
+        os_obj.mecanico_id = mec_id
+        os_obj.tipo_comissao_mecanico = tipo_mec
+        os_obj.porcentagem_comissao_mecanico = porc_mec
+        os_obj.valor_comissao_mecanico = val_mec
 
         db.session.commit()
         flash(f"Orçamento #{os_obj.numero_exibicao:04d} salvo com sucesso! Os valores estão registrados e você já pode imprimir sem lançar no Caixa.", "info")
@@ -2078,51 +2151,22 @@ def atualizar_comissao_os(os_id):
         flash("Apenas o Administrador da empresa pode alterar comissões e responsáveis.", "error")
         return redirect(url_for('ver_os', os_id=os_obj.id))
 
-    vendedor_id_form = request.form.get('vendedor_id', '').strip()
-    mecanico_id_form = request.form.get('mecanico_id', '').strip()
-    tipo_vendedor = (request.form.get('tipo_comissao_vendedor') or 'PORCENTAGEM').strip().upper()
-    if tipo_vendedor not in ['PORCENTAGEM', 'FIXO']:
-        tipo_vendedor = 'PORCENTAGEM'
-    tipo_mecanico = (request.form.get('tipo_comissao_mecanico') or 'PORCENTAGEM').strip().upper()
-    if tipo_mecanico not in ['PORCENTAGEM', 'FIXO']:
-        tipo_mecanico = 'PORCENTAGEM'
-    porc_vendedor_input = request.form.get('porcentagem_comissao_vendedor', '').strip()
-    porc_mecanico_input = request.form.get('porcentagem_comissao_mecanico', '').strip()
+    # Processar comissões e equipe multi-vendedor e multi-mecânico
+    (
+        detalhes_equipe_json,
+        vend_id, tipo_vend, porc_vend, val_vend,
+        mec_id, tipo_mec, porc_mec, val_mec
+    ) = processar_equipe_form(request.form, valor_total=os_obj.valor_total, valor_pecas=os_obj.valor_pecas, valor_mao_obra=os_obj.valor_mao_obra, os_existente=os_obj)
 
-    if vendedor_id_form.isdigit():
-        vend = Colaborador.query.filter_by(id=int(vendedor_id_form), empresa_id=g.empresa.id).first()
-        if vend:
-            os_obj.vendedor_id = vend.id
-            os_obj.tipo_comissao_vendedor = tipo_vendedor
-            if tipo_vendedor == 'FIXO':
-                os_obj.porcentagem_comissao_vendedor = 0.0
-                os_obj.valor_comissao_vendedor = round(converter_valor_monetario(porc_vendedor_input), 2)
-            else:
-                os_obj.porcentagem_comissao_vendedor = converter_valor_monetario(porc_vendedor_input) if porc_vendedor_input != '' else vend.porcentagem_padrao
-                base_vend = os_obj.valor_pecas if vend.tipo_base == 'PECAS' else os_obj.valor_total
-                os_obj.valor_comissao_vendedor = round(base_vend * (os_obj.porcentagem_comissao_vendedor / 100.0), 2)
-    else:
-        os_obj.vendedor_id = None
-        os_obj.tipo_comissao_vendedor = 'PORCENTAGEM'
-        os_obj.porcentagem_comissao_vendedor = 0.0
-        os_obj.valor_comissao_vendedor = 0.0
-
-    if mecanico_id_form.isdigit():
-        mec = Colaborador.query.filter_by(id=int(mecanico_id_form), empresa_id=g.empresa.id).first()
-        if mec:
-            os_obj.mecanico_id = mec.id
-            os_obj.tipo_comissao_mecanico = tipo_mecanico
-            if tipo_mecanico == 'FIXO':
-                os_obj.porcentagem_comissao_mecanico = 0.0
-                os_obj.valor_comissao_mecanico = round(converter_valor_monetario(porc_mecanico_input), 2)
-            else:
-                os_obj.porcentagem_comissao_mecanico = converter_valor_monetario(porc_mecanico_input) if porc_mecanico_input != '' else mec.porcentagem_padrao
-                os_obj.valor_comissao_mecanico = round(os_obj.valor_mao_obra * (os_obj.porcentagem_comissao_mecanico / 100.0), 2)
-    else:
-        os_obj.mecanico_id = None
-        os_obj.tipo_comissao_mecanico = 'PORCENTAGEM'
-        os_obj.porcentagem_comissao_mecanico = 0.0
-        os_obj.valor_comissao_mecanico = 0.0
+    os_obj.detalhes_equipe = detalhes_equipe_json
+    os_obj.vendedor_id = vend_id
+    os_obj.tipo_comissao_vendedor = tipo_vend
+    os_obj.porcentagem_comissao_vendedor = porc_vend
+    os_obj.valor_comissao_vendedor = val_vend
+    os_obj.mecanico_id = mec_id
+    os_obj.tipo_comissao_mecanico = tipo_mec
+    os_obj.porcentagem_comissao_mecanico = porc_mec
+    os_obj.valor_comissao_mecanico = val_mec
 
     db.session.commit()
     flash("Comissões e responsáveis da OS atualizados com sucesso!", "success")
@@ -2989,35 +3033,25 @@ def lista_colaboradores():
     colaboradores = Colaborador.query.filter_by(empresa_id=g.empresa.id).order_by(Colaborador.nome.asc()).all()
 
     # Comissões acumuladas do mês atual para cada colaborador
-    comissoes_mes = {}
-    for c in colaboradores:
-        total = 0.0
-        if c.funcao == 'VENDEDOR':
-            ordens = OrdemServico.query.filter(
-                OrdemServico.empresa_id == g.empresa.id,
-                OrdemServico.vendedor_id == c.id,
-                OrdemServico.status == 'CONCLUIDA',
-                OrdemServico.data_conclusao >= primeiro_dia_mes
-            ).all()
-            for o in ordens:
-                val = o.valor_comissao_vendedor
-                if val == 0 and o.porcentagem_comissao_vendedor:
-                    base = o.valor_pecas if c.tipo_base == 'PECAS' else o.valor_total
-                    val = round(base * (o.porcentagem_comissao_vendedor / 100.0), 2)
-                total += val
-        else:
-            ordens = OrdemServico.query.filter(
-                OrdemServico.empresa_id == g.empresa.id,
-                OrdemServico.mecanico_id == c.id,
-                OrdemServico.status == 'CONCLUIDA',
-                OrdemServico.data_conclusao >= primeiro_dia_mes
-            ).all()
-            for o in ordens:
-                val = o.valor_comissao_mecanico
-                if val == 0 and o.porcentagem_comissao_mecanico:
-                    val = round(o.valor_mao_obra * (o.porcentagem_comissao_mecanico / 100.0), 2)
-                total += val
-        comissoes_mes[c.id] = round(total, 2)
+    comissoes_mes = {c.id: 0.0 for c in colaboradores}
+    ordens = OrdemServico.query.filter(
+        OrdemServico.empresa_id == g.empresa.id,
+        OrdemServico.status == 'CONCLUIDA',
+        OrdemServico.data_conclusao >= primeiro_dia_mes
+    ).all()
+    for o in ordens:
+        for membro in o.lista_equipe:
+            cid = membro.get('colaborador_id')
+            if cid in comissoes_mes:
+                val = float(membro.get('valor_comissao') or 0.0)
+                porc = float(membro.get('porcentagem') or 0.0)
+                tipo_c = membro.get('tipo_comissao') or 'PORCENTAGEM'
+                if tipo_c != 'FIXO' and (val == 0.0 or val is None) and porc > 0:
+                    c_obj = next((col for col in colaboradores if col.id == cid), None)
+                    if c_obj:
+                        base = o.valor_pecas if getattr(c_obj, 'tipo_base', 'TOTAL') == 'PECAS' else (o.valor_total if c_obj.funcao == 'VENDEDOR' else o.valor_mao_obra)
+                        val = round(base * (porc / 100.0), 2)
+                comissoes_mes[cid] = round(comissoes_mes[cid] + val, 2)
 
     return render_template('colaboradores.html', colaboradores=colaboradores, comissoes_mes=comissoes_mes)
 
@@ -3241,63 +3275,59 @@ def relatorio_comissoes():
     extrato_itens = []
 
     for os_item in ordens_periodo:
-        # 1. Checa comissão do Vendedor
-        if os_item.vendedor_id and os_item.vendedor_id in resumo_colaboradores:
-            if not funcao_filtro or funcao_filtro == 'VENDEDOR':
-                c = resumo_colaboradores[os_item.vendedor_id]['colaborador']
-                base_calc = os_item.valor_pecas if c.tipo_base == 'PECAS' else os_item.valor_total
-                porc = os_item.porcentagem_comissao_vendedor if os_item.porcentagem_comissao_vendedor is not None else c.porcentagem_padrao
-                val_comissao = os_item.valor_comissao_vendedor
-                if (val_comissao == 0.0 or val_comissao is None) and porc > 0 and base_calc > 0:
-                    val_comissao = round(base_calc * (porc / 100.0), 2)
+        equipe_os = os_item.lista_equipe
+        for membro in equipe_os:
+            cid = membro.get('colaborador_id')
+            papel = membro.get('papel') # 'VENDEDOR' ou 'MECANICO'
+            if not cid or cid not in resumo_colaboradores:
+                continue
 
-                resumo_colaboradores[os_item.vendedor_id]['qtd_os'] += 1
-                resumo_colaboradores[os_item.vendedor_id]['base_total'] += base_calc
-                resumo_colaboradores[os_item.vendedor_id]['comissao_total'] += val_comissao
-                total_comissoes_vendedores += val_comissao
-                total_comissoes_geral += val_comissao
+            if funcao_filtro and funcao_filtro != papel and not (funcao_filtro in ['MECANICO', 'TECNICO'] and papel in ['MECANICO', 'TECNICO']):
+                continue
 
-                item_extrato = {
-                    'os': os_item,
-                    'colaborador': c,
-                    'papel': 'Vendedor / Comercial',
-                    'base': base_calc,
-                    'tipo': getattr(os_item, 'tipo_comissao_vendedor', 'PORCENTAGEM') or 'PORCENTAGEM',
-                    'porcentagem': porc,
-                    'valor_comissao': val_comissao,
-                    'data': os_item.data_conclusao or os_item.data_abertura
-                }
-                resumo_colaboradores[os_item.vendedor_id]['ordens'].append(item_extrato)
-                extrato_itens.append(item_extrato)
+            c = resumo_colaboradores[cid]['colaborador']
+            tipo_com = membro.get('tipo_comissao') or 'PORCENTAGEM'
+            porc = float(membro.get('porcentagem') or 0.0)
+            val_comissao = float(membro.get('valor_comissao') or 0.0)
+            especialidade = (membro.get('especialidade') or '').strip()
 
-        # 2. Checa comissão do Mecânico / Técnico
-        if os_item.mecanico_id and os_item.mecanico_id in resumo_colaboradores:
-            if not funcao_filtro or funcao_filtro in ['MECANICO', 'TECNICO']:
-                c = resumo_colaboradores[os_item.mecanico_id]['colaborador']
+            if papel == 'VENDEDOR':
+                base_calc = os_item.valor_pecas if getattr(c, 'tipo_base', 'TOTAL') == 'PECAS' else os_item.valor_total
+            else:
                 base_calc = os_item.valor_mao_obra
-                porc = os_item.porcentagem_comissao_mecanico if os_item.porcentagem_comissao_mecanico is not None else c.porcentagem_padrao
-                val_comissao = os_item.valor_comissao_mecanico
-                if (val_comissao == 0.0 or val_comissao is None) and porc > 0 and base_calc > 0:
-                    val_comissao = round(base_calc * (porc / 100.0), 2)
 
-                resumo_colaboradores[os_item.mecanico_id]['qtd_os'] += 1
-                resumo_colaboradores[os_item.mecanico_id]['base_total'] += base_calc
-                resumo_colaboradores[os_item.mecanico_id]['comissao_total'] += val_comissao
+            if tipo_com != 'FIXO' and (val_comissao == 0.0 or val_comissao is None) and porc > 0 and base_calc > 0:
+                val_comissao = round(base_calc * (porc / 100.0), 2)
+
+            resumo_colaboradores[cid]['qtd_os'] += 1
+            resumo_colaboradores[cid]['base_total'] += base_calc
+            resumo_colaboradores[cid]['comissao_total'] += val_comissao
+            if papel == 'VENDEDOR':
+                total_comissoes_vendedores += val_comissao
+            else:
                 total_comissoes_mecanicos += val_comissao
-                total_comissoes_geral += val_comissao
+            total_comissoes_geral += val_comissao
 
-                item_extrato = {
-                    'os': os_item,
-                    'colaborador': c,
-                    'papel': 'Mecânico / Mão de Obra',
-                    'base': base_calc,
-                    'tipo': getattr(os_item, 'tipo_comissao_mecanico', 'PORCENTAGEM') or 'PORCENTAGEM',
-                    'porcentagem': porc,
-                    'valor_comissao': val_comissao,
-                    'data': os_item.data_conclusao or os_item.data_abertura
-                }
-                resumo_colaboradores[os_item.mecanico_id]['ordens'].append(item_extrato)
-                extrato_itens.append(item_extrato)
+            if papel == 'VENDEDOR':
+                papel_desc = 'Vendedor / Comercial'
+            elif especialidade:
+                papel_desc = f"Mecânico ({especialidade})"
+            else:
+                papel_desc = 'Mecânico / Mão de Obra'
+
+            item_extrato = {
+                'os': os_item,
+                'colaborador': c,
+                'papel': papel_desc,
+                'especialidade': especialidade,
+                'base': base_calc,
+                'tipo': tipo_com,
+                'porcentagem': porc,
+                'valor_comissao': val_comissao,
+                'data': os_item.data_conclusao or os_item.data_abertura
+            }
+            resumo_colaboradores[cid]['ordens'].append(item_extrato)
+            extrato_itens.append(item_extrato)
 
     # Filtrar por colaborador se selecionado
     if colaborador_id_filtro:
