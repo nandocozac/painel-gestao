@@ -58,6 +58,9 @@ class Empresa(db.Model):
     fiscal_certificado_senha = db.Column(db.String(255), default='')
     fiscal_token_focus = db.Column(db.String(100), default='')
 
+    # Inteligência Artificial (Google Gemini Vision para notas escaneadas e fotos)
+    gemini_api_key = db.Column(db.String(255), default='')
+
     # Relacionamentos isolados por empresa
     clientes = db.relationship('Cliente', backref='empresa', lazy=True)
     ordens_servico = db.relationship('OrdemServico', backref='empresa', lazy=True)

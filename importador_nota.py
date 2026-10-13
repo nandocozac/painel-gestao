@@ -1,6 +1,9 @@
+import base64
+import json
 import re
 import xml.etree.ElementTree as ET
 from io import BytesIO
+import requests
 
 def extrair_dados_xml(conteudo_bytes):
     """
@@ -112,10 +115,211 @@ def extrair_dados_xml(conteudo_bytes):
     }
 
 
-def extrair_dados_pdf(conteudo_bytes):
+def extrair_dados_ia(conteudo_bytes, nome_arquivo="documento.pdf", api_key=None):
+    """
+    Processa documentos digitalizados (PDFs sem camada de texto, fotos de notas fiscais,
+    cupons e recibos em JPG/PNG/WEBP) utilizando a API multimodal do Google Gemini.
+    """
+    if not api_key or not str(api_key).strip():
+        return {
+            'sucesso': False,
+            'erro': (
+                'Este documento é uma imagem ou PDF escaneado (sem texto digital pesquisável). '
+                'Para processá-lo com Inteligência Artificial, informe sua chave gratuita do Google Gemini em '
+                '"Configurações da Empresa" ou utilize o arquivo XML da NF-e fornecido pelo fornecedor.'
+            )
+        }
+
+    # Detectar MIME type
+    nome_low = (nome_arquivo or '').lower()
+    if nome_low.endswith('.pdf') or conteudo_bytes.startswith(b'%PDF'):
+        mime_type = 'application/pdf'
+        tipo_doc_desc = 'PDF Escaneado (IA)'
+    elif nome_low.endswith(('.jpg', '.jpeg')) or conteudo_bytes.startswith(b'\xff\xd8'):
+        mime_type = 'image/jpeg'
+        tipo_doc_desc = 'Foto / Imagem (IA)'
+    elif nome_low.endswith('.png') or conteudo_bytes.startswith(b'\x89PNG'):
+        mime_type = 'image/png'
+        tipo_doc_desc = 'Imagem PNG (IA)'
+    elif nome_low.endswith('.webp'):
+        mime_type = 'image/webp'
+        tipo_doc_desc = 'Imagem WEBP (IA)'
+    else:
+        mime_type = 'application/pdf' if b'%PDF' in conteudo_bytes[:50] else 'image/jpeg'
+        tipo_doc_desc = 'Documento Escaneado (IA)'
+
+    b64_data = base64.b64encode(conteudo_bytes).decode('utf-8')
+
+    prompt = (
+        "Você é um especialista em documentos fiscais e comerciais brasileiros (DANFE, NF-e, NFC-e, "
+        "Cupom Fiscal, Pedido de Compra e Faturas). Analise cuidadosamente o documento em anexo.\n\n"
+        "Extraia todos os itens e produtos discriminados na nota, bem como os metadados do fornecedor e da nota.\n\n"
+        "Retorne EXCLUSIVAMENTE um objeto JSON válido seguindo estritamente a estrutura abaixo, "
+        "sem nenhuma marcação ou texto explicativo fora do JSON:\n"
+        "{\n"
+        '  "chave_acesso": "chave de acesso com 44 digitos se visivel ou string vazia",\n'
+        '  "numero_nota": "numero da nota fiscal ou pedido",\n'
+        '  "fornecedor_nome": "razao social ou nome fantasia do emitente/fornecedor",\n'
+        '  "fornecedor_cnpj": "CNPJ ou CPF do emitente se presente",\n'
+        '  "data_emissao": "AAAA-MM-DD se identificavel ou string vazia",\n'
+        '  "itens": [\n'
+        "    {\n"
+        '      "codigo": "codigo ou referencia do item se houver",\n'
+        '      "nome": "descricao completa do produto ou mercadoria",\n'
+        '      "ncm": "codigo NCM se visivel",\n'
+        '      "cfop": "CFOP se visivel",\n'
+        '      "unidade": "UN, PC, CX, KG, LT, MT etc",\n'
+        '      "quantidade": 1.0,\n'
+        '      "preco_custo": 0.0,\n'
+        '      "subtotal": 0.0\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        "Importante: se houver múltiplos itens ou produtos, liste todos eles no array 'itens'. "
+        "Converta quantidades e valores monetários para números decimais com ponto (float)."
+    )
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt},
+                    {
+                        "inlineData": {
+                            "mimeType": mime_type,
+                            "data": b64_data
+                        }
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "temperature": 0.1
+        }
+    }
+
+    # Modelos suportados (ordem de tentativa: gemini-2.0-flash com fallback para gemini-1.5-flash)
+    modelos = ["gemini-2.0-flash", "gemini-1.5-flash"]
+    ultimo_erro = None
+
+    for modelo in modelos:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={str(api_key).strip()}"
+        try:
+            resp = requests.post(
+                url,
+                headers={"Content-Type": "application/json"},
+                json=payload,
+                timeout=45
+            )
+            if resp.status_code == 200:
+                resp_json = resp.json()
+                candidates = resp_json.get('candidates', [])
+                if not candidates:
+                    return {'sucesso': False, 'erro': 'A IA não conseguiu interpretar o conteúdo deste documento.'}
+
+                texto_resposta = candidates[0].get('content', {}).get('parts', [{}])[0].get('text', '').strip()
+                if texto_resposta.startswith("```json"):
+                    texto_resposta = texto_resposta[7:]
+                elif texto_resposta.startswith("```"):
+                    texto_resposta = texto_resposta[3:]
+                if texto_resposta.endswith("```"):
+                    texto_resposta = texto_resposta[:-3]
+                texto_resposta = texto_resposta.strip()
+
+                try:
+                    dados = json.loads(texto_resposta)
+                except Exception as ex_json:
+                    return {'sucesso': False, 'erro': f'Erro ao ler dados da IA: {str(ex_json)}'}
+
+                raw_itens = dados.get('itens', [])
+                itens_processados = []
+                for it in raw_itens:
+                    nome_item = str(it.get('nome') or '').strip()
+                    if not nome_item:
+                        continue
+
+                    try:
+                        qtd = float(it.get('quantidade') or 1.0)
+                    except (ValueError, TypeError):
+                        qtd = 1.0
+
+                    try:
+                        custo = float(it.get('preco_custo') or 0.0)
+                    except (ValueError, TypeError):
+                        custo = 0.0
+
+                    try:
+                        subtotal = float(it.get('subtotal') or (qtd * custo))
+                    except (ValueError, TypeError):
+                        subtotal = qtd * custo
+
+                    un = str(it.get('unidade') or 'UN').strip().upper()[:10]
+                    cod = str(it.get('codigo') or '').strip()
+                    ncm = re.sub(r'\D', '', str(it.get('ncm') or ''))
+                    cfop = re.sub(r'\D', '', str(it.get('cfop') or ''))
+
+                    itens_processados.append({
+                        'codigo': cod,
+                        'nome': nome_item,
+                        'ncm': ncm,
+                        'cfop': cfop,
+                        'unidade': un or 'UN',
+                        'quantidade': round(qtd, 2) if qtd > 0 else 1.0,
+                        'preco_custo': round(custo, 2),
+                        'subtotal': round(subtotal, 2)
+                    })
+
+                if not itens_processados:
+                    return {
+                        'sucesso': False,
+                        'erro': 'A IA analisou a imagem/documento, mas não localizou itens legíveis de produtos.'
+                    }
+
+                chave = re.sub(r'\D', '', str(dados.get('chave_acesso') or ''))
+                if len(chave) != 44:
+                    chave = ''
+
+                return {
+                    'sucesso': True,
+                    'tipo_arquivo': tipo_doc_desc,
+                    'chave_acesso': chave,
+                    'numero_nota': str(dados.get('numero_nota') or '').strip(),
+                    'fornecedor_nome': str(dados.get('fornecedor_nome') or '').strip(),
+                    'fornecedor_cnpj': str(dados.get('fornecedor_cnpj') or '').strip(),
+                    'data_emissao': str(dados.get('data_emissao') or '').strip(),
+                    'itens': itens_processados
+                }
+            elif resp.status_code in [400, 403]:
+                err_data = resp.json().get('error', {})
+                msg_err = err_data.get('message', 'Chave ou permissão inválida')
+                return {
+                    'sucesso': False,
+                    'erro': f'Falha na validação do Google Gemini: {msg_err}. Verifique sua chave em Configurações.'
+                }
+            elif resp.status_code == 429:
+                return {
+                    'sucesso': False,
+                    'erro': 'Limite temporário da cota gratuita da API Gemini atingido. Aguarde cerca de 1 minuto.'
+                }
+            else:
+                ultimo_erro = f"HTTP {resp.status_code}: {resp.text[:120]}"
+        except requests.exceptions.Timeout:
+            ultimo_erro = "Tempo limite de resposta do Google Gemini esgotado."
+        except Exception as e:
+            ultimo_erro = str(e)
+
+    return {
+        'sucesso': False,
+        'erro': f'Não foi possível processar a imagem/PDF com IA: {ultimo_erro or "Falha de comunicação."}'
+    }
+
+
+def extrair_dados_pdf(conteudo_bytes, api_key=None):
     """
     Processa arquivo PDF da DANFE (Documento Auxiliar da Nota Fiscal Eletrônica).
     Extrai texto das páginas, localiza chave de acesso de 44 dígitos e tabela de produtos.
+    Caso seja um PDF escaneado (sem texto), delega para a IA do Google Gemini.
     """
     try:
         from pypdf import PdfReader
@@ -126,10 +330,22 @@ def extrair_dados_pdf(conteudo_bytes):
             if t:
                 texto_completo += t + "\n"
     except Exception as e:
+        if api_key:
+            return extrair_dados_ia(conteudo_bytes, 'documento_escaneado.pdf', api_key=api_key)
         return {'sucesso': False, 'erro': f'Não foi possível ler o arquivo PDF: {str(e)}'}
 
+    # Se não houver texto extraível, o PDF é uma digitalização/imagem
     if not texto_completo.strip():
-        return {'sucesso': False, 'erro': 'O PDF fornecido parece ser uma imagem digitalizada sem camada de texto pesquisável.'}
+        if api_key:
+            return extrair_dados_ia(conteudo_bytes, 'documento_escaneado.pdf', api_key=api_key)
+        return {
+            'sucesso': False,
+            'erro': (
+                'O PDF fornecido parece ser uma imagem digitalizada sem camada de texto pesquisável. '
+                'Para ler documentos escaneados e fotos com Inteligência Artificial, informe sua chave '
+                'gratuita do Google Gemini em "Configurações da Empresa" ou utilize o arquivo XML da NF-e.'
+            )
+        }
 
     # 1. Chave de acesso de 44 dígitos
     chave_acesso = ''
@@ -137,7 +353,6 @@ def extrair_dados_pdf(conteudo_bytes):
     if match_chave:
         chave_acesso = re.sub(r'\D', '', match_chave.group(0))
     else:
-        # Fallback para sequência contínua de 44 números
         match_cont = re.search(r'\b\d{44}\b', texto_completo)
         if match_cont:
             chave_acesso = match_cont.group(0)
@@ -152,7 +367,6 @@ def extrair_dados_pdf(conteudo_bytes):
     fornecedor_nome = ''
     linhas = [l.strip() for l in texto_completo.split('\n') if l.strip()]
     if linhas:
-        # Primeira ou segunda linha geralmente é o nome da empresa emitente
         for l in linhas[:5]:
             if 'RECEBEMOS DE' in l.upper():
                 partes = l.upper().split('RECEBEMOS DE')
@@ -172,17 +386,12 @@ def extrair_dados_pdf(conteudo_bytes):
         fornecedor_cnpj = match_cnpj.group(0)
 
     # 5. Extração de itens / produtos
-    # Padrão típico de linha de produto DANFE:
-    # Código | Descrição | NCM | CST | CFOP | UN | QTD | VL UNIT | VL TOTAL
     itens = []
-    
-    # Regex flexível para linhas de produto:
-    # Exemplo: 001 PASTILHA FREIO DIANT 87083090 0102 5102 UN 2,00 90,00 180,00
     padrao_produto = re.compile(
         r'(?P<cod>[\w\-\.]{2,20})\s+'
         r'(?P<nome>.+?)\s+'
         r'(?P<ncm>\d{8}|\d{2}\.\d{3}\.\d{2})?\s*'
-        r'(?:\d{3,4}\s+)?' # CST/CSOSN opcional
+        r'(?:\d{3,4}\s+)?'
         r'(?P<cfop>\d{4})?\s+'
         r'(?P<un>[A-Z]{2,4})\s+'
         r'(?P<qtd>\d+[\.,]\d+|\d+)\s+'
@@ -210,7 +419,6 @@ def extrair_dados_pdf(conteudo_bytes):
         m = padrao_produto.search(l)
         if m:
             nome_prod = m.group('nome').strip()
-            # Ignorar cabeçalhos falsos positivos
             if any(palavra in nome_prod.upper() for palavra in ['DESCRIÇÃO', 'PRODUTO', 'VALOR', 'QUANTIDADE', 'BASE DE CÁLCULO']):
                 continue
 
@@ -229,7 +437,6 @@ def extrair_dados_pdf(conteudo_bytes):
                 'subtotal': round(vtot, 2)
             })
 
-    # Se a regex estrita não pegou linhas tabeladas, fazemos uma busca mais tolerante por linhas de itens
     if not itens:
         padrao_tolerante = re.compile(r'(.+?)\s+([A-Z]{2})\s+(\d+[\.,]\d+)\s+(\d+[\.,]\d{2})\s+(\d+[\.,]\d{2})')
         for l in linhas:
@@ -252,9 +459,15 @@ def extrair_dados_pdf(conteudo_bytes):
                     })
 
     if not itens:
+        # Tentar leitura via IA como fallback se houver chave
+        if api_key:
+            res_ia = extrair_dados_ia(conteudo_bytes, 'documento_layout_complexo.pdf', api_key=api_key)
+            if res_ia.get('sucesso'):
+                return res_ia
+
         return {
             'sucesso': False, 
-            'erro': 'Conseguimos ler a nota, mas o formato de tabela de itens deste PDF é muito específico ou contém campos compactados. Recomendamos utilizar o arquivo XML da NF-e fornecido pelo vendedor para 100% de precisão.'
+            'erro': 'Conseguimos abrir a nota, mas o formato de tabela de itens deste PDF é muito específico ou contém campos compactados. Recomendamos utilizar o arquivo XML da NF-e fornecido pelo vendedor para 100% de precisão.'
         }
 
     return {
@@ -269,11 +482,12 @@ def extrair_dados_pdf(conteudo_bytes):
     }
 
 
-def processar_arquivo_nota(arquivo_storage):
+def processar_arquivo_nota(arquivo_storage, api_key=None):
     """
-    Identifica se o arquivo enviado é XML ou PDF e chama o extrator adequado.
+    Identifica o formato do arquivo enviado (XML, PDF nativo, PDF escaneado ou Imagem)
+    e chama o extrator adequado, com suporte a IA multimodal para imagens e digitalizações.
     """
-    nome_arquivo = arquivo_storage.filename.lower()
+    nome_arquivo = (arquivo_storage.filename or '').lower()
     conteudo = arquivo_storage.read()
 
     if not conteudo:
@@ -283,6 +497,11 @@ def processar_arquivo_nota(arquivo_storage):
     if nome_arquivo.endswith('.xml') or conteudo.startswith(b'<?xml') or b'<nfeProc' in conteudo[:200] or b'<NFe' in conteudo[:200]:
         return extrair_dados_xml(conteudo)
     elif nome_arquivo.endswith('.pdf') or conteudo.startswith(b'%PDF'):
-        return extrair_dados_pdf(conteudo)
+        return extrair_dados_pdf(conteudo, api_key=api_key)
+    elif nome_arquivo.endswith(('.jpg', '.jpeg', '.png', '.webp')) or conteudo.startswith(b'\xff\xd8') or conteudo.startswith(b'\x89PNG'):
+        return extrair_dados_ia(conteudo, nome_arquivo, api_key=api_key)
     else:
-        return {'sucesso': False, 'erro': 'Formato não suportado. Por favor, envie um arquivo .XML ou .PDF da nota fiscal.'}
+        return {
+            'sucesso': False, 
+            'erro': 'Formato não suportado. Por favor, envie um arquivo .XML (NF-e), .PDF (DANFE) ou imagem da nota (.JPG, .PNG).'
+        }

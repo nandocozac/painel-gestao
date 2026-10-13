@@ -97,7 +97,8 @@ def migrar_banco_multiempresa():
                 'whatsapp': 'VARCHAR(30) DEFAULT ""',
                 'logo_base64': 'TEXT',
                 'mercadopago_access_token': 'VARCHAR(255) DEFAULT ""',
-                'mercadopago_public_key': 'VARCHAR(255) DEFAULT ""'
+                'mercadopago_public_key': 'VARCHAR(255) DEFAULT ""',
+                'gemini_api_key': 'VARCHAR(255) DEFAULT ""'
             }
             for col, col_type in novas_colunas_empresas.items():
                 if col not in colunas_empresas:
@@ -239,7 +240,8 @@ def migrar_banco_multiempresa():
                 'whatsapp': "VARCHAR(30) DEFAULT ''",
                 'logo_base64': 'TEXT',
                 'mercadopago_access_token': "VARCHAR(255) DEFAULT ''",
-                'mercadopago_public_key': "VARCHAR(255) DEFAULT ''"
+                'mercadopago_public_key': "VARCHAR(255) DEFAULT ''",
+                'gemini_api_key': "VARCHAR(255) DEFAULT ''"
             }
             for col, col_type in pg_colunas_empresas.items():
                 try:
@@ -2447,7 +2449,16 @@ def importar_nota_produtos():
         return redirect(url_for('lista_produtos'))
 
     import importador_nota
-    resultado = importador_nota.processar_arquivo_nota(arquivo)
+    # Obter chave de API do Gemini para processamento inteligente de digitalizações/imagens
+    gemini_key = (getattr(g.empresa, 'gemini_api_key', '') or '').strip()
+    if not gemini_key:
+        master = Empresa.query.filter_by(is_admin=True).first()
+        if master and getattr(master, 'gemini_api_key', ''):
+            gemini_key = master.gemini_api_key.strip()
+    if not gemini_key:
+        gemini_key = os.environ.get('GEMINI_API_KEY', '').strip()
+
+    resultado = importador_nota.processar_arquivo_nota(arquivo, api_key=gemini_key)
 
     if not resultado.get('sucesso'):
         flash(resultado.get('erro', 'Falha ao processar arquivo de nota fiscal.'), "error")
@@ -3327,6 +3338,8 @@ def configuracoes_empresa():
         tipo_negocio = request.form.get('tipo_negocio', '').strip().upper()
         if tipo_negocio in ['OFICINA', 'LOJA']:
             empresa.tipo_negocio = tipo_negocio
+
+        empresa.gemini_api_key = request.form.get('gemini_api_key', '').strip()
 
         # Atualização de e-mail e senha
         novo_email = request.form.get('email', '').strip().lower()

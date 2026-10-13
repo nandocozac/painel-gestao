@@ -383,7 +383,7 @@
     }
 </script>
 
-<!-- Modal Importar Nota Fiscal (XML ou PDF) -->
+<!-- Modal Importar Nota Fiscal (XML, PDF ou Imagem/Foto) -->
 <div id="modalImportarNota" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -391,7 +391,7 @@
                 <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
                     <span>📥</span> Entrada de Mercadorias por Nota
                 </h3>
-                <p class="text-xs text-slate-500">Faça upload do XML da NF-e ou PDF da DANFE</p>
+                <p class="text-xs text-slate-500">Faça upload de XML, PDF (digital ou escaneado) ou Foto</p>
             </div>
             <button onclick="fecharModalImportarNota()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">&times;</button>
         </div>
@@ -401,13 +401,14 @@
                  onclick="document.getElementById('inputArquivoNota').click()">
                 <div class="text-3xl mb-2">📑</div>
                 <p class="text-xs font-bold text-purple-900">Clique para selecionar o arquivo da Nota Fiscal</p>
-                <p class="text-[11px] text-purple-700/80 mt-1">Suporta arquivos <strong>.XML (NF-e)</strong> ou <strong>.PDF (DANFE)</strong></p>
-                <input type="file" name="arquivo_nota" id="inputArquivoNota" accept=".xml,.pdf" required class="hidden" onchange="mostrarArquivoSelecionado(this)">
+                <p class="text-[11px] text-purple-700/80 mt-1">Suporta <strong>.XML (NF-e)</strong>, <strong>.PDF (DANFE / Digitalizado)</strong> ou <strong>Fotos (.JPG, .PNG)</strong></p>
+                <input type="file" name="arquivo_nota" id="inputArquivoNota" accept=".xml,.pdf,.jpg,.jpeg,.png,.webp" required class="hidden" onchange="mostrarArquivoSelecionado(this)">
                 <div id="previewNomeArquivo" class="hidden mt-3 text-xs font-bold text-slate-800 bg-white p-2 rounded-lg border border-purple-200"></div>
             </div>
 
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
-                <p>💡 <strong>Dica Pro:</strong> O arquivo <strong>XML da NF-e</strong> (enviado pelo fornecedor) garante 100% de precisão automática em códigos, NCM, quantidade e valor de custo sem nenhuma falha de leitura.</p>
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1.5">
+                <p>💡 <strong>Dica Pro:</strong> O arquivo <strong>XML da NF-e</strong> garante 100% de precisão automática em códigos, NCM, quantidade e valor de custo.</p>
+                <p>✨ <strong>PDFs escaneados ou fotos:</strong> São lidos automaticamente através de <strong>Visão Computacional por Inteligência Artificial (Google Gemini)</strong>.</p>
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -421,4 +422,15 @@
         </form>
     </div>
 </div>
+
+<script>
+    document.getElementById('formUploadNota')?.addEventListener('submit', function() {
+        const btn = document.getElementById('btnProcessarNota');
+        if (btn) {
+            btn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> Analisando Documento...';
+            btn.style.pointerEvents = 'none';
+            btn.classList.add('opacity-80');
+        }
+    });
+</script>
 {% endblock %}

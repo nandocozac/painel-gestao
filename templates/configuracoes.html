@@ -289,6 +289,45 @@
             </div>
         </div>
 
+        <!-- 6. INTELIGÊNCIA ARTIFICIAL & ENTRADA DE NOTAS (GOOGLE GEMINI) -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Inteligência Artificial (Google Gemini) - Leitura de Notas & Fotos
+                </h2>
+                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full {% if empresa.gemini_api_key %}bg-emerald-100 text-emerald-700 border border-emerald-200{% else %}bg-slate-100 text-slate-600 border border-slate-200{% endif %}">
+                    {% if empresa.gemini_api_key %}● Ativo (Chave Própria){% else %}○ Opcional{% endif %}
+                </span>
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Permite que o sistema leia automaticamente <strong>PDFs escaneados</strong>, <strong>fotos de notas de papel</strong> e <strong>cupons fiscais</strong> no módulo de Estoque utilizando a visão computacional do Google Gemini.
+            </p>
+
+            <div class="space-y-1.5">
+                <label class="block text-xs font-semibold text-slate-700">Chave de API do Google Gemini (Gratuita)</label>
+                <div class="relative">
+                    <input type="password" id="gemini_api_key_input" name="gemini_api_key" value="{{ empresa.gemini_api_key or '' }}"
+                        class="w-full text-sm rounded-lg border border-slate-300 px-3.5 py-2.5 pr-24 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono"
+                        placeholder="Ex: AIzaSy...">
+                    <button type="button" onclick="toggleGeminiKeyVisibility()"
+                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded border border-slate-300 font-medium transition cursor-pointer">
+                        <span id="gemini_key_btn_text">Mostrar</span>
+                    </button>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-500 pt-1">
+                    <span>Você pode gerar uma chave gratuita em menos de 1 minuto no Google AI Studio.</span>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
+                        class="text-emerald-600 hover:text-emerald-700 font-bold underline inline-flex items-center gap-1">
+                        Obter chave gratuita no Google AI Studio &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <!-- BOTÃO SALVAR -->
         <div class="flex justify-end pt-2">
             <button type="submit"
@@ -323,5 +362,20 @@
             }
         });
     }
+
+    function toggleGeminiKeyVisibility() {
+        const input = document.getElementById('gemini_api_key_input');
+        const btnText = document.getElementById('gemini_key_btn_text');
+        if (input && btnText) {
+            if (input.type === 'password') {
+                input.type = 'text';
+                btnText.textContent = 'Ocultar';
+            } else {
+                input.type = 'password';
+                btnText.textContent = 'Mostrar';
+            }
+        }
+    }
 </script>
 {% endblock %}
+
