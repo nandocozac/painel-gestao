@@ -710,7 +710,14 @@
                             </div>
                             <div class="col-span-1 text-center">
                                 <button type="button" onclick="removerLinha(this)"
-                                    class="text-rose-            {% if is_admin_empresa %}
+                                    class="text-rose-500 hover:text-rose-700 font-bold text-sm">&times;</button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if is_admin_empresa %}
             <!-- 3. EQUIPE RESPONSÁVEL & COMISSÕES (MÚLTIPLOS VENDEDORES E MECÂNICOS) -->
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
