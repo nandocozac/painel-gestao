@@ -2904,7 +2904,6 @@ def editar_cliente(cliente_id):
 
 @app.route('/financeiro')
 @login_required
-@empresa_admin_required
 def relatorio_financeiro():
     hoje = date.today()
     dia_str = request.args.get('dia', '').strip()
@@ -2957,7 +2956,6 @@ def relatorio_financeiro():
 
 @app.route('/financeiro/exportar')
 @login_required
-@empresa_admin_required
 def exportar_financeiro():
     hoje = date.today()
     dia_str = request.args.get('dia', '').strip()

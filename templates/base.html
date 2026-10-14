@@ -143,12 +143,10 @@
                     </a>
                     {% endif %}
 
-                    {% if is_admin_empresa %}
                     <a href="{{ url_for('relatorio_financeiro') }}"
                         class="px-2.5 py-1.5 rounded-lg transition-all {% if request.endpoint == 'relatorio_financeiro' %}bg-slate-800 text-white shadow-xs border border-slate-700/60{% else %}text-slate-300 hover:text-white hover:bg-slate-800/60{% endif %}">
                         Caixa
                     </a>
-                    {% endif %}
 
                     {% if is_admin_empresa %}
                     <a href="{{ url_for('relatorio_comissoes') }}"
@@ -242,9 +240,7 @@
             {% if is_admin_empresa %}
             <a href="{{ url_for('lista_clientes') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Clientes</a>
             {% endif %}
-            {% if is_admin_empresa %}
             <a href="{{ url_for('relatorio_financeiro') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Caixa</a>
-            {% endif %}
             {% if is_admin_empresa %}
             <a href="{{ url_for('relatorio_comissoes') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Comissões</a>
             <a href="{{ url_for('lista_colaboradores') }}" class="px-2.5 py-1 rounded-lg whitespace-nowrap text-slate-300 hover:text-white">Equipe</a>
