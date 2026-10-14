@@ -717,7 +717,6 @@
                 </div>
             </div>
 
-            {% if is_admin_empresa %}
             <!-- 3. EQUIPE RESPONSÁVEL & COMISSÕES (MÚLTIPLOS VENDEDORES E MECÂNICOS) -->
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
@@ -728,10 +727,12 @@
                         </span>
                         <p class="text-[11px] text-slate-500 mt-0.5">Vincule todos os profissionais que participaram desta venda ou prestaram serviços específicos</p>
                     </div>
+                    {% if is_admin_empresa %}
                     <a href="{{ url_for('lista_colaboradores') }}" target="_blank"
                         class="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition">
                         + Cadastrar Profissional
                     </a>
+                    {% endif %}
                 </div>
 
                 <!-- Datalist com sugestões rápidas de especialidades do mecânico -->
@@ -1033,14 +1034,6 @@
                     </div>
                 </template>
             </div>
-            {% else %}
-            <input type="hidden" name="vendedor_id" value="{{ os.vendedor_id or (colaborador.id if colaborador else '') }}">
-            <input type="hidden" name="mecanico_id" value="{{ os.mecanico_id or '' }}">
-            <input type="hidden" name="tipo_comissao_vendedor" value="{{ os.tipo_comissao_vendedor or 'PORCENTAGEM' }}">
-            <input type="hidden" name="porcentagem_comissao_vendedor" value="{{ os.porcentagem_comissao_vendedor or '' }}">
-            <input type="hidden" name="tipo_comissao_mecanico" value="{{ os.tipo_comissao_mecanico or 'PORCENTAGEM' }}">
-            <input type="hidden" name="porcentagem_comissao_mecanico" value="{{ os.porcentagem_comissao_mecanico or '' }}">
-            {% endif %}
 
             <!-- 4. OBSERVAÇÕES E FORMA DE PAGAMENTO -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
