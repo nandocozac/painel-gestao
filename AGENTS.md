@@ -23,9 +23,9 @@ Este documento estabelece as regras mandatórias de desenvolvimento, arquitetura
 
 ## 3. Suporte Multi-Segmento (OFICINA vs LOJA)
 - O sistema atende oficinas e comércios em geral via coluna `tipo_negocio` na tabela `empresas`.
-- **Modo OFICINA**: Exibe campos de veículo (placa, modelo, km) e termos como "Ordem de Serviço", "Mecânico", "Veículo pronto".
-- **Modo LOJA**: Oculta campos veiculares, tratando o documento como "Venda / Pedido" e mensagens de "Pedido pronto para entrega / retirada".
-- Qualquer nova funcionalidade deve respeitar condicionalmente o segmento da empresa ativa.
+- **Modo OFICINA**: Exibe campos de veículo (placa, modelo, km) e termos como "Ordem de Serviço", "Mecânico", "Veículo pronto". Siga as diretrizes e execute a auditoria da skill `segmento-oficina`.
+- **Modo LOJA**: Oculta campos veiculares, tratando o documento como "Venda / Pedido" e mensagens de "Pedido pronto para entrega / retirada". Siga as diretrizes e execute a auditoria da skill `segmento-loja`.
+- Qualquer nova funcionalidade deve respeitar condicionalmente o segmento da empresa ativa, sem vazamento de termos ou campos indevidos.
 
 ---
 
